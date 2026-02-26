@@ -58,8 +58,8 @@
         <div class="row">
           <button id="btnBuildLyricsPrompt" class="btn secondary">Build Lyrics Prompt</button>
           <button id="btnCopyLyricsPrompt" class="btn copy">Copy Lyrics Prompt</button>
-          <button id="btnBuildSunoPack" class="btn secondary">Build Suno Pack</button>
-          <button id="btnCopySunoPack" class="btn copy">Copy Suno Pack</button>
+          <button id="btnViewSunoPrompt" class="btn secondary">View Suno Prompt</button>
+          <button id="btnSunoPack" class="btn copy">Suno Pack</button>
           <button id="btnSave" class="btn primary">Save</button>
         </div>
       </div>
@@ -82,14 +82,14 @@
         </div>
 
         <div style="grid-column: 1 / -1;">
-          <label for="suno_prompt">Suno Prompt (paste into Suno prompt box)</label>
+          <label for="suno_prompt">Suno Prompt (stored)</label>
           <textarea id="suno_prompt" class="mono"></textarea>
         </div>
 
         <div style="grid-column: 1 / -1;">
-          <label for="suno_share_url">Suno Share Link (paste after Suno creates the song)</label>
-          <input id="suno_share_url" placeholder="https://suno.com/song/..." />
-          <div class="hint">Saved per track so you can open Suno quickly later.</div>
+          <label for="suno_share_url">Suno Share Link (optional)</label>
+          <input id="suno_share_url" placeholder="(usually paste this on the Suno Pack page)" />
+          <div class="hint">You can leave this blank here and paste it on the Suno Pack page instead.</div>
         </div>
       </div>
 
@@ -99,12 +99,6 @@
 
       <h2 style="margin:18px 0 8px;">Lyrics (paste from ChatGPT)</h2>
       <textarea id="lyrics" class="mono" placeholder="Paste full lyrics here…"></textarea>
-
-      <h2 style="margin:18px 0 8px;">Suno Copy Pack (what you will paste into Suno)</h2>
-      <textarea id="suno_pack" class="mono" style="min-height:220px;" readonly></textarea>
-      <div class="hint">
-        This combines: <b>Title</b> + <b>Suno Prompt</b> + <b>Lyrics</b> into a clean format.
-      </div>
     </div>
   </div>
 
@@ -148,41 +142,6 @@
     function norm(v){
       const s = (v ?? "").toString().trim();
       return s ? s : null;
-    }
-
-    // Clean whatever is pasted (removes LYRICS: and ``` fences)
-    function cleanLyrics(raw){
-      let t = (raw || "").toString().trim();
-      if (!t) return "";
-      t = t.replace(/^LYRICS:\s*/i, "");
-      t = t.replace(/^```[a-zA-Z]*\s*/m, "");
-      t = t.replace(/```$/m, "");
-      t = t.trim();
-      t = t.replace(/\n{3,}/g, "\n\n");
-      return t;
-    }
-
-    function buildSunoPackText(){
-      const title = norm($("title").value) || "";
-      const sp = norm($("suno_prompt").value) || "";
-      const lyr = cleanLyrics($("lyrics").value);
-
-      // Suno-friendly pack (simple + easy to paste)
-      // You can paste title manually into Suno title field, and paste prompt+lyrics accordingly.
-      return [
-        "TITLE:",
-        title || "(set title in Suno)",
-        "",
-        "SUNO_PROMPT:",
-        sp || "(paste prompt here)",
-        "",
-        "LYRICS:",
-        lyr || "(paste lyrics here)"
-      ].join("\n");
-    }
-
-    function refreshSunoPack(){
-      $("suno_pack").value = buildSunoPackText();
     }
 
     function buildLyricsPrompt(){
@@ -267,8 +226,6 @@ ERROR: NON_COMPLIANT_OUTPUT
 
       setChips();
       $("statusLine").textContent = `Song ID: ${song.id}`;
-
-      refreshSunoPack();
     }
 
     async function saveSong(){
@@ -305,11 +262,6 @@ ERROR: NON_COMPLIANT_OUTPUT
       await loadSong();
     }
 
-    // Live refresh Suno pack whenever you edit
-    ["title","suno_prompt","lyrics"].forEach(id => {
-      $(id).addEventListener("input", refreshSunoPack);
-    });
-
     $("btnBuildLyricsPrompt").onclick = () => {
       $("lyrics_prompt").value = buildLyricsPrompt();
       $("statusLine").textContent = "Lyrics prompt built ✅";
@@ -322,17 +274,17 @@ ERROR: NON_COMPLIANT_OUTPUT
       $("statusLine").textContent = "Lyrics prompt copied ✅";
     };
 
-    $("btnBuildSunoPack").onclick = () => {
-      refreshSunoPack();
-      $("statusLine").textContent = "Suno pack built ✅";
+    $("btnViewSunoPrompt").onclick = async () => {
+      const p = ($("suno_prompt").value || "").trim();
+      if (!p) return alert("No Suno prompt saved yet.");
+      const ok = confirm("Copy Suno prompt to clipboard?\n\nOK = copy, Cancel = just view");
+      if (ok) await navigator.clipboard.writeText(p);
+      window.prompt("Suno Prompt (copy/edit):", p);
     };
 
-    $("btnCopySunoPack").onclick = async () => {
-      refreshSunoPack();
-      const t = $("suno_pack").value.trim();
-      if (!t) return alert("Nothing to copy.");
-      await navigator.clipboard.writeText(t);
-      $("statusLine").textContent = "Suno pack copied ✅";
+    $("btnSunoPack").onclick = () => {
+      const albumId = song?.album_id || albumIdFromUrl;
+      window.location.href = `./song-suno.html?id=${encodeURIComponent(songId)}&album_id=${encodeURIComponent(albumId || "")}`;
     };
 
     $("btnSave").onclick = saveSong;
