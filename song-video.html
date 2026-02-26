@@ -59,7 +59,7 @@
       <div class="row" style="justify-content:space-between;">
         <div>
           <h2 style="margin:0;">Long Form</h2>
-          <div class="muted">Choose a production direction and generate a ChatGPT prompt for Flow + (optional) 10/20 image prompts + Grok I2V.</div>
+          <div class="muted">Build a strict ChatGPT prompt for Flow visuals. For multi-image/video, ChatGPT must return scene + where in lyrics + image prompt (+ grok prompt per scene for music video).</div>
         </div>
         <div class="row">
           <button id="btnBuildLongPrompt" class="btn secondary">Build ChatGPT Prompt</button>
@@ -74,7 +74,7 @@
           <select id="longform_type">
             <option value="static_lyric">Static lyric video (1 image)</option>
             <option value="lyric_10_images">Lyric video (10 images across song)</option>
-            <option value="music_video_20_scenes">Music video (20 image prompts + lyric ranges + Grok 10s clips)</option>
+            <option value="music_video_20_scenes">Music video (20 scenes: image prompt + grok prompt per scene)</option>
           </select>
 
           <div class="checkRow">
@@ -88,13 +88,16 @@
           </div>
 
           <label for="flow_prompt_long">Saved Flow Prompt (Long)</label>
-          <textarea id="flow_prompt_long" class="mono" placeholder="This will be saved in the database."></textarea>
+          <textarea id="flow_prompt_long" class="mono" placeholder="Paste FLOW_PROMPT_LONG from ChatGPT here."></textarea>
 
-          <label for="image_prompts_long_json">Saved Image Prompts JSON (Long) (optional)</label>
-          <textarea id="image_prompts_long_json" class="mono" placeholder='Example: [{"scene":1,"lyric_range":"Verse 1 (0:00-0:20)","prompt":"..."}]'></textarea>
+          <label for="image_prompts_long_json">Saved Scenes JSON (Long)</label>
+          <textarea id="image_prompts_long_json" class="mono"
+            placeholder='For 10 images: [{"scene":1,"lyrics_where":"Verse 1 (first half)","image_prompt":"..."}]
+For music video: [{"scene":1,"lyrics_where":"Verse 1 (0:00–0:10)","image_prompt":"...","grok_prompt":"..."}]'></textarea>
 
-          <label for="grok_i2v_prompt_long">Saved Grok Image→Video Prompt (Long) (optional)</label>
-          <textarea id="grok_i2v_prompt_long" class="mono" placeholder="Prompt to turn each image into a 10s clip (if using music video)."></textarea>
+          <label for="grok_i2v_prompt_long">Saved Grok Prompt (Optional Global Fallback)</label>
+          <textarea id="grok_i2v_prompt_long" class="mono"
+            placeholder="Optional: only if you want a single global grok prompt. For music video, grok_prompt should be PER SCENE inside the Scenes JSON."></textarea>
         </div>
 
         <div>
@@ -102,11 +105,11 @@
           <textarea id="chatgpt_long_prompt" class="mono" placeholder="Click 'Build ChatGPT Prompt'"></textarea>
 
           <div class="muted" style="margin-top:10px; line-height:1.5;">
-            <b>ChatGPT will return:</b><br>
-            1) FLOW_PROMPT_LONG (text) — includes whether to use artist ref<br>
-            2) IMAGE_PROMPTS_LONG_JSON (only for 10-images or 20-scenes)<br>
-            3) GROK_I2V_PROMPT_LONG (only for 20-scenes music video)<br><br>
-            You paste results into the saved fields on the left, then click <b>Save</b>.
+            <b>ChatGPT MUST return:</b><br>
+            1) <b>FLOW_PROMPT_LONG</b> (text)<br>
+            2) If 10-images: <b>SCENES_LONG_JSON</b> → each item has <b>scene + lyrics_where + image_prompt</b><br>
+            3) If music video: <b>VIDEO_SCENES_LONG_JSON</b> → each item has <b>scene + lyrics_where + image_prompt + grok_prompt</b><br><br>
+            Paste results into the left fields, then click <b>Save</b>.
           </div>
         </div>
       </div>
@@ -117,7 +120,7 @@
       <div class="row" style="justify-content:space-between;">
         <div>
           <h2 style="margin:0;">Shorts (3 variants)</h2>
-          <div class="muted">ChatGPT plans 3 Shorts: hook + scene plan + whether to show artist + Flow prompt per short.</div>
+          <div class="muted">ChatGPT plans 3 Shorts: hook + on-screen text + scene plan + Flow prompt per short.</div>
         </div>
         <div class="row">
           <button id="btnBuildShortPrompt" class="btn secondary">Build ChatGPT Prompt</button>
@@ -137,11 +140,12 @@
             <label for="short_done" style="margin:0;">Short prompts complete ✅</label>
           </div>
 
-          <label for="flow_prompt_short">Saved Flow Prompt (Shorts – optional)</label>
+          <label for="flow_prompt_short">Saved Flow Prompt (Shorts – optional master style)</label>
           <textarea id="flow_prompt_short" class="mono"></textarea>
 
           <label for="shorts_plan_json">Saved Shorts Plan JSON (3 shorts)</label>
-          <textarea id="shorts_plan_json" class="mono" placeholder='Example: [{"short":1,"hook":"...","duration":"15s","use_artist_ref":true,"flow_prompt":"...","on_screen_text":["..."],"scene_plan":[...]}]'></textarea>
+          <textarea id="shorts_plan_json" class="mono"
+            placeholder='Example: [{"short":1,"hook":"...","duration":"15s","use_artist_ref":true,"flow_prompt":"...","on_screen_text":["..."],"scene_plan":["..."]}]'></textarea>
         </div>
 
         <div>
@@ -151,7 +155,7 @@
           <div class="muted" style="margin-top:10px; line-height:1.5;">
             <b>ChatGPT will return:</b><br>
             1) SHORTS_PLAN_JSON (array of 3 shorts)<br>
-            2) FLOW_PROMPT_SHORT (optional, if you want 1 master flow style for shorts)
+            2) FLOW_PROMPT_SHORT (optional master style for shorts)
           </div>
         </div>
       </div>
@@ -209,28 +213,58 @@
 
       const typeDesc =
         lfType === "static_lyric" ? "STATIC lyric video with 1 strong hero image (no scene changes)" :
-        lfType === "lyric_10_images" ? "LYRIC video with 10 image changes across the song" :
-        "MUSIC VIDEO with 20 image prompts + lyric ranges, and a Grok Image→Video prompt for 10s clips";
+        lfType === "lyric_10_images" ? "LYRIC video with 10 images across the song" :
+        "MUSIC VIDEO with 20 scenes; each scene has image prompt + grok prompt (per scene)";
 
-      const needsImages = (lfType !== "static_lyric");
-      const needsGrok = (lfType === "music_video_20_scenes");
-
+      // STRICT OUTPUT — forces correct structure
       const strict = `
-STRICT OUTPUT (MUST MATCH EXACTLY)
-Return ONLY these blocks in this order:
+STRICT OUTPUT (IMPORTANT — MUST MATCH EXACTLY)
+Return ONLY the blocks below, in this exact order.
+Do NOT add commentary. Do NOT wrap in markdown.
 
 FLOW_PROMPT_LONG:
 <one text block>
+${lfType === "lyric_10_images" ? `
+SCENES_LONG_JSON:
+<valid JSON array>` : ``}
+${lfType === "music_video_20_scenes" ? `
+VIDEO_SCENES_LONG_JSON:
+<valid JSON array>` : ``}
+`.trim();
 
-${needsImages ? `IMAGE_PROMPTS_LONG_JSON:
-<valid JSON array>` : ""}
+      const scenes10Rules = `
+SCENES_LONG_JSON RULES
+- Output EXACTLY 10 scenes as VALID JSON.
+- Each array item MUST be an object with EXACT keys:
+  {
+    "scene": 1,
+    "lyrics_where": "Verse 1 (first half) / Chorus 1 / Bridge / Outro",
+    "image_prompt": "..."
+  }
+- "lyrics_where" must be very clear and map to the provided lyrics sections (Verse/Chorus/Bridge/Outro) and/or timing ranges.
+- "image_prompt" must be ONE Flow-ready image prompt, cinematic, 16:9, 1920x1080, with clean center space for lyrics overlay.
+- If artist reference is YES: every image_prompt must include the phrase: "use the uploaded artist reference image".
+`.trim();
 
-${needsGrok ? `GROK_I2V_PROMPT_LONG:
-<one text block>` : ""}
+      const scenes20Rules = `
+VIDEO_SCENES_LONG_JSON RULES
+- Output EXACTLY 20 scenes as VALID JSON.
+- Each array item MUST be an object with EXACT keys:
+  {
+    "scene": 1,
+    "lyrics_where": "Verse 1 (0:00–0:10) / Chorus 1 (0:40–0:55) ...",
+    "image_prompt": "...",
+    "grok_prompt": "..."
+  }
+- "image_prompt" is the Flow keyframe image prompt for that scene (consistent style across all scenes).
+- "grok_prompt" is a PER-SCENE Grok image-to-video prompt (10 seconds) that animates the scene:
+  - subtle camera move (dolly/pan), environmental motion (particles/light/wind), NO warping, NO face changes.
+- If artist reference is YES: both image_prompt AND grok_prompt must include: "use the uploaded artist reference image" / "keep identity consistent with reference".
+- Keep all scenes consistent in palette, lighting, wardrobe vibe, and overall “world”.
 `.trim();
 
       const prompt = `
-You are helping me produce a gospel music video using Google Flow (image/video tool) + CapCut.
+You are helping me produce a gospel long-form video using Google Flow (visuals) and CapCut (editing).
 
 ARTIST
 - name: ${artistName}
@@ -251,32 +285,17 @@ We are making: ${typeDesc}
 Artist reference image in Flow: ${useArtist ? "YES (we will upload artist image as reference)" : "NO (no artist reference image)"}
 
 REQUIREMENTS
-1) Create a FLOW prompt for the visuals that matches the artist lane + persona and fits a gospel channel (clean, worshipful).
-2) If artist reference image is YES: the Flow prompt must say to keep the artist identity consistent, realistic, same face/clothes vibe.
-3) If artist reference image is NO: create a visually consistent “music video world” style; DO NOT describe a specific real person.
-4) Keep it cinematic, 16:9, 1920x1080, readable space for lyrics overlay (avoid busy center).
-5) This video must match the lyrics mood and progression (verse → chorus → bridge).
+1) Create FLOW_PROMPT_LONG: a single prompt for Flow visuals that matches the artist lane + persona and fits a gospel channel (clean, worshipful).
+2) The Flow prompt MUST include: 16:9, 1920x1080, cinematic, consistent style, and "leave clean center space for lyrics overlay".
+3) If artist ref = YES: include instruction to keep the artist identity consistent with the uploaded reference.
+4) If artist ref = NO: do NOT describe a specific real person; build a consistent worship “world” style instead.
+5) Follow the emotional arc of the lyrics (Verse → Chorus → Bridge).
 
 LYRICS
-${lyrics ? lyrics : "(Lyrics not found in database yet. If missing, assume a worshipful theme based on title/keywords/scripture.)"}
+${lyrics ? lyrics : "(Lyrics not found. Use title/keywords/scripture to infer the arc.)"}
 
-${needsImages ? `
-IMAGE PROMPTS
-- Return exactly ${lfType === "lyric_10_images" ? "10" : "20"} image prompts as JSON.
-- Each item must include:
-  - "scene" (number)
-  - "lyric_range" (example: "Verse 1 (0:00-0:20)" or "Chorus 1")
-  - "prompt" (a single image prompt for Flow, consistent style)
-- Prompts must progress with the lyrics.
-- If artist ref is YES, prompts must mention: "use the uploaded artist reference image" (but do not mention mic unless requested).
-` : ""}
-
-${needsGrok ? `
-GROK IMAGE→VIDEO PROMPT
-- Create one reusable prompt to turn EACH generated image into a 10-second video clip.
-- Must be cinematic, smooth motion, light camera movement, no weird warping, maintain consistency.
-- If artist ref is YES, keep identity stable and realistic.
-` : ""}
+${lfType === "lyric_10_images" ? scenes10Rules : ""}
+${lfType === "music_video_20_scenes" ? scenes20Rules : ""}
 
 ${strict}
 `.trim();
@@ -331,11 +350,11 @@ SHORTS REQUIREMENTS
 - Each short must include:
   - hook (first 1-2 seconds)
   - duration (10–20s)
-  - use_artist_ref (true/false) — choose best per short, but respect global YES/NO (if global NO then all false)
+  - use_artist_ref (true/false) — if global NO then all must be false
   - on_screen_text (array of 2–5 short lines)
   - scene_plan (array of 3–6 beats)
-  - flow_prompt (a prompt for Flow visuals for THIS short)
-- Shorts should be different angles: comfort, breakthrough, worship energy, etc.
+  - flow_prompt (a Flow prompt for THIS short)
+- Shorts must be different angles (comfort, breakthrough, worship energy).
 - Keep visuals clean and lyric-overlay friendly.
 
 Also output FLOW_PROMPT_SHORT: a master style prompt that can be reused for shorts.
@@ -359,7 +378,6 @@ ${strict}
       if (e1) { $("statusLine").textContent = "Error: " + e1.message; return; }
       song = s;
 
-      // album + artist
       const { data: a, error: e2 } = await supabase.from("albums").select("*").eq("id", song.album_id).single();
       if (!e2) album = a;
 
@@ -370,7 +388,6 @@ ${strict}
 
       $("title").textContent = `Production: ${song.title || "(Untitled)"}`;
 
-      // fill saved values
       $("longform_done").checked = !!song.longform_done;
       $("short_done").checked = !!song.short_done;
 
@@ -378,14 +395,18 @@ ${strict}
       $("longform_use_artist_ref").checked = !!song.longform_use_artist_ref;
 
       $("flow_prompt_long").value = safe(song.flow_prompt_long);
-      $("image_prompts_long_json").value = song.image_prompts_long_json ? JSON.stringify(song.image_prompts_long_json, null, 2) : "";
+
+      // We store either SCENES_LONG_JSON or VIDEO_SCENES_LONG_JSON in the same DB field image_prompts_long_json
+      $("image_prompts_long_json").value = song.image_prompts_long_json
+        ? JSON.stringify(song.image_prompts_long_json, null, 2)
+        : "";
+
       $("grok_i2v_prompt_long").value = safe(song.grok_i2v_prompt_long);
 
       $("short_use_artist_ref").checked = !!song.short_use_artist_ref;
       $("flow_prompt_short").value = safe(song.flow_prompt_short);
       $("shorts_plan_json").value = song.shorts_plan_json ? JSON.stringify(song.shorts_plan_json, null, 2) : "";
 
-      // pills
       const pills = $("pills");
       pills.innerHTML = "";
       pills.appendChild(pill(`song: ${song.id}`));
@@ -424,7 +445,7 @@ ${strict}
     $("btnSave").onclick = async () => {
       $("statusLine").textContent = "Saving…";
 
-      const imageJson = tryParseJsonOrNull($("image_prompts_long_json").value);
+      const scenesJson = tryParseJsonOrNull($("image_prompts_long_json").value);
       const shortsJson = tryParseJsonOrNull($("shorts_plan_json").value);
 
       const payload = {
@@ -435,7 +456,7 @@ ${strict}
         longform_use_artist_ref: $("longform_use_artist_ref").checked,
 
         flow_prompt_long: $("flow_prompt_long").value.trim() || null,
-        image_prompts_long_json: imageJson,
+        image_prompts_long_json: scenesJson, // stores SCENES_LONG_JSON or VIDEO_SCENES_LONG_JSON array
         grok_i2v_prompt_long: $("grok_i2v_prompt_long").value.trim() || null,
 
         short_use_artist_ref: $("short_use_artist_ref").checked,
