@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SVS System – Song / Lyrics Studio</title>
+  <style>
+    :root{
+      --bg:#0b0f19; --card:#121a2a; --card2:#0f1626; --border:#23304a;
+      --muted:#92a4c7; --text:#e8eefc; --primary:#2f6fed; --danger:#d14b4b;
+      --chip:#1c273f;
+    }
+    body { font-family: Arial, sans-serif; background:var(--bg); color:var(--text); margin:0; }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    .top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+    .muted { color:var(--muted); font-size: 14px; }
+    .btn { padding:12px 14px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); cursor:pointer; font-weight:800; }
+    .btn.primary { background:var(--primary); border:none; }
+    .btn.secondary { background:#1c273f; border:1px solid #2a3a5c; }
+    .btn.danger { background:var(--danger); border:none; }
+    .btn.copy { background:#16315f; border:1px solid #2a3a5c; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-top:14px; }
+    .grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; }
+    @media (max-width: 980px){ .grid { grid-template-columns: 1fr; } }
+    label { font-size:12px; color:var(--muted); display:block; margin:8px 0 6px; }
+    input, textarea {
+      padding:12px; border-radius:12px; border:1px solid #2a3a5c;
+      background:var(--card2); color:var(--text); width:100%;
+      box-sizing:border-box;
+    }
+    textarea { min-height: 140px; resize: vertical; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .chips { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    .chip { font-size:12px; padding:6px 10px; border-radius:999px; border:1px solid #2a3a5c; background:var(--chip); color:var(--text); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .hint { font-size:12px; color:var(--muted); margin-top:6px; line-height:1.4; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1 style="margin:0;" id="pageTitle">Song / Lyrics Studio</h1>
+        <div id="who" class="muted"></div>
+      </div>
+      <div class="row">
+        <button id="btnBack" class="btn secondary">Back to Album</button>
+        <button id="btnLogout" class="btn danger">Logout</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between;">
+        <div>
+          <div id="statusLine" class="muted"></div>
+          <div id="chips" class="chips"></div>
+        </div>
+        <div class="row">
+          <button id="btnBuildLyricsPrompt" class="btn secondary">Build Lyrics Prompt</button>
+          <button id="btnCopyLyricsPrompt" class="btn copy">Copy Lyrics Prompt</button>
+          <button id="btnSave" class="btn primary">Save</button>
+        </div>
+      </div>
+
+      <h2 style="margin:18px 0 8px;">Song Info</h2>
+      <div class="grid">
+        <div>
+          <label for="title">Title</label>
+          <input id="title" />
+        </div>
+
+        <div>
+          <label for="scripture">Scripture (optional)</label>
+          <input id="scripture" placeholder="e.g. John 1:5" />
+        </div>
+
+        <div style="grid-column: 1 / -1;">
+          <label for="keywords">Keywords (optional)</label>
+          <input id="keywords" placeholder="e.g. victory, light, breakthrough" />
+        </div>
+
+        <div style="grid-column: 1 / -1;">
+          <label for="suno_prompt">Suno Prompt</label>
+          <textarea id="suno_prompt" class="mono"></textarea>
+        </div>
+      </div>
+
+      <h2 style="margin:18px 0 8px;">Lyrics Prompt (for ChatGPT)</h2>
+      <textarea id="lyrics_prompt" class="mono" placeholder="Click “Build Lyrics Prompt”…"></textarea>
+      <div class="hint">
+        Paste this into ChatGPT. It will respond with ONLY the lyrics in a code block, so you can paste back cleanly.
+      </div>
+
+      <h2 style="margin:18px 0 8px;">Lyrics (paste from ChatGPT)</h2>
+      <textarea id="lyrics" class="mono" placeholder="Paste full lyrics here…"></textarea>
+    </div>
+  </div>
+
+  <script type="module">
+    import { supabase, requireSessionOrRedirect } from "./app.js";
+    const $ = (id) => document.getElementById(id);
+
+    const SONGS = "songs";
+    const ALBUMS = "albums";
+    const ARTISTS = "artists";
+
+    const session = await requireSessionOrRedirect();
+    $("who").textContent = `Signed in: ${session.user.email}`;
+
+    const params = new URLSearchParams(window.location.search);
+    const songId = params.get("id");
+    const albumIdFromUrl = params.get("album_id"); // optional
+    if (!songId) { alert("Missing song id"); window.location.href = "./albums.html"; }
+
+    let song = null;
+    let album = null;
+    let artist = null;
+
+    function chip(txt){
+      const s = document.createElement("span");
+      s.className = "chip";
+      s.textContent = txt;
+      return s;
+    }
+
+    function setChips(){
+      const c = $("chips");
+      c.innerHTML = "";
+      if (artist?.name) c.appendChild(chip("artist: " + artist.name));
+      if (artist?.default_lane) c.appendChild(chip("lane: " + artist.default_lane));
+      if (album?.title) c.appendChild(chip("album: " + album.title));
+      if (album?.lead_type) c.appendChild(chip("lead: " + album.lead_type));
+      if (song?.track_number) c.appendChild(chip("track: " + song.track_number));
+    }
+
+    function norm(v){
+      const s = (v ?? "").toString().trim();
+      return s ? s : null;
+    }
+
+    function buildLyricsPrompt(){
+      const title = norm($("title").value) || "(Untitled)";
+      const keywords = norm($("keywords").value);
+      const scripture = norm($("scripture").value);
+      const leadType = album?.lead_type || "solo";
+      const laneHint = artist?.default_lane || "";
+      const persona = artist?.default_perso || "";
+
+      // We keep it strict to force clean copy/paste.
+      return `Write original gospel song lyrics for the track below.
+
+SONG
+- Title: ${title}
+- Lead type: ${leadType} (solo / solo+choir / choir)
+- Artist lane hint: ${laneHint || "(none)"}
+- Keywords (optional): ${keywords || "(none)"}
+- Scripture (optional): ${scripture || "(none)"}
+
+STYLE / PERSONA (follow this strongly)
+${persona ? persona : "(no persona provided – keep it gospel, uplifting, and clean)"}
+
+LYRICS REQUIREMENTS
+- Length: 3–4 minutes
+- Structure: Verse 1, Pre-Chorus, Chorus, Verse 2, Pre-Chorus, Chorus, Bridge, Final Chorus (repeat)
+- Gospel-forward, worshipful, clean language, no profanity.
+- Avoid extremely long lines; make it singable.
+- If lead_type is solo+choir or choir: write a chorus that feels congregational and “call & response” friendly.
+
+STRICT OUTPUT (MUST MATCH EXACTLY)
+Return ONLY this:
+
+LYRICS:
+\`\`\`
+(lyrics here with section headings)
+\`\`\`
+
+No extra commentary. If you cannot comply, output exactly:
+ERROR: NON_COMPLIANT_OUTPUT
+`;
+    }
+
+    async function loadSong(){
+      $("statusLine").textContent = "Loading…";
+
+      const { data: s, error: e1 } = await supabase
+        .from(SONGS)
+        .select("*")
+        .eq("id", songId)
+        .single();
+
+      if (e1) { $("statusLine").textContent = "Error: " + e1.message; return; }
+      song = s;
+
+      const albumId = song.album_id || albumIdFromUrl;
+      if (albumId){
+        const { data: a, error: e2 } = await supabase
+          .from(ALBUMS)
+          .select("*")
+          .eq("id", albumId)
+          .single();
+        if (!e2) album = a;
+      }
+
+      if (album?.artist_id){
+        const { data: ar, error: e3 } = await supabase
+          .from(ARTISTS)
+          .select("id,name,default_lane,default_perso")
+          .eq("id", album.artist_id)
+          .single();
+        if (!e3) artist = ar;
+      }
+
+      $("pageTitle").textContent = `Song / Lyrics Studio: ${song.title || "(Untitled)"}`;
+      $("title").value = song.title || "";
+      $("keywords").value = song.keywords || "";
+      $("scripture").value = song.scripture || "";
+      $("suno_prompt").value = song.suno_prompt || "";
+      $("lyrics_prompt").value = song.lyrics_prompt || "";
+      $("lyrics").value = song.lyrics || "";
+
+      setChips();
+      $("statusLine").textContent = `Song ID: ${song.id}`;
+    }
+
+    async function saveSong(){
+      $("statusLine").textContent = "Saving…";
+
+      const payload = {
+        title: norm($("title").value),
+        keywords: norm($("keywords").value),
+        scripture: norm($("scripture").value),
+        suno_prompt: norm($("suno_prompt").value),
+        lyrics_prompt: norm($("lyrics_prompt").value),
+        lyrics: norm($("lyrics").value),
+      };
+
+      // Try full update; fallback if some columns don't exist
+      let upd = await supabase.from(SONGS).update(payload).eq("id", songId);
+
+      if (upd.error){
+        const msg = String(upd.error.message || "").toLowerCase();
+
+        // Remove fields that may not exist and retry safely
+        const safe = { title: payload.title, keywords: payload.keywords, scripture: payload.scripture };
+        if (!msg.includes("suno_prompt")) safe.suno_prompt = payload.suno_prompt;
+        if (!msg.includes("lyrics_prompt")) safe.lyrics_prompt = payload.lyrics_prompt;
+        if (!msg.includes("lyrics")) safe.lyrics = payload.lyrics;
+
+        const upd2 = await supabase.from(SONGS).update(safe).eq("id", songId);
+        if (upd2.error){
+          $("statusLine").textContent = "Error: " + upd2.error.message;
+          return;
+        }
+      }
+
+      $("statusLine").textContent = "Saved ✅";
+      await loadSong();
+    }
+
+    $("btnBuildLyricsPrompt").onclick = () => {
+      const p = buildLyricsPrompt();
+      $("lyrics_prompt").value = p;
+      $("statusLine").textContent = "Lyrics prompt built ✅";
+    };
+
+    $("btnCopyLyricsPrompt").onclick = async () => {
+      const p = $("lyrics_prompt").value.trim();
+      if (!p) return alert("No lyrics prompt to copy.");
+      await navigator.clipboard.writeText(p);
+      $("statusLine").textContent = "Lyrics prompt copied ✅";
+    };
+
+    $("btnSave").onclick = saveSong;
+
+    $("btnBack").onclick = () => {
+      const albumId = song?.album_id || albumIdFromUrl;
+      if (albumId) window.location.href = `./album-edit.html?id=${encodeURIComponent(albumId)}`;
+      else window.location.href = "./albums.html";
+    };
+
+    $("btnLogout").onclick = async () => {
+      await supabase.auth.signOut();
+      window.location.href = "./index.html";
+    };
+
+    await loadSong();
+  </script>
+</body>
+</html>
