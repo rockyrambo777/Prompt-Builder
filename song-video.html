@@ -3,20 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>SVS System – Video Production</title>
+  <title>SVS System – Production Prompt Builder</title>
   <style>
     :root{
       --bg:#0b0f19; --card:#121a2a; --card2:#0f1626; --border:#23304a;
       --muted:#92a4c7; --text:#e8eefc; --primary:#2f6fed; --danger:#d14b4b;
     }
     body { font-family: Arial, sans-serif; background:var(--bg); color:var(--text); margin:0; }
-    .wrap { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    .wrap { max-width: 1250px; margin: 0 auto; padding: 24px; }
     .top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
     .muted { color:var(--muted); font-size: 14px; }
     .btn { padding:12px 14px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); cursor:pointer; font-weight:800; }
     .btn.primary { background:var(--primary); border:none; }
     .btn.secondary { background:#1c273f; border:1px solid #2a3a5c; }
     .btn.danger { background:var(--danger); border:none; }
+    .btn.copy { background:#16315f; border:1px solid #2a3a5c; }
     .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-top:14px; }
     label { font-size:12px; color:var(--muted); display:block; margin:10px 0 6px; }
     input, textarea, select {
@@ -28,93 +29,134 @@
     .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
     .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
     @media (max-width: 980px){ .grid2 { grid-template-columns: 1fr; } }
-    .sectionTitle { margin: 0 0 10px; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-    .checkRow { display:flex; align-items:center; gap:10px; margin:10px 0; }
-    input[type="checkbox"]{ width:20px; height:20px; accent-color: var(--primary); }
     .pillbar { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
     .pill { padding:6px 10px; border-radius:999px; border:1px solid #2a3a5c; background:#0f1626; font-size:12px; }
+    .checkRow { display:flex; align-items:center; gap:10px; margin:10px 0; }
+    input[type="checkbox"]{ width:20px; height:20px; accent-color: var(--primary); }
+    .smallLink { text-decoration:none; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="top">
       <div>
-        <h1 style="margin:0;" id="title">Video Production</h1>
+        <h1 style="margin:0;" id="title">Production Prompt Builder</h1>
         <div id="who" class="muted"></div>
         <div id="statusLine" class="muted"></div>
         <div id="pills" class="pillbar"></div>
       </div>
       <div class="row">
+        <a class="btn secondary smallLink" href="https://labs.google/fx/tools/flow" target="_blank" rel="noopener noreferrer">Open Google Flow</a>
+        <a class="btn secondary smallLink" href="https://vizzy.io/" target="_blank" rel="noopener noreferrer">Open Vizzy</a>
         <button id="btnBack" class="btn secondary">Back</button>
         <button id="btnLogout" class="btn danger">Logout</button>
       </div>
     </div>
 
+    <!-- LONG FORM -->
     <div class="card">
       <div class="row" style="justify-content:space-between;">
-        <div class="muted">Mark Long / Short as done + store style, notes, and upload URLs.</div>
+        <div>
+          <h2 style="margin:0;">Long Form</h2>
+          <div class="muted">Choose a production direction and generate a ChatGPT prompt for Flow + (optional) 10/20 image prompts + Grok I2V.</div>
+        </div>
         <div class="row">
-          <button id="btnOpenLyrics" class="btn secondary">Open Lyrics</button>
-          <button id="btnOpenSunoPack" class="btn secondary">Open Suno Pack</button>
+          <button id="btnBuildLongPrompt" class="btn secondary">Build ChatGPT Prompt</button>
+          <button id="btnCopyLongPrompt" class="btn copy">Copy Prompt</button>
           <button id="btnSave" class="btn primary">Save</button>
         </div>
       </div>
 
-      <div class="grid2" style="margin-top:14px;">
-        <!-- LONG FORM -->
-        <div class="card" style="margin-top:0;">
-          <h2 class="sectionTitle">Long Form</h2>
+      <div class="grid2" style="margin-top:12px;">
+        <div>
+          <label for="longform_type">Long Form Type</label>
+          <select id="longform_type">
+            <option value="static_lyric">Static lyric video (1 image)</option>
+            <option value="lyric_10_images">Lyric video (10 images across song)</option>
+            <option value="music_video_20_scenes">Music video (20 image prompts + lyric ranges + Grok 10s clips)</option>
+          </select>
+
+          <div class="checkRow">
+            <input id="longform_use_artist_ref" type="checkbox" />
+            <label for="longform_use_artist_ref" style="margin:0;">Use artist reference image in Google Flow</label>
+          </div>
 
           <div class="checkRow">
             <input id="longform_done" type="checkbox" />
-            <label for="longform_done" style="margin:0;">Long form video created</label>
+            <label for="longform_done" style="margin:0;">Long form prompts complete ✅</label>
           </div>
 
-          <label for="longform_style">Long Form Style / Tool</label>
-          <select id="longform_style">
-            <option value="">(select)</option>
-            <option value="CapCut Lyric Video">CapCut Lyric Video</option>
-            <option value="Canva Background + CapCut">Canva Background + CapCut</option>
-            <option value="Revid AI Video">Revid AI Video</option>
-            <option value="Whisk Image + Edit">Whisk Image + Edit</option>
-            <option value="Other">Other</option>
-          </select>
+          <label for="flow_prompt_long">Saved Flow Prompt (Long)</label>
+          <textarea id="flow_prompt_long" class="mono" placeholder="This will be saved in the database."></textarea>
 
-          <label for="longform_youtube_url">YouTube URL (Long Form)</label>
-          <input id="longform_youtube_url" placeholder="https://youtube.com/..." />
+          <label for="image_prompts_long_json">Saved Image Prompts JSON (Long) (optional)</label>
+          <textarea id="image_prompts_long_json" class="mono" placeholder='Example: [{"scene":1,"lyric_range":"Verse 1 (0:00-0:20)","prompt":"..."}]'></textarea>
 
-          <label for="longform_notes">Notes (Long Form)</label>
-          <textarea id="longform_notes" class="mono" placeholder="Steps, settings, templates used..."></textarea>
+          <label for="grok_i2v_prompt_long">Saved Grok Image→Video Prompt (Long) (optional)</label>
+          <textarea id="grok_i2v_prompt_long" class="mono" placeholder="Prompt to turn each image into a 10s clip (if using music video)."></textarea>
         </div>
 
-        <!-- SHORT -->
-        <div class="card" style="margin-top:0;">
-          <h2 class="sectionTitle">Short</h2>
+        <div>
+          <h3 style="margin:0 0 8px;">ChatGPT Prompt Output (Copy this into ChatGPT)</h3>
+          <textarea id="chatgpt_long_prompt" class="mono" placeholder="Click 'Build ChatGPT Prompt'"></textarea>
 
-          <div class="checkRow">
-            <input id="short_done" type="checkbox" />
-            <label for="short_done" style="margin:0;">Short created</label>
+          <div class="muted" style="margin-top:10px; line-height:1.5;">
+            <b>ChatGPT will return:</b><br>
+            1) FLOW_PROMPT_LONG (text) — includes whether to use artist ref<br>
+            2) IMAGE_PROMPTS_LONG_JSON (only for 10-images or 20-scenes)<br>
+            3) GROK_I2V_PROMPT_LONG (only for 20-scenes music video)<br><br>
+            You paste results into the saved fields on the left, then click <b>Save</b>.
           </div>
-
-          <label for="short_style">Short Style / Tool</label>
-          <select id="short_style">
-            <option value="">(select)</option>
-            <option value="CapCut Short (Lyrics)">CapCut Short (Lyrics)</option>
-            <option value="Image-to-Video (10s)">Image-to-Video (10s)</option>
-            <option value="Revid AI Short">Revid AI Short</option>
-            <option value="Whisk + Grok I2V">Whisk + Grok I2V</option>
-            <option value="Other">Other</option>
-          </select>
-
-          <label for="short_youtube_url">YouTube URL (Short)</label>
-          <input id="short_youtube_url" placeholder="https://youtube.com/shorts/..." />
-
-          <label for="short_notes">Notes (Short)</label>
-          <textarea id="short_notes" class="mono" placeholder="Text overlays, hook lines, timing..."></textarea>
         </div>
       </div>
     </div>
+
+    <!-- SHORTS -->
+    <div class="card">
+      <div class="row" style="justify-content:space-between;">
+        <div>
+          <h2 style="margin:0;">Shorts (3 variants)</h2>
+          <div class="muted">ChatGPT plans 3 Shorts: hook + scene plan + whether to show artist + Flow prompt per short.</div>
+        </div>
+        <div class="row">
+          <button id="btnBuildShortPrompt" class="btn secondary">Build ChatGPT Prompt</button>
+          <button id="btnCopyShortPrompt" class="btn copy">Copy Prompt</button>
+        </div>
+      </div>
+
+      <div class="grid2" style="margin-top:12px;">
+        <div>
+          <div class="checkRow">
+            <input id="short_use_artist_ref" type="checkbox" />
+            <label for="short_use_artist_ref" style="margin:0;">Use artist reference image in Google Flow (Shorts)</label>
+          </div>
+
+          <div class="checkRow">
+            <input id="short_done" type="checkbox" />
+            <label for="short_done" style="margin:0;">Short prompts complete ✅</label>
+          </div>
+
+          <label for="flow_prompt_short">Saved Flow Prompt (Shorts – optional)</label>
+          <textarea id="flow_prompt_short" class="mono"></textarea>
+
+          <label for="shorts_plan_json">Saved Shorts Plan JSON (3 shorts)</label>
+          <textarea id="shorts_plan_json" class="mono" placeholder='Example: [{"short":1,"hook":"...","duration":"15s","use_artist_ref":true,"flow_prompt":"...","on_screen_text":["..."],"scene_plan":[...]}]'></textarea>
+        </div>
+
+        <div>
+          <h3 style="margin:0 0 8px;">ChatGPT Prompt Output (Copy this into ChatGPT)</h3>
+          <textarea id="chatgpt_short_prompt" class="mono" placeholder="Click 'Build ChatGPT Prompt'"></textarea>
+
+          <div class="muted" style="margin-top:10px; line-height:1.5;">
+            <b>ChatGPT will return:</b><br>
+            1) SHORTS_PLAN_JSON (array of 3 shorts)<br>
+            2) FLOW_PROMPT_SHORT (optional, if you want 1 master flow style for shorts)
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <script type="module">
@@ -131,23 +173,15 @@
     if (!songId) { alert("Missing song id"); window.location.href = "./production.html"; }
 
     let song = null;
+    let album = null;
+    let artist = null;
 
     $("btnLogout").onclick = async () => {
       await supabase.auth.signOut();
       window.location.href = "./index.html";
     };
 
-    $("btnBack").onclick = () => {
-      window.location.href = "./production.html";
-    };
-
-    $("btnOpenLyrics").onclick = () => {
-      window.location.href = `./song-edit.html?id=${encodeURIComponent(songId)}&album_id=${encodeURIComponent(albumId || "")}`;
-    };
-
-    $("btnOpenSunoPack").onclick = () => {
-      window.location.href = `./song-suno.html?id=${encodeURIComponent(songId)}&album_id=${encodeURIComponent(albumId || "")}`;
-    };
+    $("btnBack").onclick = () => window.location.href = "./production.html";
 
     function pill(txt){
       const d = document.createElement("div");
@@ -156,64 +190,263 @@
       return d;
     }
 
-    function norm(v){
-      const s = (v ?? "").toString().trim();
-      return s ? s : null;
+    function safe(v){ return (v === null || v === undefined) ? "" : String(v); }
+
+    function buildLongChatGPTPrompt(){
+      const lfType = $("longform_type").value;
+      const useArtist = $("longform_use_artist_ref").checked;
+
+      const lane = artist?.default_lane || "";
+      const persona = artist?.default_perso || "";
+      const artistName = artist?.name || "";
+      const albumTitle = album?.title || "";
+      const leadType = album?.lead_type || "solo";
+
+      const lyrics = (song?.lyrics || "").trim();
+      const suno = (song?.suno_prompt || "").trim();
+      const keywords = (song?.keywords || "").trim();
+      const scripture = (song?.scripture || "").trim();
+
+      const typeDesc =
+        lfType === "static_lyric" ? "STATIC lyric video with 1 strong hero image (no scene changes)" :
+        lfType === "lyric_10_images" ? "LYRIC video with 10 image changes across the song" :
+        "MUSIC VIDEO with 20 image prompts + lyric ranges, and a Grok Image→Video prompt for 10s clips";
+
+      const needsImages = (lfType !== "static_lyric");
+      const needsGrok = (lfType === "music_video_20_scenes");
+
+      const strict = `
+STRICT OUTPUT (MUST MATCH EXACTLY)
+Return ONLY these blocks in this order:
+
+FLOW_PROMPT_LONG:
+<one text block>
+
+${needsImages ? `IMAGE_PROMPTS_LONG_JSON:
+<valid JSON array>` : ""}
+
+${needsGrok ? `GROK_I2V_PROMPT_LONG:
+<one text block>` : ""}
+`.trim();
+
+      const prompt = `
+You are helping me produce a gospel music video using Google Flow (image/video tool) + CapCut.
+
+ARTIST
+- name: ${artistName}
+- lane/style family: ${lane}
+- lead type: ${leadType}
+- persona / style voice: ${persona}
+
+ALBUM: ${albumTitle}
+SONG: ${song?.title || ""}
+
+SONG DATA
+- Keywords: ${keywords || "(none)"}
+- Scripture: ${scripture || "(none)"}
+- Suno prompt (music style): ${suno || "(none saved yet)"}
+
+DECISION
+We are making: ${typeDesc}
+Artist reference image in Flow: ${useArtist ? "YES (we will upload artist image as reference)" : "NO (no artist reference image)"}
+
+REQUIREMENTS
+1) Create a FLOW prompt for the visuals that matches the artist lane + persona and fits a gospel channel (clean, worshipful).
+2) If artist reference image is YES: the Flow prompt must say to keep the artist identity consistent, realistic, same face/clothes vibe.
+3) If artist reference image is NO: create a visually consistent “music video world” style; DO NOT describe a specific real person.
+4) Keep it cinematic, 16:9, 1920x1080, readable space for lyrics overlay (avoid busy center).
+5) This video must match the lyrics mood and progression (verse → chorus → bridge).
+
+LYRICS
+${lyrics ? lyrics : "(Lyrics not found in database yet. If missing, assume a worshipful theme based on title/keywords/scripture.)"}
+
+${needsImages ? `
+IMAGE PROMPTS
+- Return exactly ${lfType === "lyric_10_images" ? "10" : "20"} image prompts as JSON.
+- Each item must include:
+  - "scene" (number)
+  - "lyric_range" (example: "Verse 1 (0:00-0:20)" or "Chorus 1")
+  - "prompt" (a single image prompt for Flow, consistent style)
+- Prompts must progress with the lyrics.
+- If artist ref is YES, prompts must mention: "use the uploaded artist reference image" (but do not mention mic unless requested).
+` : ""}
+
+${needsGrok ? `
+GROK IMAGE→VIDEO PROMPT
+- Create one reusable prompt to turn EACH generated image into a 10-second video clip.
+- Must be cinematic, smooth motion, light camera movement, no weird warping, maintain consistency.
+- If artist ref is YES, keep identity stable and realistic.
+` : ""}
+
+${strict}
+`.trim();
+
+      return prompt;
+    }
+
+    function buildShortChatGPTPrompt(){
+      const useArtist = $("short_use_artist_ref").checked;
+
+      const lane = artist?.default_lane || "";
+      const persona = artist?.default_perso || "";
+      const artistName = artist?.name || "";
+      const leadType = album?.lead_type || "solo";
+
+      const lyrics = (song?.lyrics || "").trim();
+      const keywords = (song?.keywords || "").trim();
+      const scripture = (song?.scripture || "").trim();
+
+      const strict = `
+STRICT OUTPUT (MUST MATCH EXACTLY)
+Return ONLY these blocks in this order:
+
+SHORTS_PLAN_JSON:
+<valid JSON array of 3 objects>
+
+FLOW_PROMPT_SHORT:
+<one text block>
+`.trim();
+
+      const prompt = `
+You are planning 3 YouTube Shorts for a gospel song using Google Flow visuals + CapCut.
+
+ARTIST
+- name: ${artistName}
+- lane/style family: ${lane}
+- lead type: ${leadType}
+- persona / style voice: ${persona}
+
+SONG: ${song?.title || ""}
+Artist reference image in Flow: ${useArtist ? "YES (we will upload artist image as reference)" : "NO"}
+
+SONG CONTEXT
+- Keywords: ${keywords || "(none)"}
+- Scripture: ${scripture || "(none)"}
+
+LYRICS (use to pick hooks and moments)
+${lyrics ? lyrics : "(Lyrics not found. Use title/keywords/scripture to infer.)"}
+
+SHORTS REQUIREMENTS
+- Create exactly 3 shorts concepts.
+- Each short must include:
+  - hook (first 1-2 seconds)
+  - duration (10–20s)
+  - use_artist_ref (true/false) — choose best per short, but respect global YES/NO (if global NO then all false)
+  - on_screen_text (array of 2–5 short lines)
+  - scene_plan (array of 3–6 beats)
+  - flow_prompt (a prompt for Flow visuals for THIS short)
+- Shorts should be different angles: comfort, breakthrough, worship energy, etc.
+- Keep visuals clean and lyric-overlay friendly.
+
+Also output FLOW_PROMPT_SHORT: a master style prompt that can be reused for shorts.
+
+${strict}
+`.trim();
+
+      return prompt;
+    }
+
+    function tryParseJsonOrNull(txt){
+      const t = (txt || "").trim();
+      if (!t) return null;
+      try { return JSON.parse(t); } catch { return null; }
     }
 
     async function load(){
       $("statusLine").textContent = "Loading…";
-      const { data, error } = await supabase.from("songs").select("*").eq("id", songId).single();
-      if (error) { $("statusLine").textContent = "Error: " + error.message; return; }
-      song = data;
 
-      $("title").textContent = `Video Production: ${song.title || "(Untitled)"}`;
+      const { data: s, error: e1 } = await supabase.from("songs").select("*").eq("id", songId).single();
+      if (e1) { $("statusLine").textContent = "Error: " + e1.message; return; }
+      song = s;
 
-      // fill fields
+      // album + artist
+      const { data: a, error: e2 } = await supabase.from("albums").select("*").eq("id", song.album_id).single();
+      if (!e2) album = a;
+
+      if (album?.artist_id){
+        const { data: ar, error: e3 } = await supabase.from("artists").select("*").eq("id", album.artist_id).single();
+        if (!e3) artist = ar;
+      }
+
+      $("title").textContent = `Production: ${song.title || "(Untitled)"}`;
+
+      // fill saved values
       $("longform_done").checked = !!song.longform_done;
       $("short_done").checked = !!song.short_done;
 
-      $("longform_style").value = song.longform_style || "";
-      $("short_style").value = song.short_style || "";
+      $("longform_type").value = song.longform_type || "static_lyric";
+      $("longform_use_artist_ref").checked = !!song.longform_use_artist_ref;
 
-      $("longform_youtube_url").value = song.longform_youtube_url || "";
-      $("short_youtube_url").value = song.short_youtube_url || "";
+      $("flow_prompt_long").value = safe(song.flow_prompt_long);
+      $("image_prompts_long_json").value = song.image_prompts_long_json ? JSON.stringify(song.image_prompts_long_json, null, 2) : "";
+      $("grok_i2v_prompt_long").value = safe(song.grok_i2v_prompt_long);
 
-      $("longform_notes").value = song.longform_notes || "";
-      $("short_notes").value = song.short_notes || "";
+      $("short_use_artist_ref").checked = !!song.short_use_artist_ref;
+      $("flow_prompt_short").value = safe(song.flow_prompt_short);
+      $("shorts_plan_json").value = song.shorts_plan_json ? JSON.stringify(song.shorts_plan_json, null, 2) : "";
 
       // pills
       const pills = $("pills");
       pills.innerHTML = "";
       pills.appendChild(pill(`song: ${song.id}`));
       if (song.track_number) pills.appendChild(pill(`track: ${song.track_number}`));
-      if (albumId) pills.appendChild(pill(`album_id: ${albumId}`));
+      if (artist?.name) pills.appendChild(pill(`artist: ${artist.name}`));
+      if (album?.title) pills.appendChild(pill(`album: ${album.title}`));
+      if (album?.status) pills.appendChild(pill(`album_status: ${album.status}`));
 
-      $("statusLine").textContent = "Ready.";
+      $("statusLine").textContent = "Ready ✅";
     }
+
+    $("btnBuildLongPrompt").onclick = () => {
+      $("chatgpt_long_prompt").value = buildLongChatGPTPrompt();
+      $("statusLine").textContent = "Long-form ChatGPT prompt built ✅";
+    };
+
+    $("btnCopyLongPrompt").onclick = async () => {
+      const p = $("chatgpt_long_prompt").value.trim();
+      if (!p) return alert("Build the prompt first.");
+      await navigator.clipboard.writeText(p);
+      $("statusLine").textContent = "Copied long-form prompt ✅";
+    };
+
+    $("btnBuildShortPrompt").onclick = () => {
+      $("chatgpt_short_prompt").value = buildShortChatGPTPrompt();
+      $("statusLine").textContent = "Shorts ChatGPT prompt built ✅";
+    };
+
+    $("btnCopyShortPrompt").onclick = async () => {
+      const p = $("chatgpt_short_prompt").value.trim();
+      if (!p) return alert("Build the prompt first.");
+      await navigator.clipboard.writeText(p);
+      $("statusLine").textContent = "Copied shorts prompt ✅";
+    };
 
     $("btnSave").onclick = async () => {
       $("statusLine").textContent = "Saving…";
+
+      const imageJson = tryParseJsonOrNull($("image_prompts_long_json").value);
+      const shortsJson = tryParseJsonOrNull($("shorts_plan_json").value);
 
       const payload = {
         longform_done: $("longform_done").checked,
         short_done: $("short_done").checked,
 
-        longform_style: norm($("longform_style").value),
-        short_style: norm($("short_style").value),
+        longform_type: $("longform_type").value,
+        longform_use_artist_ref: $("longform_use_artist_ref").checked,
 
-        longform_youtube_url: norm($("longform_youtube_url").value),
-        short_youtube_url: norm($("short_youtube_url").value),
+        flow_prompt_long: $("flow_prompt_long").value.trim() || null,
+        image_prompts_long_json: imageJson,
+        grok_i2v_prompt_long: $("grok_i2v_prompt_long").value.trim() || null,
 
-        longform_notes: norm($("longform_notes").value),
-        short_notes: norm($("short_notes").value),
+        short_use_artist_ref: $("short_use_artist_ref").checked,
+        flow_prompt_short: $("flow_prompt_short").value.trim() || null,
+        shorts_plan_json: shortsJson,
       };
 
       const { error } = await supabase.from("songs").update(payload).eq("id", songId);
       if (error) { $("statusLine").textContent = "Error: " + error.message; return; }
 
       $("statusLine").textContent = "Saved ✅";
-      // go back automatically after save:
       window.location.href = "./production.html";
     };
 
