@@ -25,7 +25,7 @@
       background:var(--card2); color:var(--text); width:100%;
       box-sizing:border-box;
     }
-    textarea { min-height: 120px; resize: vertical; }
+    textarea { min-height: 140px; resize: vertical; }
     .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
     .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
     @media (max-width: 980px){ .grid2 { grid-template-columns: 1fr; } }
@@ -35,6 +35,12 @@
     .checkRow { display:flex; align-items:center; gap:10px; margin:10px 0; }
     input[type="checkbox"]{ width:20px; height:20px; accent-color: var(--primary); }
     .smallLink { text-decoration:none; }
+    .help {
+      margin-top:10px; line-height:1.5; padding:10px 12px;
+      border:1px solid #24324e; border-radius:12px; background:#0f1626;
+      color:var(--muted);
+    }
+    .sectionTitle { margin:0 0 6px; }
   </style>
 </head>
 <body>
@@ -58,8 +64,11 @@
     <div class="card">
       <div class="row" style="justify-content:space-between;">
         <div>
-          <h2 style="margin:0;">Long Form</h2>
-          <div class="muted">Build a strict ChatGPT prompt for Flow visuals. For multi-image/video, ChatGPT must return scene + where in lyrics + image prompt (+ grok prompt per scene for music video).</div>
+          <h2 class="sectionTitle">Long Form</h2>
+          <div class="muted">
+            Generates a strict ChatGPT prompt. ChatGPT must respond ONLY with:
+            <b>SCENE #</b> → <b>IMAGE_PROMPT</b> (+ <b>GROK_PROMPT</b> for music video).
+          </div>
         </div>
         <div class="row">
           <button id="btnBuildLongPrompt" class="btn secondary">Build ChatGPT Prompt</button>
@@ -74,7 +83,7 @@
           <select id="longform_type">
             <option value="static_lyric">Static lyric video (1 image)</option>
             <option value="lyric_10_images">Lyric video (10 images across song)</option>
-            <option value="music_video_20_scenes">Music video (20 scenes: image prompt + grok prompt per scene)</option>
+            <option value="music_video_20_scenes">Music video (20 scenes: image + grok per scene)</option>
           </select>
 
           <div class="checkRow">
@@ -84,32 +93,28 @@
 
           <div class="checkRow">
             <input id="longform_done" type="checkbox" />
-            <label for="longform_done" style="margin:0;">Long form prompts complete ✅</label>
+            <label for="longform_done" style="margin:0;">Long form complete ✅ (only a status tick)</label>
           </div>
 
-          <label for="flow_prompt_long">Saved Flow Prompt (Long)</label>
-          <textarea id="flow_prompt_long" class="mono" placeholder="Paste FLOW_PROMPT_LONG from ChatGPT here."></textarea>
-
-          <label for="image_prompts_long_json">Saved Scenes JSON (Long)</label>
-          <textarea id="image_prompts_long_json" class="mono"
-            placeholder='For 10 images: [{"scene":1,"lyrics_where":"Verse 1 (first half)","image_prompt":"..."}]
-For music video: [{"scene":1,"lyrics_where":"Verse 1 (0:00–0:10)","image_prompt":"...","grok_prompt":"..."}]'></textarea>
-
-          <label for="grok_i2v_prompt_long">Saved Grok Prompt (Optional Global Fallback)</label>
-          <textarea id="grok_i2v_prompt_long" class="mono"
-            placeholder="Optional: only if you want a single global grok prompt. For music video, grok_prompt should be PER SCENE inside the Scenes JSON."></textarea>
+          <div class="help">
+            <b>Important:</b> This page does <u>not</u> save any prompts. You only copy them from ChatGPT.
+            <br><br>
+            <b>Output format required from ChatGPT:</b>
+            <br>
+            <span class="mono">SCENE 1<br>IMAGE_PROMPT: ...<br>GROK_PROMPT: ...</span>
+            <br>
+            (GROK_PROMPT only needed for music video.)
+          </div>
         </div>
 
         <div>
           <h3 style="margin:0 0 8px;">ChatGPT Prompt Output (Copy this into ChatGPT)</h3>
           <textarea id="chatgpt_long_prompt" class="mono" placeholder="Click 'Build ChatGPT Prompt'"></textarea>
 
-          <div class="muted" style="margin-top:10px; line-height:1.5;">
-            <b>ChatGPT MUST return:</b><br>
-            1) <b>FLOW_PROMPT_LONG</b> (text)<br>
-            2) If 10-images: <b>SCENES_LONG_JSON</b> → each item has <b>scene + lyrics_where + image_prompt</b><br>
-            3) If music video: <b>VIDEO_SCENES_LONG_JSON</b> → each item has <b>scene + lyrics_where + image_prompt + grok_prompt</b><br><br>
-            Paste results into the left fields, then click <b>Save</b>.
+          <div class="help">
+            After ChatGPT responds, just copy/paste the scene blocks into your workflow.
+            <br>
+            ✅ Nothing is stored here (by design).
           </div>
         </div>
       </div>
@@ -119,8 +124,10 @@ For music video: [{"scene":1,"lyrics_where":"Verse 1 (0:00–0:10)","image_promp
     <div class="card">
       <div class="row" style="justify-content:space-between;">
         <div>
-          <h2 style="margin:0;">Shorts (3 variants)</h2>
-          <div class="muted">ChatGPT plans 3 Shorts: hook + on-screen text + scene plan + Flow prompt per short.</div>
+          <h2 class="sectionTitle">Shorts (3 variants)</h2>
+          <div class="muted">
+            Generates a strict ChatGPT prompt for 3 shorts. ChatGPT response is copy-only (not saved).
+          </div>
         </div>
         <div class="row">
           <button id="btnBuildShortPrompt" class="btn secondary">Build ChatGPT Prompt</button>
@@ -137,25 +144,25 @@ For music video: [{"scene":1,"lyrics_where":"Verse 1 (0:00–0:10)","image_promp
 
           <div class="checkRow">
             <input id="short_done" type="checkbox" />
-            <label for="short_done" style="margin:0;">Short prompts complete ✅</label>
+            <label for="short_done" style="margin:0;">Shorts complete ✅ (only a status tick)</label>
           </div>
 
-          <label for="flow_prompt_short">Saved Flow Prompt (Shorts – optional master style)</label>
-          <textarea id="flow_prompt_short" class="mono"></textarea>
-
-          <label for="shorts_plan_json">Saved Shorts Plan JSON (3 shorts)</label>
-          <textarea id="shorts_plan_json" class="mono"
-            placeholder='Example: [{"short":1,"hook":"...","duration":"15s","use_artist_ref":true,"flow_prompt":"...","on_screen_text":["..."],"scene_plan":["..."]}]'></textarea>
+          <div class="help">
+            <b>Shorts output rule:</b> ChatGPT must return exactly 3 shorts.
+            Each short must list scenes in the same clean style:
+            <br><br>
+            <span class="mono">SHORT 1<br>SCENE 1<br>IMAGE_PROMPT: ...<br>GROK_PROMPT: ...</span>
+            <br>
+            (If you don’t want Grok for shorts, ChatGPT will omit GROK_PROMPT.)
+          </div>
         </div>
 
         <div>
           <h3 style="margin:0 0 8px;">ChatGPT Prompt Output (Copy this into ChatGPT)</h3>
           <textarea id="chatgpt_short_prompt" class="mono" placeholder="Click 'Build ChatGPT Prompt'"></textarea>
 
-          <div class="muted" style="margin-top:10px; line-height:1.5;">
-            <b>ChatGPT will return:</b><br>
-            1) SHORTS_PLAN_JSON (array of 3 shorts)<br>
-            2) FLOW_PROMPT_SHORT (optional master style for shorts)
+          <div class="help">
+            ✅ Nothing is saved for shorts prompts either.
           </div>
         </div>
       </div>
@@ -172,8 +179,6 @@ For music video: [{"scene":1,"lyrics_where":"Verse 1 (0:00–0:10)","image_promp
 
     const params = new URLSearchParams(window.location.search);
     const songId = params.get("id");
-    const albumId = params.get("album_id");
-
     if (!songId) { alert("Missing song id"); window.location.href = "./production.html"; }
 
     let song = null;
@@ -211,60 +216,43 @@ For music video: [{"scene":1,"lyrics_where":"Verse 1 (0:00–0:10)","image_promp
       const keywords = (song?.keywords || "").trim();
       const scripture = (song?.scripture || "").trim();
 
-      const typeDesc =
-        lfType === "static_lyric" ? "STATIC lyric video with 1 strong hero image (no scene changes)" :
-        lfType === "lyric_10_images" ? "LYRIC video with 10 images across the song" :
-        "MUSIC VIDEO with 20 scenes; each scene has image prompt + grok prompt (per scene)";
+      const isStatic = (lfType === "static_lyric");
+      const is10 = (lfType === "lyric_10_images");
+      const is20 = (lfType === "music_video_20_scenes");
 
-      // STRICT OUTPUT — forces correct structure
-      const strict = `
-STRICT OUTPUT (IMPORTANT — MUST MATCH EXACTLY)
-Return ONLY the blocks below, in this exact order.
-Do NOT add commentary. Do NOT wrap in markdown.
+      const howMany = isStatic ? 1 : (is10 ? 10 : 20);
 
-FLOW_PROMPT_LONG:
-<one text block>
-${lfType === "lyric_10_images" ? `
-SCENES_LONG_JSON:
-<valid JSON array>` : ``}
-${lfType === "music_video_20_scenes" ? `
-VIDEO_SCENES_LONG_JSON:
-<valid JSON array>` : ``}
-`.trim();
+      const strict = is20 ? `
+STRICT OUTPUT (MUST MATCH EXACTLY)
+Return ONLY scene blocks in this exact format.
+NO JSON. NO markdown. NO commentary. NO extra lines.
 
-      const scenes10Rules = `
-SCENES_LONG_JSON RULES
-- Output EXACTLY 10 scenes as VALID JSON.
-- Each array item MUST be an object with EXACT keys:
-  {
-    "scene": 1,
-    "lyrics_where": "Verse 1 (first half) / Chorus 1 / Bridge / Outro",
-    "image_prompt": "..."
-  }
-- "lyrics_where" must be very clear and map to the provided lyrics sections (Verse/Chorus/Bridge/Outro) and/or timing ranges.
-- "image_prompt" must be ONE Flow-ready image prompt, cinematic, 16:9, 1920x1080, with clean center space for lyrics overlay.
-- If artist reference is YES: every image_prompt must include the phrase: "use the uploaded artist reference image".
-`.trim();
+SCENE 1
+IMAGE_PROMPT: <one line>
+GROK_PROMPT: <one line>
 
-      const scenes20Rules = `
-VIDEO_SCENES_LONG_JSON RULES
-- Output EXACTLY 20 scenes as VALID JSON.
-- Each array item MUST be an object with EXACT keys:
-  {
-    "scene": 1,
-    "lyrics_where": "Verse 1 (0:00–0:10) / Chorus 1 (0:40–0:55) ...",
-    "image_prompt": "...",
-    "grok_prompt": "..."
-  }
-- "image_prompt" is the Flow keyframe image prompt for that scene (consistent style across all scenes).
-- "grok_prompt" is a PER-SCENE Grok image-to-video prompt (10 seconds) that animates the scene:
-  - subtle camera move (dolly/pan), environmental motion (particles/light/wind), NO warping, NO face changes.
-- If artist reference is YES: both image_prompt AND grok_prompt must include: "use the uploaded artist reference image" / "keep identity consistent with reference".
-- Keep all scenes consistent in palette, lighting, wardrobe vibe, and overall “world”.
+SCENE 2
+IMAGE_PROMPT: <one line>
+GROK_PROMPT: <one line>
+
+... continue until SCENE ${howMany}
+`.trim() : `
+STRICT OUTPUT (MUST MATCH EXACTLY)
+Return ONLY scene blocks in this exact format.
+NO JSON. NO markdown. NO commentary. NO extra lines.
+
+SCENE 1
+IMAGE_PROMPT: <one line>
+
+SCENE 2
+IMAGE_PROMPT: <one line>
+
+... continue until SCENE ${howMany}
 `.trim();
 
       const prompt = `
-You are helping me produce a gospel long-form video using Google Flow (visuals) and CapCut (editing).
+You are creating visual scene prompts for a gospel music video workflow.
+We will generate images in Google Flow, and (if music video) turn each image into a 10-second clip using Grok image-to-video.
 
 ARTIST
 - name: ${artistName}
@@ -278,24 +266,32 @@ SONG: ${song?.title || ""}
 SONG DATA
 - Keywords: ${keywords || "(none)"}
 - Scripture: ${scripture || "(none)"}
-- Suno prompt (music style): ${suno || "(none saved yet)"}
+- Suno music style prompt: ${suno || "(none saved yet)"}
 
-DECISION
-We are making: ${typeDesc}
-Artist reference image in Flow: ${useArtist ? "YES (we will upload artist image as reference)" : "NO (no artist reference image)"}
+REFERENCE IMAGE
+Artist reference image in Flow: ${useArtist ? "YES (we will upload artist image as reference)" : "NO"}
 
-REQUIREMENTS
-1) Create FLOW_PROMPT_LONG: a single prompt for Flow visuals that matches the artist lane + persona and fits a gospel channel (clean, worshipful).
-2) The Flow prompt MUST include: 16:9, 1920x1080, cinematic, consistent style, and "leave clean center space for lyrics overlay".
-3) If artist ref = YES: include instruction to keep the artist identity consistent with the uploaded reference.
-4) If artist ref = NO: do NOT describe a specific real person; build a consistent worship “world” style instead.
-5) Follow the emotional arc of the lyrics (Verse → Chorus → Bridge).
+TASK
+Create EXACTLY ${howMany} scenes for the song.
+Each scene must be a strong visual that fits the gospel mood and the song’s progression.
 
-LYRICS
-${lyrics ? lyrics : "(Lyrics not found. Use title/keywords/scripture to infer the arc.)"}
+RULES FOR IMAGE_PROMPT (for every scene)
+- Must be Flow-ready image prompt (cinematic, 16:9, 1920x1080).
+- Leave clean open space for lyric text overlay (avoid busy center).
+- Keep a consistent look across all scenes (same palette/lighting/world).
+- If reference image is YES: include the phrase "use the uploaded artist reference image" in every IMAGE_PROMPT, and keep identity consistent.
+- If reference image is NO: do NOT describe a specific real person; keep it generic (worship atmosphere / symbolic imagery / cinematic environments).
 
-${lfType === "lyric_10_images" ? scenes10Rules : ""}
-${lfType === "music_video_20_scenes" ? scenes20Rules : ""}
+${is20 ? `
+RULES FOR GROK_PROMPT (for every scene)
+- Each GROK_PROMPT is a 10-second image-to-video instruction for THIS scene.
+- Include subtle camera movement (dolly/pan), environmental motion (particles/light/wind), keep it realistic.
+- NO warping, NO face changes, NO flicker, keep consistency.
+- If reference image is YES: say "keep identity consistent with the uploaded artist reference image".
+` : ``}
+
+LYRICS (use this to guide scene progression)
+${lyrics ? lyrics : "(Lyrics not found. Use title/keywords/scripture to infer a worshipful arc.)"}
 
 ${strict}
 `.trim();
@@ -314,20 +310,50 @@ ${strict}
       const lyrics = (song?.lyrics || "").trim();
       const keywords = (song?.keywords || "").trim();
       const scripture = (song?.scripture || "").trim();
+      const suno = (song?.suno_prompt || "").trim();
 
       const strict = `
 STRICT OUTPUT (MUST MATCH EXACTLY)
-Return ONLY these blocks in this order:
+Return ONLY 3 shorts in this exact format.
+NO JSON. NO markdown. NO commentary.
 
-SHORTS_PLAN_JSON:
-<valid JSON array of 3 objects>
+SHORT 1
+SCENE 1
+IMAGE_PROMPT: <one line>
+(optional) GROK_PROMPT: <one line>
+SCENE 2
+IMAGE_PROMPT: <one line>
+(optional) GROK_PROMPT: <one line>
+SCENE 3
+IMAGE_PROMPT: <one line>
+(optional) GROK_PROMPT: <one line>
 
-FLOW_PROMPT_SHORT:
-<one text block>
+SHORT 2
+SCENE 1
+IMAGE_PROMPT: <one line>
+(optional) GROK_PROMPT: <one line>
+SCENE 2
+IMAGE_PROMPT: <one line>
+(optional) GROK_PROMPT: <one line>
+SCENE 3
+IMAGE_PROMPT: <one line>
+(optional) GROK_PROMPT: <one line>
+
+SHORT 3
+SCENE 1
+IMAGE_PROMPT: <one line>
+(optional) GROK_PROMPT: <one line>
+SCENE 2
+IMAGE_PROMPT: <one line>
+(optional) GROK_PROMPT: <one line>
+SCENE 3
+IMAGE_PROMPT: <one line>
+(optional) GROK_PROMPT: <one line>
 `.trim();
 
       const prompt = `
-You are planning 3 YouTube Shorts for a gospel song using Google Flow visuals + CapCut.
+You are creating 3 YouTube Shorts visual plans for a gospel song.
+We will use Google Flow to generate images, and optionally Grok image-to-video.
 
 ARTIST
 - name: ${artistName}
@@ -336,39 +362,32 @@ ARTIST
 - persona / style voice: ${persona}
 
 SONG: ${song?.title || ""}
-Artist reference image in Flow: ${useArtist ? "YES (we will upload artist image as reference)" : "NO"}
+Suno music style prompt: ${suno || "(none saved yet)"}
 
-SONG CONTEXT
-- Keywords: ${keywords || "(none)"}
-- Scripture: ${scripture || "(none)"}
+REFERENCE IMAGE
+Artist reference image in Flow (Shorts): ${useArtist ? "YES (we will upload artist image as reference)" : "NO"}
 
-LYRICS (use to pick hooks and moments)
+TASK
+Create exactly 3 different shorts ideas (different angles/moments).
+Each short must have exactly 3 scenes (fast and punchy).
+If you decide a short should be image-to-video, include GROK_PROMPT lines; otherwise omit them.
+
+RULES FOR IMAGE_PROMPT
+- Flow-ready, cinematic, 9:16 friendly composition (still generate 1920x1080 safe framing), clean space for text.
+- Consistent style per short.
+- If reference image is YES: include "use the uploaded artist reference image" in every IMAGE_PROMPT.
+- If reference image is NO: do NOT describe a specific real person.
+
+LYRICS (pick hook moments)
 ${lyrics ? lyrics : "(Lyrics not found. Use title/keywords/scripture to infer.)"}
 
-SHORTS REQUIREMENTS
-- Create exactly 3 shorts concepts.
-- Each short must include:
-  - hook (first 1-2 seconds)
-  - duration (10–20s)
-  - use_artist_ref (true/false) — if global NO then all must be false
-  - on_screen_text (array of 2–5 short lines)
-  - scene_plan (array of 3–6 beats)
-  - flow_prompt (a Flow prompt for THIS short)
-- Shorts must be different angles (comfort, breakthrough, worship energy).
-- Keep visuals clean and lyric-overlay friendly.
-
-Also output FLOW_PROMPT_SHORT: a master style prompt that can be reused for shorts.
+Keywords: ${keywords || "(none)"}
+Scripture: ${scripture || "(none)"}
 
 ${strict}
 `.trim();
 
       return prompt;
-    }
-
-    function tryParseJsonOrNull(txt){
-      const t = (txt || "").trim();
-      if (!t) return null;
-      try { return JSON.parse(t); } catch { return null; }
     }
 
     async function load(){
@@ -388,25 +407,16 @@ ${strict}
 
       $("title").textContent = `Production: ${song.title || "(Untitled)"}`;
 
+      // Load only the settings/ticks we still store
       $("longform_done").checked = !!song.longform_done;
       $("short_done").checked = !!song.short_done;
 
       $("longform_type").value = song.longform_type || "static_lyric";
       $("longform_use_artist_ref").checked = !!song.longform_use_artist_ref;
 
-      $("flow_prompt_long").value = safe(song.flow_prompt_long);
-
-      // We store either SCENES_LONG_JSON or VIDEO_SCENES_LONG_JSON in the same DB field image_prompts_long_json
-      $("image_prompts_long_json").value = song.image_prompts_long_json
-        ? JSON.stringify(song.image_prompts_long_json, null, 2)
-        : "";
-
-      $("grok_i2v_prompt_long").value = safe(song.grok_i2v_prompt_long);
-
       $("short_use_artist_ref").checked = !!song.short_use_artist_ref;
-      $("flow_prompt_short").value = safe(song.flow_prompt_short);
-      $("shorts_plan_json").value = song.shorts_plan_json ? JSON.stringify(song.shorts_plan_json, null, 2) : "";
 
+      // Pills
       const pills = $("pills");
       pills.innerHTML = "";
       pills.appendChild(pill(`song: ${song.id}`));
@@ -445,9 +455,6 @@ ${strict}
     $("btnSave").onclick = async () => {
       $("statusLine").textContent = "Saving…";
 
-      const scenesJson = tryParseJsonOrNull($("image_prompts_long_json").value);
-      const shortsJson = tryParseJsonOrNull($("shorts_plan_json").value);
-
       const payload = {
         longform_done: $("longform_done").checked,
         short_done: $("short_done").checked,
@@ -455,13 +462,11 @@ ${strict}
         longform_type: $("longform_type").value,
         longform_use_artist_ref: $("longform_use_artist_ref").checked,
 
-        flow_prompt_long: $("flow_prompt_long").value.trim() || null,
-        image_prompts_long_json: scenesJson, // stores SCENES_LONG_JSON or VIDEO_SCENES_LONG_JSON array
-        grok_i2v_prompt_long: $("grok_i2v_prompt_long").value.trim() || null,
-
         short_use_artist_ref: $("short_use_artist_ref").checked,
-        flow_prompt_short: $("flow_prompt_short").value.trim() || null,
-        shorts_plan_json: shortsJson,
+
+        // We intentionally DO NOT save prompts/results anymore:
+        // flow_prompt_long, image_prompts_long_json, grok_i2v_prompt_long,
+        // flow_prompt_short, shorts_plan_json
       };
 
       const { error } = await supabase.from("songs").update(payload).eq("id", songId);
@@ -470,6 +475,8 @@ ${strict}
       $("statusLine").textContent = "Saved ✅";
       window.location.href = "./production.html";
     };
+
+    $("btnBack").onclick = () => window.location.href = "./production.html";
 
     await load();
   </script>
