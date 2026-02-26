@@ -128,21 +128,27 @@
       <h2 class="sectionTitle" style="margin-top:18px;">Working Results (paste from ChatGPT)</h2>
       <div class="grid">
         <div style="grid-column: 1 / -1;">
-          <label for="working_tracks">TRACKS_JSON (array of objects with title + suno_prompt)</label>
-          <textarea id="working_tracks" class="mono" placeholder='Paste TRACKS_JSON here. Example:
+          <label for="working_tracks">TRACKS_JSON (preferred: array of objects with title + suno_prompt)</label>
+          <textarea id="working_tracks" class="mono" placeholder='Preferred:
 [
-  {"track_number":1,"title":"...","suno_prompt":"...","keywords":"...","scripture":"..."},
+  {"track_number":1,"title":"...","suno_prompt":"..."},
   ...
-]'></textarea>
+]
+
+Also accepted:
+- JSON array of titles: ["Track A","Track B"]
+- Newline list of titles
+- Comma list of quoted titles: "A","B","C"
+'></textarea>
           <div class="hint">
-            Then click “Apply Tracks JSON → Songs” to create songs in the database.
+            Then click “Apply Tracks → Songs” to create songs in the database.
           </div>
         </div>
       </div>
 
       <div class="row" style="margin-top:10px;">
-        <button id="btnApplyTracks" class="btn secondary">Apply Tracks JSON → Songs</button>
-        <div class="muted">Creates songs from TRACKS_JSON (title + suno_prompt + optional keywords/scripture).</div>
+        <button id="btnApplyTracks" class="btn secondary">Apply Tracks → Songs</button>
+        <div class="muted">Creates songs (title + suno_prompt when provided).</div>
       </div>
 
       <h2 class="sectionTitle" style="margin-top:18px;">Songs (final)</h2>
@@ -182,10 +188,24 @@
 
     function safeText(v){ return (v === null || v === undefined) ? "" : String(v); }
 
-    function parseJson(text){
+    // ✅ forgiving parser: JSON array (objects/strings), newline list, or comma list
+    function parseTracksInput(text){
       const t = (text || "").trim();
       if (!t) return null;
-      try { return JSON.parse(t); } catch { return null; }
+
+      // Try JSON first
+      try {
+        const v = JSON.parse(t);
+        if (Array.isArray(v)) return v;
+      } catch {}
+
+      // Fallback: newline list
+      const lines = t.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+      if (lines.length) return lines;
+
+      // Last fallback: comma list (often: "A","B","C")
+      const parts = t.split(",").map(s => s.trim()).filter(Boolean);
+      return parts.length ? parts : null;
     }
 
     function setChips(){
@@ -214,7 +234,7 @@
       const body = $("songsBody");
       body.innerHTML = "";
       if (!songs.length){
-        body.innerHTML = "<tr><td colspan='5' class='muted'>No songs yet. Apply TRACKS_JSON.</td></tr>";
+        body.innerHTML = "<tr><td colspan='5' class='muted'>No songs yet. Apply tracks.</td></tr>";
         return;
       }
       songs.sort((a,b) => a.track_number - b.track_number);
@@ -272,7 +292,6 @@
       $("notes").value = album.notes || "";
       $("prompt").value = album.chatgpt_prompt || "";
 
-      // store tracks json in the same column you already have: working_tracklist
       $("working_tracks").value = album.working_tracklist ? JSON.stringify(album.working_tracklist, null, 2) : "";
 
       $("statusLine").textContent = `Album ID: ${album.id}`;
@@ -280,8 +299,37 @@
       renderSongs();
     }
 
+    function normalizeTracks(arr){
+      if (!Array.isArray(arr)) return [];
+
+      // If array of strings → treat as titles
+      if (arr.every(x => typeof x === "string")) {
+        return arr.map((title, idx) => ({
+          track_number: idx + 1,
+          title: String(title).replace(/^"+|"+$/g,"").trim(), // remove surrounding quotes if user pasted "A"
+          suno_prompt: null,
+          keywords: null,
+          scripture: null,
+        })).filter(t => t.title);
+      }
+
+      // Otherwise, objects
+      return arr.map((x, idx) => {
+        const track_number = Number(x.track_number || (idx+1));
+        return {
+          track_number,
+          title: safeText(x.title).trim(),
+          suno_prompt: (x.suno_prompt ? safeText(x.suno_prompt).trim() : null),
+          keywords: (x.keywords ? safeText(x.keywords).trim() : null),
+          scripture: (x.scripture ? safeText(x.scripture).trim() : null),
+        };
+      }).filter(t => t.title);
+    }
+
     async function saveAlbum(){
-      const tracksJson = parseJson($("working_tracks").value);
+      const raw = parseTracksInput($("working_tracks").value);
+      const tracks = raw ? normalizeTracks(raw) : null;
+
       const payload = {
         status: $("status").value,
         title: $("titleInput").value.trim() || null,
@@ -292,7 +340,7 @@
         total_tracks: Number($("total_tracks").value || 12),
         notes: $("notes").value.trim() || null,
         chatgpt_prompt: $("prompt").value || null,
-        working_tracklist: Array.isArray(tracksJson) ? tracksJson : null,
+        working_tracklist: tracks && tracks.length ? tracks : null,
       };
 
       $("statusLine").textContent = "Saving…";
@@ -310,7 +358,6 @@
 
         if (!title) continue;
 
-        // try update with suno_prompt, retry without if column doesn't exist
         let upd = await supabase.from(SONGS).update({ title, keywords, scripture, suno_prompt }).eq("id", sid);
         if (upd.error && String(upd.error.message || "").toLowerCase().includes("suno_prompt")) {
           await supabase.from(SONGS).update({ title, keywords, scripture }).eq("id", sid);
@@ -330,32 +377,17 @@
       window.location.href = "./albums.html";
     }
 
-    function normalizeTracks(arr){
-      if (!Array.isArray(arr)) return [];
-      return arr.map((x, idx) => {
-        const track_number = Number(x.track_number || (idx+1));
-        return {
-          track_number,
-          title: safeText(x.title).trim(),
-          suno_prompt: safeText(x.suno_prompt).trim(),
-          keywords: (x.keywords ? safeText(x.keywords).trim() : null),
-          scripture: (x.scripture ? safeText(x.scripture).trim() : null),
-        };
-      }).filter(t => t.title);
-    }
+    async function applyTracksToSongs(){
+      const raw = parseTracksInput($("working_tracks").value);
+      if (!raw) return alert("Paste valid JSON or a list of titles into TRACKS_JSON.");
 
-    async function applyTracksJsonToSongs(){
-      const raw = parseJson($("working_tracks").value);
-      if (!raw) return alert("Paste valid JSON into TRACKS_JSON.");
       const tracks = normalizeTracks(raw);
-      if (!tracks.length) return alert("No track titles found in TRACKS_JSON.");
+      if (!tracks.length) return alert("No track titles found.");
 
       $("statusLine").textContent = "Updating songs…";
 
-      // recreate songs for simplicity
       await supabase.from(SONGS).delete().eq("album_id", id);
 
-      // try insert with suno_prompt first
       const rowsWithSuno = tracks.map(t => ({
         album_id: id,
         track_number: t.track_number,
@@ -366,8 +398,9 @@
       }));
 
       let ins = await supabase.from(SONGS).insert(rowsWithSuno);
+
+      // fallback if songs table doesn't have suno_prompt column
       if (ins.error && String(ins.error.message || "").toLowerCase().includes("suno_prompt")) {
-        // fallback if songs table doesn't have suno_prompt column
         const rowsNoSuno = tracks.map(t => ({
           album_id: id,
           track_number: t.track_number,
@@ -382,7 +415,6 @@
         return;
       }
 
-      // store into album working_tracklist too
       await supabase.from(ALBUMS).update({ working_tracklist: tracks }).eq("id", id);
 
       $("statusLine").textContent = "Songs updated ✅";
@@ -391,7 +423,7 @@
 
     $("btnSave").onclick = saveAlbum;
     $("btnDelete").onclick = deleteAlbum;
-    $("btnApplyTracks").onclick = applyTracksJsonToSongs;
+    $("btnApplyTracks").onclick = applyTracksToSongs;
 
     $("btnCopyPrompt").onclick = async () => {
       const p = $("prompt").value;
