@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SVS System – Add Artist</title>
+  <style>
+    :root{
+      --bg:#0b0f19; --card:#121a2a; --card2:#0f1626; --border:#23304a;
+      --muted:#92a4c7; --text:#e8eefc; --primary:#2f6fed; --danger:#d14b4b;
+    }
+    body { font-family: Arial, sans-serif; background:var(--bg); color:var(--text); margin:0; }
+    .wrap { max-width: 1000px; margin: 0 auto; padding: 24px; }
+    .top { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+    .muted { color:var(--muted); font-size: 14px; }
+    .btn { padding:12px 14px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); cursor:pointer; font-weight:700; }
+    .btn.primary { background:var(--primary); border:none; }
+    .btn.secondary { background:#1c273f; border:1px solid #2a3a5c; }
+    .btn.danger { background:var(--danger); border:none; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-top:14px; }
+    .grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; }
+    @media (max-width: 800px){ .grid { grid-template-columns: 1fr; } }
+    label { font-size:12px; color:var(--muted); display:block; margin:8px 0 6px; }
+    input, select {
+      padding:12px; border-radius:12px; border:1px solid #2a3a5c;
+      background:var(--card2); color:var(--text); width:100%;
+      box-sizing:border-box;
+    }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .sectionTitle { margin: 0 0 10px; }
+    .hint { font-size:12px; color:var(--muted); margin-top:4px; }
+    .actions { display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1 style="margin:0;">Add Artist</h1>
+        <div id="who" class="muted"></div>
+      </div>
+      <div class="row">
+        <button id="btnBack" class="btn secondary">Back</button>
+        <button id="btnLogout" class="btn danger">Logout</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div id="msg" class="muted"></div>
+
+      <h2 class="sectionTitle">Profile</h2>
+      <div class="grid">
+        <div>
+          <label for="name">Name *</label>
+          <input id="name" placeholder="e.g. SoulVibe Sanctuary">
+        </div>
+        <div>
+          <label for="channel_hand">Channel Handle</label>
+          <input id="channel_hand" placeholder="e.g. @SoulVibeSanctuary">
+          <div class="hint">You can paste with or without @.</div>
+        </div>
+        <div>
+          <label for="youtube_chan">YouTube Channel Name</label>
+          <input id="youtube_chan" placeholder="Display name on YouTube">
+        </div>
+        <div>
+          <label for="default_lane">Default Lane</label>
+          <select id="default_lane">
+            <option value="">(none)</option>
+            <option value="SVS">SoulVibe Sanctuary</option>
+            <option value="GGG">Gospel Groove Girls</option>
+            <option value="NGG">Nina's Gospel Groove</option>
+            <option value="GSG">Glory Shout Gospel</option>
+            <option value="SIS">Shaun in Stereo</option>
+          </select>
+        </div>
+        <div>
+          <label for="default_perso">Default Persona</label>
+          <input id="default_perso" placeholder="e.g. Persona v3 / Worship Anthem / etc">
+          <div class="hint">If you stored personas in a table, we can replace this with a dropdown later.</div>
+        </div>
+      </div>
+
+      <h2 class="sectionTitle" style="margin-top:18px;">Links</h2>
+      <div class="grid">
+        <div><label for="spotify_url">Spotify</label><input id="spotify_url" placeholder="https://..."></div>
+        <div><label for="bandcamp_ur">Bandcamp</label><input id="bandcamp_ur" placeholder="https://..."></div>
+        <div><label for="apple_music_">Apple Music</label><input id="apple_music_" placeholder="https://..."></div>
+        <div><label for="soundcloud_u">SoundCloud</label><input id="soundcloud_u" placeholder="https://..."></div>
+        <div><label for="youtube_url">YouTube</label><input id="youtube_url" placeholder="https://..."></div>
+        <div><label for="website_url">Website</label><input id="website_url" placeholder="https://..."></div>
+        <div><label for="beacons_url">Beacons</label><input id="beacons_url" placeholder="https://..."></div>
+        <div><label for="tiktok_url">TikTok</label><input id="tiktok_url" placeholder="https://..."></div>
+        <div><label for="facebook_url">Facebook</label><input id="facebook_url" placeholder="https://..."></div>
+      </div>
+
+      <div class="actions" style="margin-top:18px;">
+        <button id="btnCancel" class="btn secondary">Cancel</button>
+        <button id="btnSave" class="btn primary">Create Artist</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { supabase, requireSessionOrRedirect } from "./app.js";
+    const $ = (id) => document.getElementById(id);
+
+    const TABLE = "artists";
+
+    const session = await requireSessionOrRedirect();
+    $("who").textContent = `Signed in: ${session.user.email}`;
+
+    function normalizeHandle(v){
+      const s = (v || "").trim();
+      if (!s) return null;
+      return s.startsWith("@") ? s.slice(1) : s;
+    }
+    function normalizeUrl(v){
+      const s = (v || "").trim();
+      if (!s) return null;
+      if (s.startsWith("http://") || s.startsWith("https://")) return s;
+      return "https://" + s;
+    }
+
+    async function createArtist(){
+      const name = $("name").value.trim();
+      if (!name) return alert("Name is required.");
+
+      $("msg").textContent = "Creating…";
+
+      const payload = {
+        name,
+        channel_hand: normalizeHandle($("channel_hand").value),
+        default_lane: $("default_lane").value || null,
+        youtube_chan: $("youtube_chan").value.trim() || null,
+        default_perso: $("default_perso").value.trim() || null,
+
+        spotify_url: normalizeUrl($("spotify_url").value),
+        bandcamp_ur: normalizeUrl($("bandcamp_ur").value),
+        apple_music_: normalizeUrl($("apple_music_").value),
+        soundcloud_u: normalizeUrl($("soundcloud_u").value),
+        youtube_url: normalizeUrl($("youtube_url").value),
+        website_url: normalizeUrl($("website_url").value),
+        beacons_url: normalizeUrl($("beacons_url").value),
+        tiktok_url: normalizeUrl($("tiktok_url").value),
+        facebook_url: normalizeUrl($("facebook_url").value),
+      };
+
+      const { data, error } = await supabase
+        .from(TABLE)
+        .insert([payload])
+        .select("id")
+        .single();
+
+      if (error) { $("msg").textContent = "Error: " + error.message; return; }
+
+      $("msg").textContent = "Created!";
+      window.location.href = `./artist-edit.html?id=${encodeURIComponent(data.id)}`;
+    }
+
+    $("btnSave").onclick = createArtist;
+    $("btnCancel").onclick = () => window.location.href = "./artists.html";
+    $("btnBack").onclick = () => window.location.href = "./artists.html";
+
+    $("btnLogout").onclick = async () => {
+      await supabase.auth.signOut();
+      window.location.href = "./index.html";
+    };
+  </script>
+</body>
+</html>
