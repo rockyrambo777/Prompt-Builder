@@ -299,9 +299,9 @@
 
     function setArtistPreview(a){
       const lines = [];
-      lines.push(\`name: \${a.name || "-"}\`);
-      lines.push(\`lane: \${a.default_lane || "-"}\`);
-      if (a.default_perso) lines.push(\`persona: \${a.default_perso}\`);
+      lines.push(`name: \${a.name || "-"}`);
+      lines.push(`lane: \${a.default_lane || "-"}`);
+      if (a.default_perso) lines.push(`persona: \${a.default_perso}`);
       $("artistPreview").textContent = lines.join("\n");
 
       const chips = $("artistChips");
@@ -338,11 +338,11 @@
           if (t.direction) parts.push("direction: " + t.direction);
           if (t.keywords) parts.push("keywords: " + t.keywords);
           if (t.scripture) parts.push("scripture: " + t.scripture);
-          return \`Track \${t.track_number}: \${parts.join(" • ")}\`;
+          return `Track \${t.track_number}: \${parts.join(" • ")}`;
         });
 
       const personaBlock = artist.default_perso
-        ? \`ARTIST PERSONA (STYLE VOICE)\n\${artist.default_perso}\n\`
+        ? `ARTIST PERSONA (STYLE VOICE)\n\${artist.default_perso}\n`
         : "";
 
       return `You are helping me plan a professional GOSPEL album for an AI music workflow.
