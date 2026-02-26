@@ -58,7 +58,6 @@
         <div class="row">
           <button id="btnBuildLyricsPrompt" class="btn secondary">Build Lyrics Prompt</button>
           <button id="btnCopyLyricsPrompt" class="btn copy">Copy Lyrics Prompt</button>
-          <button id="btnViewSunoPrompt" class="btn secondary">View Suno Prompt</button>
           <button id="btnSunoPack" class="btn copy">Suno Pack</button>
           <button id="btnSave" class="btn primary">Save</button>
         </div>
@@ -274,13 +273,6 @@ ERROR: NON_COMPLIANT_OUTPUT
       $("statusLine").textContent = "Lyrics prompt copied ✅";
     };
 
-    $("btnViewSunoPrompt").onclick = async () => {
-      const p = ($("suno_prompt").value || "").trim();
-      if (!p) return alert("No Suno prompt saved yet.");
-      const ok = confirm("Copy Suno prompt to clipboard?\n\nOK = copy, Cancel = just view");
-      if (ok) await navigator.clipboard.writeText(p);
-      window.prompt("Suno Prompt (copy/edit):", p);
-    };
 
     $("btnSunoPack").onclick = () => {
       const albumId = song?.album_id || albumIdFromUrl;
