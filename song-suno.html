@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SVS System – Suno Copy Pack</title>
+  <style>
+    :root{
+      --bg:#0b0f19; --card:#121a2a; --card2:#0f1626; --border:#23304a;
+      --muted:#92a4c7; --text:#e8eefc; --primary:#2f6fed; --danger:#d14b4b;
+      --chip:#1c273f;
+    }
+    body { font-family: Arial, sans-serif; background:var(--bg); color:var(--text); margin:0; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+    .muted { color:var(--muted); font-size: 14px; }
+    .btn { padding:12px 14px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); cursor:pointer; font-weight:800; }
+    .btn.primary { background:var(--primary); border:none; }
+    .btn.secondary { background:#1c273f; border:1px solid #2a3a5c; }
+    .btn.copy { background:#16315f; border:1px solid #2a3a5c; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-top:14px; }
+    label { font-size:12px; color:var(--muted); display:block; margin:8px 0 6px; }
+    input, textarea {
+      padding:12px; border-radius:12px; border:1px solid #2a3a5c;
+      background:var(--card2); color:var(--text); width:100%;
+      box-sizing:border-box;
+    }
+    textarea { min-height: 260px; resize: vertical; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .hint { font-size:12px; color:var(--muted); margin-top:6px; line-height:1.4; }
+    .chips { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    .chip { font-size:12px; padding:6px 10px; border-radius:999px; border:1px solid #2a3a5c; background:var(--chip); color:var(--text); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1 style="margin:0;" id="pageTitle">Suno Copy Pack</h1>
+        <div id="who" class="muted"></div>
+        <div id="chips" class="chips"></div>
+      </div>
+      <div class="row">
+        <button id="btnBack" class="btn secondary">Back</button>
+        <button id="btnLogout" class="btn" style="background:var(--danger);border:none;">Logout</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between;">
+        <div class="muted" id="statusLine"></div>
+        <div class="row">
+          <button id="btnCopyPack" class="btn copy">Copy Pack</button>
+          <button id="btnSaveBack" class="btn primary">Save & Back</button>
+        </div>
+      </div>
+
+      <h2 style="margin:18px 0 8px;">Suno Copy Pack (paste into Suno)</h2>
+      <textarea id="pack" class="mono" readonly></textarea>
+      <div class="hint">
+        This is cleaned for easy Suno paste (no <code>```</code> fences).  
+        Title is included so you can quickly copy it into Suno’s title field.
+      </div>
+
+      <h2 style="margin:18px 0 8px;">Suno Share URL (paste after song is created)</h2>
+      <label for="suno_share_url">Suno Share Link</label>
+      <input id="suno_share_url" placeholder="https://suno.com/song/..." />
+      <div class="hint">
+        Click <b>Save & Back</b> to store this link and return to the album edit page.
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { supabase, requireSessionOrRedirect } from "./app.js";
+    const $ = (id) => document.getElementById(id);
+
+    const SONGS = "songs";
+    const ALBUMS = "albums";
+    const ARTISTS = "artists";
+
+    const session = await requireSessionOrRedirect();
+    $("who").textContent = `Signed in: ${session.user.email}`;
+
+    const params = new URLSearchParams(window.location.search);
+    const songId = params.get("id");
+    const albumIdFromUrl = params.get("album_id");
+    if (!songId) { alert("Missing song id"); window.location.href = "./albums.html"; }
+
+    let song = null;
+    let album = null;
+    let artist = null;
+
+    function chip(txt){
+      const s = document.createElement("span");
+      s.className = "chip";
+      s.textContent = txt;
+      return s;
+    }
+
+    function setChips(){
+      const c = $("chips");
+      c.innerHTML = "";
+      if (artist?.name) c.appendChild(chip("artist: " + artist.name));
+      if (album?.title) c.appendChild(chip("album: " + album.title));
+      if (song?.track_number) c.appendChild(chip("track: " + song.track_number));
+    }
+
+    function cleanLyrics(raw){
+      let t = (raw || "").toString().trim();
+      if (!t) return "";
+      t = t.replace(/^LYRICS:\s*/i, "");
+      t = t.replace(/^```[a-zA-Z]*\s*/m, "");
+      t = t.replace(/```$/m, "");
+      t = t.trim();
+      t = t.replace(/\n{3,}/g, "\n\n");
+      return t;
+    }
+
+    function buildPack(){
+      const title = (song?.title || "").trim();
+      const sp = (song?.suno_prompt || "").trim();
+      const lyr = cleanLyrics(song?.lyrics || "");
+
+      return [
+        "TITLE:",
+        title || "(set title in Suno)",
+        "",
+        "SUNO_PROMPT:",
+        sp || "(no suno prompt saved)",
+        "",
+        "LYRICS:",
+        lyr || "(no lyrics saved)"
+      ].join("\n");
+    }
+
+    async function load(){
+      $("statusLine").textContent = "Loading…";
+
+      const { data: s, error: e1 } = await supabase
+        .from(SONGS)
+        .select("*")
+        .eq("id", songId)
+        .single();
+      if (e1) { $("statusLine").textContent = "Error: " + e1.message; return; }
+      song = s;
+
+      const albumId = song.album_id || albumIdFromUrl;
+      if (albumId){
+        const { data: a, error: e2 } = await supabase.from(ALBUMS).select("*").eq("id", albumId).single();
+        if (!e2) album = a;
+      }
+      if (album?.artist_id){
+        const { data: ar, error: e3 } = await supabase.from(ARTISTS).select("id,name").eq("id", album.artist_id).single();
+        if (!e3) artist = ar;
+      }
+
+      $("pageTitle").textContent = `Suno Copy Pack: ${song.title || "(Untitled)"}`;
+      $("pack").value = buildPack();
+      $("suno_share_url").value = song.suno_share_url || "";
+      setChips();
+      $("statusLine").textContent = `Song ID: ${song.id}`;
+    }
+
+    function goBack(){
+      const albumId = song?.album_id || albumIdFromUrl;
+      if (albumId) window.location.href = `./album-edit.html?id=${encodeURIComponent(albumId)}`;
+      else window.location.href = "./albums.html";
+    }
+
+    $("btnCopyPack").onclick = async () => {
+      const t = $("pack").value.trim();
+      if (!t) return alert("Nothing to copy.");
+      await navigator.clipboard.writeText(t);
+      $("statusLine").textContent = "Copied ✅";
+    };
+
+    $("btnSaveBack").onclick = async () => {
+      $("statusLine").textContent = "Saving…";
+      const url = ($("suno_share_url").value || "").trim() || null;
+
+      const { error } = await supabase
+        .from(SONGS)
+        .update({ suno_share_url: url })
+        .eq("id", songId);
+
+      if (error) { $("statusLine").textContent = "Error: " + error.message; return; }
+      $("statusLine").textContent = "Saved ✅";
+      goBack();
+    };
+
+    $("btnBack").onclick = goBack;
+
+    $("btnLogout").onclick = async () => {
+      await supabase.auth.signOut();
+      window.location.href = "./index.html";
+    };
+
+    await load();
+  </script>
+</body>
+</html>
