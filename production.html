@@ -10,7 +10,7 @@
       --muted:#92a4c7; --text:#e8eefc; --primary:#2f6fed; --danger:#d14b4b;
     }
     body { font-family: Arial, sans-serif; background:var(--bg); color:var(--text); margin:0; }
-    .wrap { max-width: 1300px; margin: 0 auto; padding: 24px; }
+    .wrap { max-width: 1400px; margin: 0 auto; padding: 24px; }
     .top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
     .muted { color:var(--muted); font-size: 14px; }
     .btn { padding:10px 12px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); cursor:pointer; font-weight:800; text-decoration:none; display:inline-block;}
@@ -18,16 +18,22 @@
     .btn.danger { background:var(--danger); border:none; }
     .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-top:14px; }
     table { width:100%; border-collapse: collapse; margin-top:10px; }
-    th, td { border-bottom:1px solid #22304a; padding:10px; text-align:left; vertical-align: top; }
+    th, td { border-bottom:1px solid #22304a; padding:10px; text-align:left; vertical-align: middle; }
     th { color:var(--muted); font-size:12px; }
     .tiny { width: 70px; }
+    .mid { width: 160px; }
+    .center { text-align:center; }
+    .pill { display:inline-block; padding:4px 10px; border-radius:999px; border:1px solid #2a3a5c; background:var(--card2); color:var(--text); font-size:12px;}
+    .ok { color:#7CFFB2; font-weight:900; }
+    .no { color:#ffb3b3; font-weight:900; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="top">
       <div>
-        <h1 style="margin:0;">Production Queue (Approved Albums)</h1>
+        <h1 style="margin:0;">Production Queue</h1>
+        <div class="muted">Shows songs from <b>approved</b> albums that still need <b>Long</b> and/or <b>Short</b>.</div>
         <div id="who" class="muted"></div>
       </div>
       <div style="display:flex; gap:10px; flex-wrap:wrap;">
@@ -46,9 +52,10 @@
             <th>Artist</th>
             <th>Album</th>
             <th>Song</th>
-            <th>Lyrics ✅</th>
-            <th>Suno 🔗</th>
-            <th>Action</th>
+            <th class="mid">Long Form</th>
+            <th class="mid">Short</th>
+            <th class="mid">Suno</th>
+            <th class="mid">Action</th>
           </tr>
         </thead>
         <tbody id="body"></tbody>
@@ -68,13 +75,18 @@
       window.location.href = "./index.html";
     };
 
-    function boolIcon(ok){ return ok ? "✅" : "—"; }
-    function linkIcon(url){ return (url && url.trim()) ? "🔗" : "—"; }
+    function yn(ok){
+      return ok ? `<span class="ok">✅ done</span>` : `<span class="no">⬜ pending</span>`;
+    }
+    function stylePill(s){
+      const t = (s || "").trim();
+      return t ? `<span class="pill">${t}</span>` : `<span class="pill" style="opacity:.55;">(style not set)</span>`;
+    }
 
     async function load(){
       $("statusLine").textContent = "Loading…";
 
-      // Pull approved albums
+      // 1) Approved albums
       const { data: albums, error: e1 } = await supabase
         .from("albums")
         .select("id,title,artist_id,status")
@@ -89,17 +101,17 @@
 
       const albumIds = albums.map(a => a.id);
 
-      // Pull songs from those albums
+      // 2) Songs in those albums
       const { data: songs, error: e2 } = await supabase
         .from("songs")
-        .select("id,album_id,track_number,title,lyrics,suno_share_url")
+        .select("id,album_id,track_number,title,suno_share_url,longform_done,short_done,longform_style,short_style")
         .in("album_id", albumIds)
         .order("album_id", { ascending: true })
         .order("track_number", { ascending: true });
 
       if (e2) { $("statusLine").textContent = "Error: " + e2.message; return; }
 
-      // Pull artists used
+      // 3) Artists for labels
       const artistIds = [...new Set(albums.map(a => a.artist_id).filter(Boolean))];
       const { data: artists, error: e3 } = await supabase
         .from("artists")
@@ -109,29 +121,50 @@
       const artistMap = new Map((artists || []).map(a => [a.id, a.name]));
       const albumMap = new Map(albums.map(a => [a.id, a]));
 
+      // 4) Filter queue: hide songs that have BOTH long + short done
+      const queue = (songs || []).filter(s => !(!!s.longform_done && !!s.short_done));
+
       const body = $("body");
       body.innerHTML = "";
 
+      if (!queue.length){
+        $("statusLine").textContent = "✅ Everything is complete (long + short) for all songs in approved albums.";
+        return;
+      }
+
       let count = 0;
-      for (const s of (songs || [])){
+      for (const s of queue){
         const al = albumMap.get(s.album_id);
         if (!al) continue;
 
         count++;
-        const tr = document.createElement("tr");
 
-        const lyricsOk = ((s.lyrics ?? "").toString().trim().length > 0);
         const sunoUrl = (s.suno_share_url || "").trim();
+        const sunoCell = sunoUrl
+          ? `<a class="btn" style="padding:6px 10px;" href="${sunoUrl}" target="_blank" rel="noopener noreferrer">🔗 Suno</a>`
+          : `<span class="pill" style="opacity:.55;">no link</span>`;
 
+        const tr = document.createElement("tr");
         tr.innerHTML = `
           <td class="tiny"><b>${s.track_number ?? ""}</b></td>
           <td>${artistMap.get(al.artist_id) || "—"}</td>
           <td>${al.title || "—"}</td>
           <td>${s.title || "—"}</td>
-          <td>${boolIcon(lyricsOk)}</td>
-          <td>${linkIcon(sunoUrl)}</td>
+
           <td>
-            <button class="btn primary" data-produce>Produce Video</button>
+            ${yn(!!s.longform_done)}
+            <div style="margin-top:6px;">${stylePill(s.longform_style)}</div>
+          </td>
+
+          <td>
+            ${yn(!!s.short_done)}
+            <div style="margin-top:6px;">${stylePill(s.short_style)}</div>
+          </td>
+
+          <td>${sunoCell}</td>
+
+          <td>
+            <button class="btn primary" data-produce>Open</button>
           </td>
         `;
 
@@ -142,7 +175,7 @@
         body.appendChild(tr);
       }
 
-      $("statusLine").textContent = `Loaded ${count} song(s) from approved albums.`;
+      $("statusLine").textContent = `Showing ${count} song(s) needing Long and/or Short.`;
     }
 
     await load();
