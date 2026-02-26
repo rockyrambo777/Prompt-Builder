@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SVS System – Video Production</title>
+  <style>
+    :root{
+      --bg:#0b0f19; --card:#121a2a; --card2:#0f1626; --border:#23304a;
+      --muted:#92a4c7; --text:#e8eefc; --primary:#2f6fed; --danger:#d14b4b;
+    }
+    body { font-family: Arial, sans-serif; background:var(--bg); color:var(--text); margin:0; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+    .muted { color:var(--muted); font-size: 14px; }
+    .btn { padding:12px 14px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); cursor:pointer; font-weight:800; }
+    .btn.primary { background:var(--primary); border:none; }
+    .btn.secondary { background:#1c273f; border:1px solid #2a3a5c; }
+    .btn.danger { background:var(--danger); border:none; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-top:14px; }
+    label { font-size:12px; color:var(--muted); display:block; margin:10px 0 6px; }
+    input, textarea {
+      padding:12px; border-radius:12px; border:1px solid #2a3a5c;
+      background:var(--card2); color:var(--text); width:100%;
+      box-sizing:border-box;
+    }
+    textarea { min-height: 120px; resize: vertical; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1 style="margin:0;" id="title">Video Production</h1>
+        <div id="who" class="muted"></div>
+        <div id="statusLine" class="muted"></div>
+      </div>
+      <div class="row">
+        <button id="btnBack" class="btn secondary">Back</button>
+        <button id="btnLogout" class="btn danger">Logout</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between;">
+        <div class="muted">Track your video assets for this song.</div>
+        <div class="row">
+          <button id="btnOpenLyrics" class="btn secondary">Open Lyrics</button>
+          <button id="btnOpenSunoPack" class="btn secondary">Open Suno Pack</button>
+          <button id="btnSave" class="btn primary">Save</button>
+        </div>
+      </div>
+
+      <label for="video_status">Video Status</label>
+      <input id="video_status" placeholder="e.g. planned / editing / uploaded" />
+
+      <label for="youtube_url">YouTube Video URL (after upload)</label>
+      <input id="youtube_url" placeholder="https://youtube.com/..." />
+
+      <label for="video_notes">Video Notes (CapCut / Canva / workflow)</label>
+      <textarea id="video_notes" class="mono" placeholder="Notes..."></textarea>
+    </div>
+  </div>
+
+  <script type="module">
+    import { supabase, requireSessionOrRedirect } from "./app.js";
+    const $ = (id) => document.getElementById(id);
+
+    const session = await requireSessionOrRedirect();
+    $("who").textContent = `Signed in: ${session.user.email}`;
+
+    const params = new URLSearchParams(window.location.search);
+    const songId = params.get("id");
+    const albumId = params.get("album_id");
+    if (!songId) { alert("Missing song id"); window.location.href = "./production.html"; }
+
+    let song = null;
+
+    $("btnLogout").onclick = async () => {
+      await supabase.auth.signOut();
+      window.location.href = "./index.html";
+    };
+
+    $("btnBack").onclick = () => {
+      if (albumId) window.location.href = `./album-edit.html?id=${encodeURIComponent(albumId)}`;
+      else window.location.href = "./production.html";
+    };
+
+    $("btnOpenLyrics").onclick = () => {
+      window.location.href = `./song-edit.html?id=${encodeURIComponent(songId)}&album_id=${encodeURIComponent(albumId || "")}`;
+    };
+
+    $("btnOpenSunoPack").onclick = () => {
+      window.location.href = `./song-suno.html?id=${encodeURIComponent(songId)}&album_id=${encodeURIComponent(albumId || "")}`;
+    };
+
+    async function load(){
+      $("statusLine").textContent = "Loading…";
+      const { data, error } = await supabase.from("songs").select("*").eq("id", songId).single();
+      if (error) { $("statusLine").textContent = "Error: " + error.message; return; }
+      song = data;
+
+      $("title").textContent = `Video Production: ${song.title || "(Untitled)"}`;
+      $("video_status").value = song.video_status || "";
+      $("youtube_url").value = song.youtube_url || "";
+      $("video_notes").value = song.video_notes || "";
+
+      $("statusLine").textContent = `Song ID: ${song.id}`;
+    }
+
+    $("btnSave").onclick = async () => {
+      $("statusLine").textContent = "Saving…";
+      const payload = {
+        video_status: ($("video_status").value || "").trim() || null,
+        youtube_url: ($("youtube_url").value || "").trim() || null,
+        video_notes: ($("video_notes").value || "").trim() || null,
+      };
+
+      const { error } = await supabase.from("songs").update(payload).eq("id", songId);
+      if (error) { $("statusLine").textContent = "Error: " + error.message; return; }
+
+      $("statusLine").textContent = "Saved ✅";
+      // Go back automatically after save (optional):
+      // $("btnBack").click();
+    };
+
+    await load();
+  </script>
+</body>
+</html>
