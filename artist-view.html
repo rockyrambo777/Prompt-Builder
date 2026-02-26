@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SVS System – View Artist</title>
+  <style>
+    :root{
+      --bg:#0b0f19; --card:#121a2a; --card2:#0f1626; --border:#23304a;
+      --muted:#92a4c7; --text:#e8eefc; --primary:#2f6fed; --danger:#d14b4b;
+      --chip:#1c273f;
+    }
+    body { font-family: Arial, sans-serif; background:var(--bg); color:var(--text); margin:0; }
+    .wrap { max-width: 1000px; margin: 0 auto; padding: 24px; }
+    .top { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+    .muted { color:var(--muted); font-size: 14px; }
+    .btn { padding:12px 14px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); cursor:pointer; font-weight:800; }
+    .btn.primary { background:var(--primary); border:none; }
+    .btn.secondary { background:#1c273f; border:1px solid #2a3a5c; }
+    .btn.danger { background:var(--danger); border:none; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-top:14px; }
+    .grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; }
+    @media (max-width: 800px){ .grid { grid-template-columns: 1fr; } }
+    .field { padding:12px; border-radius:12px; border:1px solid #22304a; background:#0f1626; }
+    .label { font-size:12px; color:var(--muted); margin-bottom:6px; }
+    .value { font-weight:800; word-break: break-word; }
+    .linksRow { display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
+    .linkBtn{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:10px 12px; border-radius:999px;
+      border:1px solid #2a3a5c; background:var(--chip);
+      color:var(--text); text-decoration:none; font-weight:800;
+    }
+    .nav { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1 style="margin:0;" id="title">Artist</h1>
+        <div id="who" class="muted"></div>
+      </div>
+      <div class="nav">
+        <button id="btnEdit" class="btn primary">Edit</button>
+        <button id="btnBack" class="btn secondary">Back</button>
+        <button id="btnLogout" class="btn danger">Logout</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div id="status" class="muted"></div>
+
+      <h2 style="margin:14px 0 8px;">Profile</h2>
+      <div class="grid" id="profileGrid"></div>
+
+      <h2 style="margin:18px 0 8px;">Links</h2>
+      <div class="linksRow" id="links"></div>
+      <div class="muted" id="noLinks" style="margin-top:8px; display:none;">No links saved yet.</div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { supabase, requireSessionOrRedirect } from "./app.js";
+    const $ = (id) => document.getElementById(id);
+
+    const TABLE = "artists";
+
+    const session = await requireSessionOrRedirect();
+    $("who").textContent = `Signed in: ${session.user.email}`;
+
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("id");
+    if (!id) { alert("Missing artist id."); window.location.href = "./artists.html"; }
+
+    function safe(v){ return (v === null || v === undefined || v === "") ? "—" : String(v); }
+    function handle(v){ return v ? ("@" + String(v).replace(/^@/,"")) : "—"; }
+    function normalizeUrl(v){
+      const s = (v || "").trim();
+      if (!s) return null;
+      if (s.startsWith("http://") || s.startsWith("https://")) return s;
+      return "https://" + s; // ensures saved links open correctly later
+    }
+
+    function addField(label, value){
+      const div = document.createElement("div");
+      div.className = "field";
+      div.innerHTML = `<div class="label">${label}</div><div class="value">${value}</div>`;
+      $("profileGrid").appendChild(div);
+    }
+
+    function addLink(label, url){
+      const u = normalizeUrl(url);
+      if (!u) return;
+      const a = document.createElement("a");
+      a.className = "linkBtn";
+      a.href = u;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.textContent = label;
+      $("links").appendChild(a);
+    }
+
+    async function loadArtist(){
+      $("status").textContent = "Loading…";
+      $("profileGrid").innerHTML = "";
+      $("links").innerHTML = "";
+      $("noLinks").style.display = "none";
+
+      const { data, error } = await supabase
+        .from(TABLE)
+        .select(`
+          id, created_at,
+          name, channel_hand, youtube_chan, default_lane, default_perso,
+          spotify_url, bandcamp_ur, apple_music_, soundcloud_u,
+          youtube_url, website_url, beacons_url, tiktok_url, facebook_url
+        `)
+        .eq("id", id)
+        .single();
+
+      if (error) { $("status").textContent = "Error: " + error.message; return; }
+
+      $("title").textContent = data.name || "Artist";
+
+      addField("Name", safe(data.name));
+      addField("Channel Handle", handle(data.channel_hand));
+      addField("YouTube Channel Name", safe(data.youtube_chan));
+      addField("Default Lane", safe(data.default_lane));
+      addField("Default Persona", safe(data.default_perso));
+
+      // Links (clickable)
+      addLink("YouTube", data.youtube_url);
+      addLink("Spotify", data.spotify_url);
+      addLink("Bandcamp", data.bandcamp_ur);
+      addLink("Apple Music", data.apple_music_);
+      addLink("SoundCloud", data.soundcloud_u);
+      addLink("Website", data.website_url);
+      addLink("Beacons", data.beacons_url);
+      addLink("TikTok", data.tiktok_url);
+      addLink("Facebook", data.facebook_url);
+
+      if (!$("links").children.length) $("noLinks").style.display = "";
+
+      $("status").textContent = "Loaded.";
+    }
+
+    $("btnEdit").onclick = () => window.location.href = `./artist-edit.html?id=${encodeURIComponent(id)}`;
+    $("btnBack").onclick = () => window.location.href = "./artists.html";
+    $("btnLogout").onclick = async () => {
+      await supabase.auth.signOut();
+      window.location.href = "./index.html";
+    };
+
+    loadArtist();
+  </script>
+</body>
+</html>
