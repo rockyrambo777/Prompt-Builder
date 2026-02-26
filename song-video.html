@@ -10,7 +10,7 @@
       --muted:#92a4c7; --text:#e8eefc; --primary:#2f6fed; --danger:#d14b4b;
     }
     body { font-family: Arial, sans-serif; background:var(--bg); color:var(--text); margin:0; }
-    .wrap { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 24px; }
     .top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
     .muted { color:var(--muted); font-size: 14px; }
     .btn { padding:12px 14px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); cursor:pointer; font-weight:800; }
@@ -19,14 +19,21 @@
     .btn.danger { background:var(--danger); border:none; }
     .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-top:14px; }
     label { font-size:12px; color:var(--muted); display:block; margin:10px 0 6px; }
-    input, textarea {
+    input, textarea, select {
       padding:12px; border-radius:12px; border:1px solid #2a3a5c;
       background:var(--card2); color:var(--text); width:100%;
       box-sizing:border-box;
     }
     textarea { min-height: 120px; resize: vertical; }
-    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+    .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+    @media (max-width: 980px){ .grid2 { grid-template-columns: 1fr; } }
+    .sectionTitle { margin: 0 0 10px; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .checkRow { display:flex; align-items:center; gap:10px; margin:10px 0; }
+    input[type="checkbox"]{ width:20px; height:20px; accent-color: var(--primary); }
+    .pillbar { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    .pill { padding:6px 10px; border-radius:999px; border:1px solid #2a3a5c; background:#0f1626; font-size:12px; }
   </style>
 </head>
 <body>
@@ -36,6 +43,7 @@
         <h1 style="margin:0;" id="title">Video Production</h1>
         <div id="who" class="muted"></div>
         <div id="statusLine" class="muted"></div>
+        <div id="pills" class="pillbar"></div>
       </div>
       <div class="row">
         <button id="btnBack" class="btn secondary">Back</button>
@@ -45,7 +53,7 @@
 
     <div class="card">
       <div class="row" style="justify-content:space-between;">
-        <div class="muted">Track your video assets for this song.</div>
+        <div class="muted">Mark Long / Short as done + store style, notes, and upload URLs.</div>
         <div class="row">
           <button id="btnOpenLyrics" class="btn secondary">Open Lyrics</button>
           <button id="btnOpenSunoPack" class="btn secondary">Open Suno Pack</button>
@@ -53,14 +61,59 @@
         </div>
       </div>
 
-      <label for="video_status">Video Status</label>
-      <input id="video_status" placeholder="e.g. planned / editing / uploaded" />
+      <div class="grid2" style="margin-top:14px;">
+        <!-- LONG FORM -->
+        <div class="card" style="margin-top:0;">
+          <h2 class="sectionTitle">Long Form</h2>
 
-      <label for="youtube_url">YouTube Video URL (after upload)</label>
-      <input id="youtube_url" placeholder="https://youtube.com/..." />
+          <div class="checkRow">
+            <input id="longform_done" type="checkbox" />
+            <label for="longform_done" style="margin:0;">Long form video created</label>
+          </div>
 
-      <label for="video_notes">Video Notes (CapCut / Canva / workflow)</label>
-      <textarea id="video_notes" class="mono" placeholder="Notes..."></textarea>
+          <label for="longform_style">Long Form Style / Tool</label>
+          <select id="longform_style">
+            <option value="">(select)</option>
+            <option value="CapCut Lyric Video">CapCut Lyric Video</option>
+            <option value="Canva Background + CapCut">Canva Background + CapCut</option>
+            <option value="Revid AI Video">Revid AI Video</option>
+            <option value="Whisk Image + Edit">Whisk Image + Edit</option>
+            <option value="Other">Other</option>
+          </select>
+
+          <label for="longform_youtube_url">YouTube URL (Long Form)</label>
+          <input id="longform_youtube_url" placeholder="https://youtube.com/..." />
+
+          <label for="longform_notes">Notes (Long Form)</label>
+          <textarea id="longform_notes" class="mono" placeholder="Steps, settings, templates used..."></textarea>
+        </div>
+
+        <!-- SHORT -->
+        <div class="card" style="margin-top:0;">
+          <h2 class="sectionTitle">Short</h2>
+
+          <div class="checkRow">
+            <input id="short_done" type="checkbox" />
+            <label for="short_done" style="margin:0;">Short created</label>
+          </div>
+
+          <label for="short_style">Short Style / Tool</label>
+          <select id="short_style">
+            <option value="">(select)</option>
+            <option value="CapCut Short (Lyrics)">CapCut Short (Lyrics)</option>
+            <option value="Image-to-Video (10s)">Image-to-Video (10s)</option>
+            <option value="Revid AI Short">Revid AI Short</option>
+            <option value="Whisk + Grok I2V">Whisk + Grok I2V</option>
+            <option value="Other">Other</option>
+          </select>
+
+          <label for="short_youtube_url">YouTube URL (Short)</label>
+          <input id="short_youtube_url" placeholder="https://youtube.com/shorts/..." />
+
+          <label for="short_notes">Notes (Short)</label>
+          <textarea id="short_notes" class="mono" placeholder="Text overlays, hook lines, timing..."></textarea>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -74,6 +127,7 @@
     const params = new URLSearchParams(window.location.search);
     const songId = params.get("id");
     const albumId = params.get("album_id");
+
     if (!songId) { alert("Missing song id"); window.location.href = "./production.html"; }
 
     let song = null;
@@ -84,8 +138,7 @@
     };
 
     $("btnBack").onclick = () => {
-      if (albumId) window.location.href = `./album-edit.html?id=${encodeURIComponent(albumId)}`;
-      else window.location.href = "./production.html";
+      window.location.href = "./production.html";
     };
 
     $("btnOpenLyrics").onclick = () => {
@@ -96,6 +149,18 @@
       window.location.href = `./song-suno.html?id=${encodeURIComponent(songId)}&album_id=${encodeURIComponent(albumId || "")}`;
     };
 
+    function pill(txt){
+      const d = document.createElement("div");
+      d.className = "pill";
+      d.textContent = txt;
+      return d;
+    }
+
+    function norm(v){
+      const s = (v ?? "").toString().trim();
+      return s ? s : null;
+    }
+
     async function load(){
       $("statusLine").textContent = "Loading…";
       const { data, error } = await supabase.from("songs").select("*").eq("id", songId).single();
@@ -103,27 +168,53 @@
       song = data;
 
       $("title").textContent = `Video Production: ${song.title || "(Untitled)"}`;
-      $("video_status").value = song.video_status || "";
-      $("youtube_url").value = song.youtube_url || "";
-      $("video_notes").value = song.video_notes || "";
 
-      $("statusLine").textContent = `Song ID: ${song.id}`;
+      // fill fields
+      $("longform_done").checked = !!song.longform_done;
+      $("short_done").checked = !!song.short_done;
+
+      $("longform_style").value = song.longform_style || "";
+      $("short_style").value = song.short_style || "";
+
+      $("longform_youtube_url").value = song.longform_youtube_url || "";
+      $("short_youtube_url").value = song.short_youtube_url || "";
+
+      $("longform_notes").value = song.longform_notes || "";
+      $("short_notes").value = song.short_notes || "";
+
+      // pills
+      const pills = $("pills");
+      pills.innerHTML = "";
+      pills.appendChild(pill(`song: ${song.id}`));
+      if (song.track_number) pills.appendChild(pill(`track: ${song.track_number}`));
+      if (albumId) pills.appendChild(pill(`album_id: ${albumId}`));
+
+      $("statusLine").textContent = "Ready.";
     }
 
     $("btnSave").onclick = async () => {
       $("statusLine").textContent = "Saving…";
+
       const payload = {
-        video_status: ($("video_status").value || "").trim() || null,
-        youtube_url: ($("youtube_url").value || "").trim() || null,
-        video_notes: ($("video_notes").value || "").trim() || null,
+        longform_done: $("longform_done").checked,
+        short_done: $("short_done").checked,
+
+        longform_style: norm($("longform_style").value),
+        short_style: norm($("short_style").value),
+
+        longform_youtube_url: norm($("longform_youtube_url").value),
+        short_youtube_url: norm($("short_youtube_url").value),
+
+        longform_notes: norm($("longform_notes").value),
+        short_notes: norm($("short_notes").value),
       };
 
       const { error } = await supabase.from("songs").update(payload).eq("id", songId);
       if (error) { $("statusLine").textContent = "Error: " + error.message; return; }
 
       $("statusLine").textContent = "Saved ✅";
-      // Go back automatically after save (optional):
-      // $("btnBack").click();
+      // go back automatically after save:
+      window.location.href = "./production.html";
     };
 
     await load();
