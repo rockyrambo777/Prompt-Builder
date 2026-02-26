@@ -61,7 +61,6 @@
         </div>
         <div class="rightActions">
           <button id="btnSave" class="btn primary">Save</button>
-          <button id="btnDelete" class="btn danger">Delete</button>
         </div>
       </div>
 
@@ -140,13 +139,12 @@
       if (!s) return null;
       return s.startsWith("@") ? s.slice(1) : s;
     }
+
     function normalizeUrl(v){
-  const s = (v || "").trim();
-  if (!s) return null;
-  // If user pastes "www.site.com" or "site.com", make it a real URL
-  if (s.startsWith("http://") || s.startsWith("https://")) return s;
-  return "https://" + s;
-}
+      const s = (v || "").trim();
+      if (!s) return null;
+      if (s.startsWith("http://") || s.startsWith("https://")) return s;
+      return "https://" + s;
     }
 
     function setStatus(txt){ $("status").textContent = txt; }
@@ -172,7 +170,7 @@
       for (const [label, url] of links) {
         const a = document.createElement("a");
         a.className = "linkBtn";
-        a.href = url;
+        a.href = url;              // saved as https://... now
         a.target = "_blank";
         a.rel = "noopener noreferrer";
         a.textContent = label;
@@ -182,6 +180,7 @@
 
     async function loadArtist(){
       setStatus("Loading…");
+
       const { data, error } = await supabase
         .from(TABLE)
         .select(`
@@ -193,7 +192,7 @@
         .eq("id", id)
         .single();
 
-      if (error) { setStatus("Error: " + error.message); return; }
+      if (error) { setStatus("Error: " + error.message); console.error(error); return; }
 
       $("title").textContent = `Edit Artist: ${data.name || "(Untitled)"}`;
       $("name").value = data.name ?? "";
@@ -241,28 +240,14 @@
       };
 
       const { error } = await supabase.from(TABLE).update(payload).eq("id", id);
-      if (error) { setStatus("Error: " + error.message); return; }
+      if (error) { setStatus("Error: " + error.message); console.error(error); return; }
 
       setStatus("Saved ✅");
       await loadArtist();
     }
 
-    async function deleteArtist(){
-      const ok = confirm("Delete this artist? This cannot be undone.");
-      if (!ok) return;
-
-      setStatus("Deleting…");
-      const { error } = await supabase.from(TABLE).delete().eq("id", id);
-      if (error) { setStatus("Error: " + error.message); return; }
-
-      setStatus("Deleted.");
-      window.location.href = "./artists.html";
-    }
-
     $("btnSave").onclick = saveArtist;
-    $("btnDelete").onclick = deleteArtist;
-    $("btnBack").onclick = () => window.location.href = "./artists.html";
-
+    $("btnBack").onclick = () => window.location.href = `./artist-view.html?id=${encodeURIComponent(id)}`;
     $("btnLogout").onclick = async () => {
       await supabase.auth.signOut();
       window.location.href = "./index.html";
