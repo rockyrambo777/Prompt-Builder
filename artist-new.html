@@ -77,7 +77,6 @@
         <div>
           <label for="default_perso">Default Persona</label>
           <input id="default_perso" placeholder="e.g. Persona v3 / Worship Anthem / etc">
-          <div class="hint">If you stored personas in a table, we can replace this with a dropdown later.</div>
         </div>
       </div>
 
@@ -115,13 +114,16 @@
       if (!s) return null;
       return s.startsWith("@") ? s.slice(1) : s;
     }
+
     function normalizeUrl(v){
-  const s = (v || "").trim();
-  if (!s) return null;
-  // If user pastes "www.site.com" or "site.com", make it a real URL
-  if (s.startsWith("http://") || s.startsWith("https://")) return s;
-  return "https://" + s;
-}
+      const s = (v || "").trim();
+      if (!s) return null;
+
+      // already valid
+      if (s.startsWith("http://") || s.startsWith("https://")) return s;
+
+      // allow things like "www.site.com" or "site.com"
+      return "https://" + s;
     }
 
     async function createArtist(){
@@ -154,10 +156,15 @@
         .select("id")
         .single();
 
-      if (error) { $("msg").textContent = "Error: " + error.message; return; }
+      if (error) {
+        $("msg").textContent = "Error: " + error.message;
+        console.error(error);
+        return;
+      }
 
-      $("msg").textContent = "Created!";
-      window.location.href = `./artist-edit.html?id=${encodeURIComponent(data.id)}`;
+      $("msg").textContent = "Created ✅";
+      // go to VIEW page (recommended flow)
+      window.location.href = `./artist-view.html?id=${encodeURIComponent(data.id)}`;
     }
 
     $("btnSave").onclick = createArtist;
