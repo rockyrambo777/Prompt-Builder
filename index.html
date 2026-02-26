@@ -1,76 +1,107 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>SVS System</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SVS System – Login</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#0b0f19; color:#e8eefc; margin:0; }
+    .wrap { max-width: 420px; margin: 0 auto; padding: 40px 16px; }
+    .card { background:#121a2a; border:1px solid #23304a; border-radius:14px; padding:18px; }
+    input, button { width:100%; padding:12px; border-radius:10px; border:1px solid #2a3a5c; background:#0f1626; color:#e8eefc; }
+    button { border:none; background:#2f6fed; font-weight:700; cursor:pointer; }
+    button.secondary { background:#1c273f; border:1px solid #2a3a5c; }
+    .muted { color:#92a4c7; font-size: 14px; }
+    .row { display:flex; gap:10px; }
+    .row > * { flex:1; }
+    a { color:#9fc0ff; cursor:pointer; }
+    .msg { margin-top:10px; min-height: 18px; }
+    .error { color:#ff9b9b; }
+    .success { color:#8dffb0; }
+  </style>
 </head>
 <body>
+  <div class="wrap">
+    <h1 style="margin:0 0 10px;">SVS System</h1>
+    <p class="muted" style="margin-top:0;">Login to manage your artists.</p>
 
-<div id="login-screen">
-  <h2>Login</h2>
-  <input type="email" id="email" placeholder="Email"><br><br>
-  <input type="password" id="password" placeholder="Password"><br><br>
-  <button onclick="login()">Login</button>
-</div>
+    <div class="card">
+      <div id="loginBox">
+        <h2 style="margin-top:0;">Login</h2>
+        <input id="email" type="email" placeholder="Email" autocomplete="username" />
+        <div style="height:10px;"></div>
+        <input id="password" type="password" placeholder="Password" autocomplete="current-password" />
+        <div style="height:12px;"></div>
 
-<div id="home-screen" style="display:none;">
-  <h2>Welcome</h2>
-  <button onclick="logout()">Logout</button>
-  <br><br>
-  <button onclick="addArtist()">Add Artist</button>
-</div>
+        <button id="btnLogin">Sign in</button>
+        <div style="height:10px;"></div>
+        <div class="row">
+          <button id="btnShowForgot" class="secondary" type="button">Forgot password</button>
+          <button id="btnClear" class="secondary" type="button">Clear</button>
+        </div>
+        <div id="msg" class="msg muted"></div>
+      </div>
 
-<script type="module">
-  import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+      <div id="forgotBox" style="display:none;">
+        <h2 style="margin-top:0;">Reset password</h2>
+        <p class="muted">Enter your email. We’ll send a reset link.</p>
+        <input id="forgotEmail" type="email" placeholder="Email" />
+        <div style="height:12px;"></div>
+        <button id="btnSendReset">Send reset link</button>
+        <div style="height:10px;"></div>
+        <button id="btnBack" class="secondary" type="button">Back to login</button>
+        <div id="forgotMsg" class="msg muted"></div>
+      </div>
+    </div>
+  </div>
 
-  const SUPABASE_URL = "https://ppfzhgeesaweubbwwlle.supabase.co";
-  const SUPABASE_KEY = "sb_publishable_8NqpLKwhNvH41TjZdHygYg_iB6u1PjB";
+  <script type="module">
+    import { supabase, redirectIfLoggedIn } from "./app.js";
 
-  const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+    const $ = (id) => document.getElementById(id);
+    const setMsg = (id, text, cls="muted") => { $(id).className = "msg " + cls; $(id).textContent = text || ""; };
 
-  // Check if already logged in
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session) showHome();
+    await redirectIfLoggedIn();
 
-  window.login = async function () {
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
-
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-
-    if (error) {
-      alert(error.message);
-    } else {
-      showHome();
+    function showForgot(show) {
+      $("loginBox").style.display = show ? "none" : "block";
+      $("forgotBox").style.display = show ? "block" : "none";
+      setMsg("msg", "");
+      setMsg("forgotMsg", "");
+      if (show) $("forgotEmail").value = $("email").value || "";
     }
-  };
 
-  window.logout = async function () {
-    await supabase.auth.signOut();
-    document.getElementById("home-screen").style.display = "none";
-    document.getElementById("login-screen").style.display = "block";
-  };
+    $("btnLogin").onclick = async () => {
+      setMsg("msg", "Signing in…");
+      const email = $("email").value.trim();
+      const password = $("password").value;
 
-  function showHome() {
-    document.getElementById("login-screen").style.display = "none";
-    document.getElementById("home-screen").style.display = "block";
-  }
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) return setMsg("msg", error.message, "error");
 
-  window.addArtist = async function () {
-    const name = prompt("Artist Name:");
-    if (!name) return;
+      setMsg("msg", "Success!", "success");
+      window.location.href = "./home.html";
+    };
 
-    const { error } = await supabase
-      .from("artist")   // change to "artists" if that's your table name
-      .insert([{ name }]);
+    $("btnClear").onclick = () => { $("email").value=""; $("password").value=""; setMsg("msg",""); };
+    $("btnShowForgot").onclick = () => showForgot(true);
+    $("btnBack").onclick = () => showForgot(false);
 
-    if (error) alert(error.message);
-    else alert("Artist added!");
-  };
+    // Forgot password: sends reset email
+    $("btnSendReset").onclick = async () => {
+      setMsg("forgotMsg", "Sending…");
+      const email = $("forgotEmail").value.trim();
 
-</script>
+      // IMPORTANT: this must be an allowed redirect URL in Supabase Auth settings
+      const redirectTo = window.location.origin + window.location.pathname.replace("index.html","") + "home.html";
 
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+      if (error) return setMsg("forgotMsg", error.message, "error");
+
+      setMsg("forgotMsg", "Reset link sent. Check your inbox (and spam).", "success");
+    };
+
+    $("password").addEventListener("keydown", (e) => { if (e.key === "Enter") $("btnLogin").click(); });
+  </script>
 </body>
 </html>
