@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SVS System – Album Studio (Edit)</title>
+  <style>
+    :root{
+      --bg:#0b0f19; --card:#121a2a; --card2:#0f1626; --border:#23304a;
+      --muted:#92a4c7; --text:#e8eefc; --primary:#2f6fed; --danger:#d14b4b;
+      --ok:#2ecc71; --chip:#1c273f;
+    }
+    body { font-family: Arial, sans-serif; background:var(--bg); color:var(--text); margin:0; }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    .top { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+    .muted { color:var(--muted); font-size: 14px; }
+    .btn { padding:12px 14px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); cursor:pointer; font-weight:800; }
+    .btn.primary { background:var(--primary); border:none; }
+    .btn.secondary { background:#1c273f; border:1px solid #2a3a5c; }
+    .btn.danger { background:var(--danger); border:none; }
+    .btn.copy { background:#16315f; border:1px solid #2a3a5c; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-top:14px; }
+    .grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; }
+    @media (max-width: 900px){ .grid { grid-template-columns: 1fr; } }
+    label { font-size:12px; color:var(--muted); display:block; margin:8px 0 6px; }
+    input, select, textarea {
+      padding:12px; border-radius:12px; border:1px solid #2a3a5c;
+      background:var(--card2); color:var(--text); width:100%;
+      box-sizing:border-box;
+    }
+    textarea { min-height: 120px; resize: vertical; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .chips { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    .chip { font-size:12px; padding:6px 10px; border-radius:999px; border:1px solid #2a3a5c; background:var(--chip); color:var(--text); }
+    table { width:100%; border-collapse: collapse; margin-top:10px; }
+    th, td { border-bottom:1px solid #22304a; padding:10px; text-align:left; vertical-align: top; }
+    th { color:var(--muted); font-size:12px; }
+    .tiny { width: 90px; }
+    .mini { width: 220px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .sectionTitle { margin: 0 0 10px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1 style="margin:0;" id="title">Album Studio</h1>
+        <div id="who" class="muted"></div>
+      </div>
+      <div class="row">
+        <button id="btnBack" class="btn secondary">Back</button>
+        <button id="btnLogout" class="btn danger">Logout</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between;">
+        <div>
+          <div id="statusLine" class="muted"></div>
+          <div class="chips" id="chips"></div>
+        </div>
+        <div class="row">
+          <button id="btnCopyPrompt" class="btn copy">Copy Prompt</button>
+          <button id="btnSave" class="btn primary">Save</button>
+          <button id="btnDelete" class="btn danger">Delete</button>
+        </div>
+      </div>
+
+      <h2 class="sectionTitle" style="margin-top:18px;">Album Info</h2>
+      <div class="grid">
+        <div>
+          <label for="status">Status</label>
+          <select id="status">
+            <option value="draft">draft</option>
+            <option value="ideation">ideation</option>
+            <option value="approved">approved</option>
+            <option value="producing">producing</option>
+            <option value="released">released</option>
+          </select>
+        </div>
+        <div>
+          <label for="titleInput">Final Album Title (approved)</label>
+          <input id="titleInput" placeholder="Paste final chosen album title here">
+        </div>
+        <div>
+          <label for="theme">Theme</label>
+          <input id="theme">
+        </div>
+        <div>
+          <label for="style">Style</label>
+          <input id="style">
+        </div>
+        <div>
+          <label for="mood">Mood</label>
+          <input id="mood">
+        </div>
+        <div>
+          <label for="lead_type">Lead Type</label>
+          <select id="lead_type">
+            <option value="">(auto)</option>
+            <option value="male">male</option>
+            <option value="female">female</option>
+            <option value="choir">choir</option>
+            <option value="duet">duet</option>
+          </select>
+        </div>
+        <div>
+          <label for="total_tracks">Tracks</label>
+          <input id="total_tracks" type="number" min="1" max="50">
+        </div>
+        <div>
+          <label for="notes">Notes</label>
+          <input id="notes">
+        </div>
+      </div>
+
+      <h2 class="sectionTitle" style="margin-top:18px;">ChatGPT Prompt (stored)</h2>
+      <textarea id="prompt" class="mono"></textarea>
+
+      <h2 class="sectionTitle" style="margin-top:18px;">Working Results (paste from ChatGPT)</h2>
+      <div class="grid">
+        <div>
+          <label for="working_titles">Album title ideas (JSON array or newline list)</label>
+          <textarea id="working_titles" class="mono" placeholder='Example:\n["Title A","Title B"]\nOR\nTitle A\nTitle B'></textarea>
+        </div>
+        <div>
+          <label for="working_tracklist">Tracklist ideas (JSON array or newline list)</label>
+          <textarea id="working_tracklist" class="mono" placeholder='Example:\n["Track 1","Track 2"]\nOR\nTrack 1\nTrack 2'></textarea>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+        <button id="btnApplyTracks" class="btn secondary">Apply Tracklist → Songs</button>
+        <div class="muted">This will upsert songs for this album using the working tracklist.</div>
+      </div>
+
+      <h2 class="sectionTitle" style="margin-top:18px;">Songs (final)</h2>
+      <table>
+        <thead>
+          <tr>
+            <th class="tiny">#</th>
+            <th>Title</th>
+            <th class="mini">Keywords</th>
+            <th class="mini">Scripture</th>
+          </tr>
+        </thead>
+        <tbody id="songsBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script type="module">
+    import { supabase, requireSessionOrRedirect } from "./app.js";
+    const $ = (id) => document.getElementById(id);
+
+    const ALBUMS = "albums";
+    const SONGS = "songs";
+    const ARTISTS = "artists";
+
+    const session = await requireSessionOrRedirect();
+    $("who").textContent = `Signed in: ${session.user.email}`;
+
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("id");
+    if (!id) { alert("Missing album id"); window.location.href = "./albums.html"; }
+
+    let album = null;
+    let artist = null;
+    let songs = [];
+
+    function safeText(v){ return (v === null || v === undefined) ? "" : String(v); }
+
+    function parseMaybeList(text){
+      const t = (text || "").trim();
+      if (!t) return null;
+      // Try JSON
+      try {
+        const v = JSON.parse(t);
+        if (Array.isArray(v)) return v;
+      } catch {}
+      // newline list
+      const lines = t.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+      return lines.length ? lines : null;
+    }
+
+    function setChips(){
+      const chips = $("chips");
+      chips.innerHTML = "";
+      const vals = [
+        album?.status ? ("status: " + album.status) : null,
+        artist?.name ? ("artist: " + artist.name) : null,
+        album?.total_tracks ? ("tracks: " + album.total_tracks) : null,
+        album?.lead_type ? ("lead: " + album.lead_type) : null,
+      ].filter(Boolean);
+
+      for (const v of vals){
+        const s = document.createElement("span");
+        s.className = "chip";
+        s.textContent = v;
+        chips.appendChild(s);
+      }
+    }
+
+    function renderSongs(){
+      const body = $("songsBody");
+      body.innerHTML = "";
+      if (!songs.length){
+        body.innerHTML = "<tr><td colspan='4' class='muted'>No songs yet. Apply a tracklist.</td></tr>";
+        return;
+      }
+      songs.sort((a,b) => a.track_number - b.track_number);
+
+      for (const s of songs){
+        const tr = document.createElement("tr");
+        tr.dataset.songId = s.id;
+
+        tr.innerHTML = `
+          <td class="tiny"><b>${s.track_number}</b></td>
+          <td><input data-title value="${safeText(s.title).replaceAll('"','&quot;')}"></td>
+          <td><input data-keywords value="${safeText(s.keywords).replaceAll('"','&quot;')}" placeholder="optional"></td>
+          <td><input data-scripture value="${safeText(s.scripture).replaceAll('"','&quot;')}" placeholder="optional"></td>
+        `;
+        body.appendChild(tr);
+      }
+    }
+
+    async function loadAlbum(){
+      $("statusLine").textContent = "Loading…";
+
+      const { data: a, error } = await supabase
+        .from(ALBUMS)
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (error) { $("statusLine").textContent = "Error: " + error.message; return; }
+      album = a;
+
+      const { data: art, error: e2 } = await supabase
+        .from(ARTISTS)
+        .select("id,name")
+        .eq("id", album.artist_id)
+        .single();
+
+      if (!e2) artist = art;
+
+      const { data: s, error: e3 } = await supabase
+        .from(SONGS)
+        .select("*")
+        .eq("album_id", id)
+        .order("track_number", { ascending: true });
+
+      songs = e3 ? [] : (s || []);
+
+      $("title").textContent = `Album Studio: ${album.title || "(Draft)"}`;
+      $("status").value = album.status || "draft";
+      $("titleInput").value = album.title || "";
+      $("theme").value = album.theme || "";
+      $("style").value = album.style || "";
+      $("mood").value = album.mood || "";
+      $("lead_type").value = album.lead_type || "";
+      $("total_tracks").value = album.total_tracks || 12;
+      $("notes").value = album.notes || "";
+      $("prompt").value = album.chatgpt_prompt || "";
+
+      // show JSON as pretty if possible; else store newline list
+      $("working_titles").value = album.working_titles ? JSON.stringify(album.working_titles, null, 2) : "";
+      $("working_tracklist").value = album.working_tracklist ? JSON.stringify(album.working_tracklist, null, 2) : "";
+
+      $("statusLine").textContent = `Album ID: ${album.id}`;
+      setChips();
+      renderSongs();
+    }
+
+    async function saveAlbum(){
+      const payload = {
+        status: $("status").value,
+        title: $("titleInput").value.trim() || null,
+        theme: $("theme").value.trim() || null,
+        style: $("style").value.trim() || null,
+        mood: $("mood").value.trim() || null,
+        lead_type: $("lead_type").value || null,
+        total_tracks: Number($("total_tracks").value || 12),
+        notes: $("notes").value.trim() || null,
+        chatgpt_prompt: $("prompt").value || null,
+        working_titles: parseMaybeList($("working_titles").value),
+        working_tracklist: parseMaybeList($("working_tracklist").value),
+      };
+
+      $("statusLine").textContent = "Saving…";
+      const { error } = await supabase.from(ALBUMS).update(payload).eq("id", id);
+      if (error) { $("statusLine").textContent = "Error: " + error.message; return; }
+
+      // Save song edits too (inline)
+      const rows = [...document.querySelectorAll("#songsBody tr[data-song-id]")];
+      for (const r of rows){
+        const sid = r.dataset.songId;
+        const title = r.querySelector("[data-title]").value.trim();
+        const keywords = r.querySelector("[data-keywords]").value.trim() || null;
+        const scripture = r.querySelector("[data-scripture]").value.trim() || null;
+        if (!title) continue;
+        await supabase.from(SONGS).update({ title, keywords, scripture }).eq("id", sid);
+      }
+
+      $("statusLine").textContent = "Saved ✅";
+      await loadAlbum();
+    }
+
+    async function deleteAlbum(){
+      const ok = confirm("Delete this album? Songs will be deleted too.");
+      if (!ok) return;
+      $("statusLine").textContent = "Deleting…";
+      const { error } = await supabase.from(ALBUMS).delete().eq("id", id);
+      if (error) { $("statusLine").textContent = "Error: " + error.message; return; }
+      window.location.href = "./albums.html";
+    }
+
+    async function applyTracklistToSongs(){
+      const list = parseMaybeList($("working_tracklist").value);
+      if (!list || !list.length) return alert("Paste a tracklist first.");
+
+      // Accept either strings or objects {title, ...}
+      const titles = list.map((x) => {
+        if (typeof x === "string") return x.trim();
+        if (x && typeof x === "object") return String(x.title || "").trim();
+        return "";
+      }).filter(Boolean);
+
+      if (!titles.length) return alert("Could not read titles.");
+
+      $("statusLine").textContent = "Upserting songs…";
+
+      const rows = titles.map((t, idx) => ({
+        album_id: id,
+        track_number: idx + 1,
+        title: t
+      }));
+
+      // Upsert via delete+insert for simplicity
+      await supabase.from(SONGS).delete().eq("album_id", id);
+      const { error } = await supabase.from(SONGS).insert(rows);
+      if (error) { $("statusLine").textContent = "Error: " + error.message; return; }
+
+      $("statusLine").textContent = "Songs updated ✅";
+      await loadAlbum();
+    }
+
+    $("btnSave").onclick = saveAlbum;
+    $("btnDelete").onclick = deleteAlbum;
+    $("btnApplyTracks").onclick = applyTracklistToSongs;
+
+    $("btnCopyPrompt").onclick = async () => {
+      const p = $("prompt").value;
+      if (!p) return alert("No prompt stored.");
+      await navigator.clipboard.writeText(p);
+      $("statusLine").textContent = "Prompt copied ✅";
+    };
+
+    $("btnBack").onclick = () => window.location.href = "./albums.html";
+    $("btnLogout").onclick = async () => {
+      await supabase.auth.signOut();
+      window.location.href = "./index.html";
+    };
+
+    await loadAlbum();
+  </script>
+</body>
+</html>

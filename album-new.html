@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SVS System – Album Studio (New)</title>
+  <style>
+    :root{
+      --bg:#0b0f19; --card:#121a2a; --card2:#0f1626; --border:#23304a;
+      --muted:#92a4c7; --text:#e8eefc; --primary:#2f6fed; --danger:#d14b4b;
+      --ok:#2ecc71; --warn:#f5c542;
+    }
+    body { font-family: Arial, sans-serif; background:var(--bg); color:var(--text); margin:0; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .top { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+    .muted { color:var(--muted); font-size: 14px; }
+    .btn { padding:12px 14px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); cursor:pointer; font-weight:800; }
+    .btn.primary { background:var(--primary); border:none; }
+    .btn.secondary { background:#1c273f; border:1px solid #2a3a5c; }
+    .btn.danger { background:var(--danger); border:none; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-top:14px; }
+    .grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; }
+    @media (max-width: 900px){ .grid { grid-template-columns: 1fr; } }
+    label { font-size:12px; color:var(--muted); display:block; margin:8px 0 6px; }
+    input, select, textarea {
+      padding:12px; border-radius:12px; border:1px solid #2a3a5c;
+      background:var(--card2); color:var(--text); width:100%;
+      box-sizing:border-box;
+    }
+    textarea { min-height: 140px; resize: vertical; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .stepper { display:flex; gap:10px; flex-wrap:wrap; }
+    .step {
+      padding:10px 12px; border-radius:999px; border:1px solid #2a3a5c;
+      background:#0f1626; color:var(--muted); font-weight:800; cursor:pointer;
+    }
+    .step.active { background: #1c273f; color: var(--text); border-color:#3b5ea0; }
+    .step.done { color: var(--ok); }
+    .hint { font-size:12px; color:var(--muted); margin-top:6px; line-height:1.4; }
+    .actions { display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between; margin-top:14px; }
+    .rightActions { display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+    table { width:100%; border-collapse: collapse; margin-top:10px; }
+    th, td { border-bottom:1px solid #22304a; padding:10px; text-align:left; vertical-align: top; }
+    th { color:var(--muted); font-size:12px; }
+    .tiny { width: 90px; }
+    .mini { width: 180px; }
+    .copy { background:#16315f; border:1px solid #2a3a5c; }
+    .badge { display:inline-block; padding:6px 10px; border-radius:999px; border:1px solid #2a3a5c; background:#0f1626; font-size:12px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1 style="margin:0;">Album Studio</h1>
+        <div id="who" class="muted"></div>
+      </div>
+      <div class="row">
+        <button id="btnBack" class="btn secondary">Back</button>
+        <button id="btnLogout" class="btn danger">Logout</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between;">
+        <div class="stepper">
+          <div class="step active" data-step="1">1) Artist</div>
+          <div class="step" data-step="2">2) Album Setup</div>
+          <div class="step" data-step="3">3) Track Planner</div>
+          <div class="step" data-step="4">4) Prompt</div>
+        </div>
+        <div class="badge">Full Studio v1</div>
+      </div>
+
+      <div id="msg" class="muted" style="margin-top:10px;"></div>
+
+      <!-- Step 1 -->
+      <div id="step1">
+        <h2 style="margin:14px 0 8px;">Select Artist</h2>
+        <div class="grid">
+          <div>
+            <label for="artist_id">Artist</label>
+            <select id="artist_id"></select>
+            <div class="hint">We’ll auto-load defaults (lane/persona/links) from the artist profile.</div>
+          </div>
+          <div>
+            <label>Artist Defaults (preview)</label>
+            <div id="artistPreview" class="mono" style="padding:12px; border-radius:12px; background:#0f1626; border:1px solid #22304a; min-height:48px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div id="step2" style="display:none;">
+        <h2 style="margin:14px 0 8px;">Album Setup</h2>
+        <div class="grid">
+          <div>
+            <label for="theme">Theme</label>
+            <input id="theme" placeholder="e.g. Revival Fire, Healing Waters, Freedom & Breakthrough">
+          </div>
+          <div>
+            <label for="style">Style</label>
+            <input id="style" placeholder="e.g. Traditional Gospel Praise, Country Gospel, Soul Worship">
+          </div>
+          <div>
+            <label for="mood">Mood</label>
+            <input id="mood" placeholder="e.g. Triumphant, Intimate, High-Energy, Reflective">
+          </div>
+          <div>
+            <label for="lead_type">Lead Type</label>
+            <select id="lead_type">
+              <option value="">(auto)</option>
+              <option value="male">male</option>
+              <option value="female">female</option>
+              <option value="choir">choir</option>
+              <option value="duet">duet</option>
+            </select>
+          </div>
+          <div>
+            <label for="total_tracks">Number of Tracks</label>
+            <input id="total_tracks" type="number" min="1" max="50" value="12" class="tiny">
+          </div>
+          <div>
+            <label for="notes">Album Notes</label>
+            <input id="notes" placeholder="Any constraints, do/don’t, special direction">
+          </div>
+        </div>
+        <div class="hint">
+          Pro workflow: keep this broad. Track-specific scripture/keywords go in the Track Planner.
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div id="step3" style="display:none;">
+        <h2 style="margin:14px 0 8px;">Track Planner</h2>
+        <div class="row">
+          <button id="btnBuildTracks" class="btn secondary">Build Track Rows</button>
+          <div class="muted">Tip: Fill only the tracks that need special direction. Leave others blank for ChatGPT to design.</div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th class="tiny">#</th>
+              <th>Track direction / vibe</th>
+              <th class="mini">Keywords</th>
+              <th class="mini">Scripture</th>
+            </tr>
+          </thead>
+          <tbody id="tracksBody"></tbody>
+        </table>
+      </div>
+
+      <!-- Step 4 -->
+      <div id="step4" style="display:none;">
+        <h2 style="margin:14px 0 8px;">ChatGPT Prompt</h2>
+        <div class="row">
+          <button id="btnGenerate" class="btn secondary">Generate Prompt</button>
+          <button id="btnCopy" class="btn copy">Copy Prompt</button>
+          <button id="btnSaveDraft" class="btn primary">Save Draft Album</button>
+        </div>
+        <div class="hint">
+          Workflow: Generate → copy into ChatGPT → bring back the chosen album title + track list → open the saved draft and paste results.
+        </div>
+        <textarea id="prompt" class="mono" placeholder="Click “Generate Prompt”…"></textarea>
+      </div>
+
+      <div class="actions">
+        <button id="btnPrev" class="btn secondary">← Previous</button>
+        <div class="rightActions">
+          <button id="btnNext" class="btn primary">Next →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { supabase, requireSessionOrRedirect } from "./app.js";
+    const $ = (id) => document.getElementById(id);
+
+    const ARTISTS = "artists";
+    const ALBUMS = "albums";
+
+    const session = await requireSessionOrRedirect();
+    $("who").textContent = `Signed in: ${session.user.email}`;
+
+    let step = 1;
+    let artist = null;
+
+    function showStep(n){
+      step = n;
+      for (let i=1;i<=4;i++){
+        $("step"+i).style.display = (i===n) ? "" : "none";
+      }
+      document.querySelectorAll(".step").forEach(el => {
+        const s = Number(el.dataset.step);
+        el.classList.toggle("active", s===n);
+        el.classList.toggle("done", s < n);
+      });
+      $("btnPrev").disabled = (n===1);
+      $("btnNext").textContent = (n===4) ? "Finish" : "Next →";
+    }
+
+    document.querySelectorAll(".step").forEach(el => {
+      el.onclick = () => {
+        const n = Number(el.dataset.step);
+        if (n <= step) showStep(n);
+      };
+    });
+
+    function normalizeHandle(v){
+      const s = (v || "").trim();
+      if (!s) return null;
+      return s.startsWith("@") ? s.slice(1) : s;
+    }
+    function norm(v){
+      const s = (v ?? "").toString().trim();
+      return s ? s : null;
+    }
+
+    function getTrackPlan(){
+      const rows = [...document.querySelectorAll("[data-track-row]")];
+      return rows.map(r => ({
+        track_number: Number(r.dataset.track),
+        direction: (r.querySelector("[data-direction]").value || "").trim() || null,
+        keywords: (r.querySelector("[data-keywords]").value || "").trim() || null,
+        scripture: (r.querySelector("[data-scripture]").value || "").trim() || null,
+      }));
+    }
+
+    function buildPrompt(){
+      if (!artist) return "";
+
+      const total = Number($("total_tracks").value || 12);
+      const trackPlan = getTrackPlan();
+
+      const artistInfo = {
+        name: artist.name,
+        channel_hand: artist.channel_hand ? ("@" + String(artist.channel_hand).replace(/^@/,"")) : null,
+        youtube_chan: artist.youtube_chan,
+        default_lane: artist.default_lane,
+        default_perso: artist.default_perso,
+        links: {
+          spotify: artist.spotify_url,
+          bandcamp: artist.bandcamp_ur,
+          apple_music: artist.apple_music_,
+          soundcloud: artist.soundcloud_u,
+          youtube: artist.youtube_url,
+          website: artist.website_url,
+          beacons: artist.beacons_url,
+          tiktok: artist.tiktok_url,
+          facebook: artist.facebook_url
+        }
+      };
+
+      const albumReq = {
+        theme: norm($("theme").value),
+        style: norm($("style").value),
+        mood: norm($("mood").value),
+        lead_type: norm($("lead_type").value) || null,
+        total_tracks: total,
+        notes: norm($("notes").value),
+      };
+
+      const specialLines = trackPlan
+        .filter(t => t.direction || t.keywords || t.scripture)
+        .map(t => {
+          const parts = [];
+          if (t.direction) parts.push("direction: " + t.direction);
+          if (t.keywords) parts.push("keywords: " + t.keywords);
+          if (t.scripture) parts.push("scripture: " + t.scripture);
+          return `Track ${t.track_number}: ${parts.join(" • ")}`;
+        });
+
+      const personaBlock = artistInfo.default_perso
+        ? `DEFAULT PERSONA:\n${artistInfo.default_perso}\n`
+        : "";
+
+      return [
+`You are helping me plan a professional music album for a YouTube-first AI-music workflow.
+
+ARTIST INFORMATION
+- Artist name: ${artistInfo.name}
+- Channel handle: ${artistInfo.channel_hand || "(none)"}
+- YouTube channel name: ${artistInfo.youtube_chan || "(none)"}
+- Default lane: ${artistInfo.default_lane || "(none)"}
+
+${personaBlock}ALBUM REQUIREMENTS
+- Theme: ${albumReq.theme || "(decide based on artist lane)"}
+- Style: ${albumReq.style || "(match default lane/persona)"}
+- Mood: ${albumReq.mood || "(match theme)"}
+- Lead type: ${albumReq.lead_type || "(infer from artist/lane)"}
+- Number of tracks: ${albumReq.total_tracks}
+- Notes: ${albumReq.notes || "(none)"}
+
+TRACK PLANNING (only fill what is specified; design the rest)
+${specialLines.length ? specialLines.join("\n") : "(No special track constraints. Create a natural flow.)"}
+
+TASK
+1) Give me 8 strong album title ideas (not generic).
+2) Ask me to pick ONE final album title from the list (or propose a best pick).
+3) Give me ${albumReq.total_tracks} track title ideas that flow like a real album.
+4) Provide a short 1-line theme/vibe summary for each track title (no lyrics yet).
+5) Keep the titles unique and consistent with the artist lane/persona.
+
+Output format:
+- Album titles (8)
+- Recommended album title (1)
+- Tracklist (${albumReq.total_tracks}) with short vibe summaries
+`,
+      ].join("\n");
+    }
+
+    async function loadArtists(){
+      const { data, error } = await supabase
+        .from(ARTISTS)
+        .select(`
+          id, name, channel_hand, default_lane, youtube_chan, default_perso,
+          spotify_url, bandcamp_ur, apple_music_, soundcloud_u,
+          youtube_url, website_url, beacons_url, tiktok_url, facebook_url
+        `)
+        .order("name", { ascending: true });
+
+      if (error) { $("msg").textContent = "Error: " + error.message; return; }
+
+      const sel = $("artist_id");
+      sel.innerHTML = '<option value="">Select…</option>';
+      for (const a of data) {
+        const opt = document.createElement("option");
+        opt.value = a.id;
+        opt.textContent = a.name || "(Untitled)";
+        opt.dataset.artist = JSON.stringify(a);
+        sel.appendChild(opt);
+      }
+    }
+
+    function setArtistPreview(a){
+      const lines = [];
+      lines.push(`name: ${a.name || "-"}`);
+      if (a.channel_hand) lines.push(`handle: @${String(a.channel_hand).replace(/^@/,"")}`);
+      if (a.default_lane) lines.push(`lane: ${a.default_lane}`);
+      if (a.default_perso) lines.push(`persona: ${a.default_perso}`);
+      $("artistPreview").textContent = lines.join("\n") || "(none)";
+    }
+
+    function ensureTrackRows(){
+      const total = Math.max(1, Math.min(50, Number($("total_tracks").value || 12)));
+      const body = $("tracksBody");
+      body.innerHTML = "";
+      for (let i=1;i<=total;i++){
+        const tr = document.createElement("tr");
+        tr.setAttribute("data-track-row", "1");
+        tr.dataset.track = String(i);
+
+        tr.innerHTML = `
+          <td class="tiny"><b>${i}</b></td>
+          <td><input data-direction placeholder="e.g. opener praise, altar call ballad, breakthrough anthem"></td>
+          <td><input data-keywords placeholder="e.g. revival, fire, mercy"></td>
+          <td><input data-scripture placeholder="e.g. Acts 2:1-4"></td>
+        `;
+        body.appendChild(tr);
+      }
+    }
+
+    async function saveDraft(){
+      if (!artist) return alert("Select an artist first.");
+      const total = Math.max(1, Math.min(50, Number($("total_tracks").value || 12)));
+
+      const prompt = $("prompt").value.trim() || buildPrompt();
+      if (!prompt) return alert("Generate the prompt first.");
+
+      const payload = {
+        artist_id: artist.id,
+        status: "ideation",
+        total_tracks: total,
+        theme: norm($("theme").value),
+        style: norm($("style").value),
+        mood: norm($("mood").value),
+        lead_type: norm($("lead_type").value),
+        notes: norm($("notes").value),
+        prompt_snapshot: {
+          artist: {
+            id: artist.id,
+            name: artist.name,
+            channel_hand: artist.channel_hand,
+            default_lane: artist.default_lane,
+            default_perso: artist.default_perso
+          },
+          album: {
+            theme: norm($("theme").value),
+            style: norm($("style").value),
+            mood: norm($("mood").value),
+            lead_type: norm($("lead_type").value),
+            total_tracks: total,
+            notes: norm($("notes").value)
+          },
+          track_plan: getTrackPlan()
+        },
+        chatgpt_prompt: prompt,
+        working_titles: null,
+        working_tracklist: null,
+        title: null
+      };
+
+      $("msg").textContent = "Saving draft…";
+      const { data, error } = await supabase
+        .from(ALBUMS)
+        .insert([payload])
+        .select("id")
+        .single();
+
+      if (error) { $("msg").textContent = "Error: " + error.message; return; }
+
+      $("msg").textContent = "Saved draft ✅";
+      window.location.href = `./album-edit.html?id=${encodeURIComponent(data.id)}`;
+    }
+
+    $("artist_id").onchange = (e) => {
+      const opt = e.target.selectedOptions?.[0];
+      if (!opt || !opt.value) { artist = null; $("artistPreview").textContent = ""; return; }
+      artist = JSON.parse(opt.dataset.artist);
+      setArtistPreview(artist);
+    };
+
+    $("btnBuildTracks").onclick = ensureTrackRows;
+
+    $("btnGenerate").onclick = () => {
+      const p = buildPrompt();
+      $("prompt").value = p;
+      $("msg").textContent = p ? "Prompt generated." : "Select an artist first.";
+    };
+
+    $("btnCopy").onclick = async () => {
+      const p = $("prompt").value;
+      if (!p) return alert("Nothing to copy.");
+      await navigator.clipboard.writeText(p);
+      $("msg").textContent = "Copied ✅";
+    };
+
+    $("btnSaveDraft").onclick = saveDraft;
+
+    $("btnPrev").onclick = () => showStep(Math.max(1, step-1));
+    $("btnNext").onclick = () => {
+      if (step === 1){
+        if (!$("artist_id").value) return alert("Select an artist to continue.");
+        showStep(2);
+      } else if (step === 2){
+        // build tracks if not built yet
+        if (!$("tracksBody").children.length) ensureTrackRows();
+        showStep(3);
+      } else if (step === 3){
+        showStep(4);
+      } else {
+        // Finish = save draft
+        saveDraft();
+      }
+    };
+
+    $("btnBack").onclick = () => window.location.href = "./albums.html";
+    $("btnLogout").onclick = async () => {
+      await supabase.auth.signOut();
+      window.location.href = "./index.html";
+    };
+
+    await loadArtists();
+    showStep(1);
+  </script>
+</body>
+</html>
