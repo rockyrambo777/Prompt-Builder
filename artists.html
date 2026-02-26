@@ -15,6 +15,7 @@
     .muted { color:var(--muted); font-size: 14px; }
     .btn { padding:12px 14px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); cursor:pointer; font-weight:700; }
     .btn.secondary { background:#1c273f; border:1px solid #2a3a5c; }
+    .btn.primary { background:var(--primary); border:none; }
     .btn.danger { background:var(--danger); border:none; }
     .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-top:14px; }
     ul { margin: 12px 0 0; padding:0; list-style:none; }
@@ -23,29 +24,7 @@
     .name { font-weight:800; }
     .meta { font-size:12px; color:var(--muted); margin-top:4px; }
     .pill { font-size:12px; padding:6px 10px; border-radius:999px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); }
-    .nav { display:flex; gap:10px; align-items:center; }
-
-    /* Floating action button (bottom-right) */
-    .fab {
-      position: fixed;
-      right: 18px;
-      bottom: 18px;
-      width: 56px;
-      height: 56px;
-      border-radius: 18px;
-      border: none;
-      cursor: pointer;
-      background: var(--primary);
-      color: white;
-      font-size: 28px;
-      font-weight: 900;
-      box-shadow: 0 12px 32px rgba(0,0,0,0.35);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-    }
-    .fab:hover { filter: brightness(1.05); transform: translateY(-1px); }
-    .fab:active { transform: translateY(0); }
+    .nav { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
   </style>
 </head>
 <body>
@@ -56,6 +35,7 @@
         <div id="who" class="muted"></div>
       </div>
       <div class="nav">
+        <button id="btnAdd" class="btn primary">+ Add Artist</button>
         <button id="btnHome" class="btn secondary">Home</button>
         <button id="btnLogout" class="btn danger">Logout</button>
       </div>
@@ -69,18 +49,15 @@
 
       <ul id="list"></ul>
       <div class="muted" style="margin-top:10px;">
-        Tip: Click an artist to edit all fields.
+        Tip: Click an artist to view the profile.
       </div>
     </div>
   </div>
-
-  <button id="fabAdd" class="fab" title="Add Artist" aria-label="Add Artist">+</button>
 
   <script type="module">
     import { supabase, requireSessionOrRedirect } from "./app.js";
     const $ = (id) => document.getElementById(id);
 
-    // IMPORTANT: set this to your actual table name
     const TABLE = "artists";
 
     const session = await requireSessionOrRedirect();
@@ -99,14 +76,14 @@
 
       $("msg").textContent = `Loaded ${data.length} artist(s).`;
       if (!data.length) {
-        $("list").innerHTML = "<li class='muted'>No artists yet. Tap + to add one.</li>";
+        $("list").innerHTML = "<li class='muted'>No artists yet. Click “Add Artist”.</li>";
         return;
       }
 
       for (const a of data) {
         const li = document.createElement("li");
         li.className = "item";
-        li.onclick = () => window.location.href = `./artist-edit.html?id=${encodeURIComponent(a.id)}`;
+        li.onclick = () => window.location.href = `./artist-view.html?id=${encodeURIComponent(a.id)}`;
 
         const left = document.createElement("div");
         const name = document.createElement("div");
@@ -125,7 +102,7 @@
 
         const right = document.createElement("div");
         right.className = "pill";
-        right.textContent = "Edit";
+        right.textContent = "View";
 
         li.appendChild(left);
         li.appendChild(right);
@@ -135,13 +112,12 @@
 
     $("btnRefresh").onclick = loadArtists;
     $("btnHome").onclick = () => window.location.href = "./home.html";
+    $("btnAdd").onclick = () => window.location.href = "./artist-new.html";
 
     $("btnLogout").onclick = async () => {
       await supabase.auth.signOut();
       window.location.href = "./index.html";
     };
-
-    $("fabAdd").onclick = () => window.location.href = "./artist-new.html";
 
     loadArtists();
   </script>
