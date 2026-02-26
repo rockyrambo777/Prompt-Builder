@@ -12,8 +12,8 @@
     .btn { padding:12px 14px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:#e8eefc; cursor:pointer; font-weight:700; }
     .btn.danger { background:#d14b4b; border:none; }
 
-    /* only 2 cards now */
-    .grid { display:grid; grid-template-columns: repeat(2, 1fr); gap:14px; margin-top:18px; }
+    /* now 3 cards */
+    .grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:14px; margin-top:18px; }
     .card { background:#121a2a; border:1px solid #23304a; border-radius:16px; padding:18px; cursor:pointer; }
     .card:hover { border-color:#355a9b; }
     .card h3 { margin: 0 0 8px; }
@@ -42,6 +42,11 @@
         <h3>Albums</h3>
         <p class="muted">Album Studio: create albums, prompts, and tracklists.</p>
       </div>
+
+      <div class="card" id="goProduction">
+        <h3>Production</h3>
+        <p class="muted">Produce videos for songs in approved albums.</p>
+      </div>
     </div>
   </div>
 
@@ -58,6 +63,7 @@
 
     document.getElementById("goArtists").onclick = () => window.location.href = "./artists.html";
     document.getElementById("goAlbums").onclick = () => window.location.href = "./albums.html";
+    document.getElementById("goProduction").onclick = () => window.location.href = "./production.html";
   </script>
 </body>
 </html>
