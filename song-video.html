@@ -300,60 +300,67 @@ ${strict}
     }
 
     function buildShortChatGPTPrompt(){
-      const useArtist = $("short_use_artist_ref").checked;
+  const useArtist = $("short_use_artist_ref").checked;
 
-      const lane = artist?.default_lane || "";
-      const persona = artist?.default_perso || "";
-      const artistName = artist?.name || "";
-      const leadType = album?.lead_type || "solo";
+  const lane = artist?.default_lane || "";
+  const persona = artist?.default_perso || "";
+  const artistName = artist?.name || "";
+  const leadType = album?.lead_type || "solo";
 
-      const lyrics = (song?.lyrics || "").trim();
-      const keywords = (song?.keywords || "").trim();
-      const scripture = (song?.scripture || "").trim();
-      const suno = (song?.suno_prompt || "").trim();
+  const lyrics = (song?.lyrics || "").trim();
+  const keywords = (song?.keywords || "").trim();
+  const scripture = (song?.scripture || "").trim();
+  const suno = (song?.suno_prompt || "").trim();
 
-      const strict = `
+  const strict = `
 STRICT OUTPUT (MUST MATCH EXACTLY)
-Return ONLY 3 shorts in this exact format.
-NO JSON. NO markdown. NO commentary.
+Return ONLY 3 shorts.
+NO JSON. NO markdown. NO commentary. NO extra explanations.
+
+FORMAT:
 
 SHORT 1
+LYRICS_RANGE: <what part of the song is used>
+
+ON_SCREEN_TEXT_PLAN:
+- 0–2s: ...
+- 2–6s: ...
+- 6–12s: ...
+- 12–15s: ...
+
 SCENE 1
 IMAGE_PROMPT: <one line>
 (optional) GROK_PROMPT: <one line>
+
 SCENE 2
 IMAGE_PROMPT: <one line>
 (optional) GROK_PROMPT: <one line>
+
 SCENE 3
 IMAGE_PROMPT: <one line>
 (optional) GROK_PROMPT: <one line>
+
 
 SHORT 2
-SCENE 1
-IMAGE_PROMPT: <one line>
-(optional) GROK_PROMPT: <one line>
-SCENE 2
-IMAGE_PROMPT: <one line>
-(optional) GROK_PROMPT: <one line>
-SCENE 3
-IMAGE_PROMPT: <one line>
-(optional) GROK_PROMPT: <one line>
+(same structure)
 
 SHORT 3
-SCENE 1
-IMAGE_PROMPT: <one line>
-(optional) GROK_PROMPT: <one line>
-SCENE 2
-IMAGE_PROMPT: <one line>
-(optional) GROK_PROMPT: <one line>
-SCENE 3
-IMAGE_PROMPT: <one line>
-(optional) GROK_PROMPT: <one line>
+(same structure)
+
+RULES:
+- Exactly 3 shorts.
+- Each short must use a different hook or angle from the song.
+- Each short must clearly state which lyrics section is used.
+- On-screen text must be short, punchy, readable.
+- Each short must contain exactly 3 scenes.
+- IMAGE_PROMPT must be one clean Flow-ready line.
+- If you include GROK_PROMPT, it must be 10-second subtle motion instructions.
+- Do NOT include anything outside this structure.
 `.trim();
 
-      const prompt = `
-You are creating 3 YouTube Shorts visual plans for a gospel song.
-We will use Google Flow to generate images, and optionally Grok image-to-video.
+  const prompt = `
+You are creating 3 high-performing YouTube Shorts for a gospel song.
+These will be used in Google Flow (images) and optionally Grok image-to-video.
 
 ARTIST
 - name: ${artistName}
@@ -368,17 +375,23 @@ REFERENCE IMAGE
 Artist reference image in Flow (Shorts): ${useArtist ? "YES (we will upload artist image as reference)" : "NO"}
 
 TASK
-Create exactly 3 different shorts ideas (different angles/moments).
-Each short must have exactly 3 scenes (fast and punchy).
-If you decide a short should be image-to-video, include GROK_PROMPT lines; otherwise omit them.
+Create 3 different Shorts concepts from this song.
+Each short must:
+- Focus on a strong emotional hook
+- Clearly define which lyrics are used
+- Provide an on-screen text timing plan
+- Provide 3 cinematic scene prompts
+- Optionally include Grok 10s video prompts per scene
 
-RULES FOR IMAGE_PROMPT
-- Flow-ready, cinematic, 9:16 friendly composition (still generate 1920x1080 safe framing), clean space for text.
-- Consistent style per short.
+VISUAL STYLE RULES
+- Vertical-friendly composition (but still generate 1920x1080 safe framing).
+- Clean open space for captions.
+- Strong emotional lighting.
+- Consistent look within each short.
 - If reference image is YES: include "use the uploaded artist reference image" in every IMAGE_PROMPT.
 - If reference image is NO: do NOT describe a specific real person.
 
-LYRICS (pick hook moments)
+LYRICS
 ${lyrics ? lyrics : "(Lyrics not found. Use title/keywords/scripture to infer.)"}
 
 Keywords: ${keywords || "(none)"}
@@ -387,8 +400,8 @@ Scripture: ${scripture || "(none)"}
 ${strict}
 `.trim();
 
-      return prompt;
-    }
+  return prompt;
+}
 
     async function load(){
       $("statusLine").textContent = "Loading…";
