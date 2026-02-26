@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Artist Prompt Builder</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <h1>Artist Prompt Builder</h1>
+    <p class="sub">Pick an artist + deliverable, paste lyrics, and copy the generated ChatGPT command.</p>
+
+    <div class="card">
+      <div class="grid">
+        <label>
+          Artist
+          <select id="artist"></select>
+        </label>
+
+        <label>
+          Deliverable
+          <select id="deliverable">
+            <option value="short">YouTube SHORT package</option>
+            <option value="long">YouTube LONG package</option>
+            <option value="tags">Tags only (comma-separated)</option>
+            <option value="pinned">Pinned comment only</option>
+            <option value="thumb">Thumbnail vidIQ description</option>
+            <option value="canva">Canva 1920×1080 background prompt</option>
+          </select>
+        </label>
+
+        <label>
+          Song title
+          <input id="songTitle" placeholder="e.g., He Sees Your Tears" />
+        </label>
+
+        <label>
+          Singer type
+          <select id="singerType">
+            <option>Female</option>
+            <option>Male</option>
+            <option>Duet</option>
+            <option>Choir</option>
+          </select>
+        </label>
+
+        <label>
+          BPM (optional)
+          <input id="bpm" placeholder="e.g., 92" />
+        </label>
+
+        <label>
+          Key (optional)
+          <input id="key" placeholder="e.g., G" />
+        </label>
+
+        <label class="wide">
+          Mood (optional)
+          <input id="mood" placeholder="e.g., comfort, hopeful, emotional" />
+        </label>
+
+        <label class="wide">
+          Lyrics
+          <textarea id="lyrics" rows="10" placeholder="Paste lyrics here..."></textarea>
+        </label>
+
+        <label class="wide">
+          Extra notes (optional)
+          <textarea id="notes" rows="4" placeholder="Anything special? e.g., 'This is for a 10s short'"></textarea>
+        </label>
+      </div>
+
+      <div class="actions">
+        <button id="generate">Generate Prompt</button>
+        <button id="copy" class="secondary" disabled>Copy</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Generated Command</h2>
+      <textarea id="output" rows="14" readonly placeholder="Your generated command will appear here..."></textarea>
+      <p class="hint">Tip: Paste this into ChatGPT exactly as-is.</p>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
