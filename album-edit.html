@@ -41,6 +41,14 @@
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
     .sectionTitle { margin: 0 0 10px; }
     .hint { font-size:12px; color:var(--muted); margin-top:6px; line-height:1.4; }
+
+    /* Checkbox styling */
+    .checkCell { text-align:center; }
+    input[type="checkbox"]{
+      width:18px;
+      height:18px;
+      accent-color: var(--primary);
+    }
   </style>
 </head>
 <body>
@@ -160,6 +168,8 @@ Also accepted:
             <th class="wide">Suno Prompt</th>
             <th class="mini">Keywords</th>
             <th class="mini">Scripture</th>
+            <th class="tiny">Lyrics ✅</th>
+            <th class="mini">Actions</th>
           </tr>
         </thead>
         <tbody id="songsBody"></tbody>
@@ -227,14 +237,24 @@ Also accepted:
     }
 
     function escAttr(s){
-      return safeText(s).replaceAll("&","&amp;").replaceAll('"','&quot;').replaceAll("<","&lt;").replaceAll(">","&gt;");
+      return safeText(s)
+        .replaceAll("&","&amp;")
+        .replaceAll('"','&quot;')
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;");
+    }
+
+    function hasLyricsText(song){
+      // If lyrics column exists and has content, show as done.
+      const lyr = (song?.lyrics ?? "").toString().trim();
+      return lyr.length > 0;
     }
 
     function renderSongs(){
       const body = $("songsBody");
       body.innerHTML = "";
       if (!songs.length){
-        body.innerHTML = "<tr><td colspan='5' class='muted'>No songs yet. Apply tracks.</td></tr>";
+        body.innerHTML = "<tr><td colspan='7' class='muted'>No songs yet. Apply tracks.</td></tr>";
         return;
       }
       songs.sort((a,b) => a.track_number - b.track_number);
@@ -243,14 +263,25 @@ Also accepted:
         const tr = document.createElement("tr");
         tr.dataset.songId = s.id;
 
+        const checked = hasLyricsText(s) ? "checked" : "";
+
         tr.innerHTML = `
           <td class="tiny"><b>${s.track_number}</b></td>
           <td><input data-title value="${escAttr(s.title)}"></td>
           <td><textarea data-suno class="mono" style="min-height:90px;">${safeText(s.suno_prompt || "")}</textarea></td>
           <td><input data-keywords value="${escAttr(s.keywords)}" placeholder="optional"></td>
           <td><input data-scripture value="${escAttr(s.scripture)}" placeholder="optional"></td>
+          <td class="checkCell"><input type="checkbox" data-lyrics-done ${checked} disabled></td>
+          <td>
+            <button class="btn secondary" data-lyrics>Edit Lyrics</button>
+          </td>
         `;
         body.appendChild(tr);
+
+        // Open Song/Lyrics page
+        tr.querySelector("[data-lyrics]").onclick = () => {
+          window.location.href = `./song-edit.html?id=${encodeURIComponent(s.id)}&album_id=${encodeURIComponent(id)}`;
+        };
       }
     }
 
@@ -273,6 +304,7 @@ Also accepted:
         .single();
       if (!e2) artist = art;
 
+      // IMPORTANT: select("*") includes lyrics if the column exists.
       const { data: s, error: e3 } = await supabase
         .from(SONGS)
         .select("*")
@@ -306,7 +338,7 @@ Also accepted:
       if (arr.every(x => typeof x === "string")) {
         return arr.map((title, idx) => ({
           track_number: idx + 1,
-          title: String(title).replace(/^"+|"+$/g,"").trim(), // remove surrounding quotes if user pasted "A"
+          title: String(title).replace(/^"+|"+$/g,"").trim(),
           suno_prompt: null,
           keywords: null,
           scripture: null,
