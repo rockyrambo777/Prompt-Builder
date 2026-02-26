@@ -90,7 +90,7 @@
       const { data: albums, error: e1 } = await supabase
         .from("albums")
         .select("id,title,artist_id,status")
-        .eq("status", "approved");
+        .in("status", ["approved", "producing"])
 
       if (e1) { $("statusLine").textContent = "Error: " + e1.message; return; }
       if (!albums?.length){
