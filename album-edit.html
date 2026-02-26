@@ -8,11 +8,11 @@
     :root{
       --bg:#0b0f19; --card:#121a2a; --card2:#0f1626; --border:#23304a;
       --muted:#92a4c7; --text:#e8eefc; --primary:#2f6fed; --danger:#d14b4b;
-      --ok:#2ecc71; --chip:#1c273f;
+      --chip:#1c273f;
     }
     body { font-family: Arial, sans-serif; background:var(--bg); color:var(--text); margin:0; }
     .wrap { max-width: 1200px; margin: 0 auto; padding: 24px; }
-    .top { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+    .top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
     .muted { color:var(--muted); font-size: 14px; }
     .btn { padding:12px 14px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); cursor:pointer; font-weight:800; }
     .btn.primary { background:var(--primary); border:none; }
@@ -45,7 +45,7 @@
   <div class="wrap">
     <div class="top">
       <div>
-        <h1 style="margin:0;" id="title">Album Studio</h1>
+        <h1 style="margin:0;" id="pageTitle">Album Studio</h1>
         <div id="who" class="muted"></div>
       </div>
       <div class="row">
@@ -79,36 +79,41 @@
             <option value="released">released</option>
           </select>
         </div>
+
         <div>
           <label for="titleInput">Final Album Title (approved)</label>
           <input id="titleInput" placeholder="Paste final chosen album title here">
         </div>
+
         <div>
           <label for="theme">Theme</label>
           <input id="theme">
         </div>
+
         <div>
-          <label for="style">Style</label>
+          <label for="style">Style / Lane Hint</label>
           <input id="style">
         </div>
+
         <div>
           <label for="mood">Mood</label>
           <input id="mood">
         </div>
+
         <div>
           <label for="lead_type">Lead Type</label>
           <select id="lead_type">
-            <option value="">(auto)</option>
-            <option value="male">male</option>
-            <option value="female">female</option>
-            <option value="choir">choir</option>
-            <option value="duet">duet</option>
+            <option value="solo">solo (single artist lead)</option>
+            <option value="solo+choir">solo + choir (backing / response)</option>
+            <option value="choir">choir (choir-led)</option>
           </select>
         </div>
+
         <div>
           <label for="total_tracks">Tracks</label>
           <input id="total_tracks" type="number" min="1" max="50">
         </div>
+
         <div>
           <label for="notes">Notes</label>
           <input id="notes">
@@ -122,17 +127,25 @@
       <div class="grid">
         <div>
           <label for="working_titles">Album title ideas (JSON array or newline list)</label>
-          <textarea id="working_titles" class="mono" placeholder='Example:\n["Title A","Title B"]\nOR\nTitle A\nTitle B'></textarea>
+          <textarea id="working_titles" class="mono" placeholder='Example:
+["Title A","Title B"]
+OR
+Title A
+Title B'></textarea>
         </div>
         <div>
           <label for="working_tracklist">Tracklist ideas (JSON array or newline list)</label>
-          <textarea id="working_tracklist" class="mono" placeholder='Example:\n["Track 1","Track 2"]\nOR\nTrack 1\nTrack 2'></textarea>
+          <textarea id="working_tracklist" class="mono" placeholder='Example:
+["Track 1","Track 2"]
+OR
+Track 1
+Track 2'></textarea>
         </div>
       </div>
 
       <div class="row" style="margin-top:10px;">
         <button id="btnApplyTracks" class="btn secondary">Apply Tracklist → Songs</button>
-        <div class="muted">This will upsert songs for this album using the working tracklist.</div>
+        <div class="muted">This will recreate songs for this album using the working tracklist.</div>
       </div>
 
       <h2 class="sectionTitle" style="margin-top:18px;">Songs (final)</h2>
@@ -174,12 +187,10 @@
     function parseMaybeList(text){
       const t = (text || "").trim();
       if (!t) return null;
-      // Try JSON
       try {
         const v = JSON.parse(t);
         if (Array.isArray(v)) return v;
       } catch {}
-      // newline list
       const lines = t.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
       return lines.length ? lines : null;
     }
@@ -242,7 +253,6 @@
         .select("id,name")
         .eq("id", album.artist_id)
         .single();
-
       if (!e2) artist = art;
 
       const { data: s, error: e3 } = await supabase
@@ -253,18 +263,17 @@
 
       songs = e3 ? [] : (s || []);
 
-      $("title").textContent = `Album Studio: ${album.title || "(Draft)"}`;
+      $("pageTitle").textContent = `Album Studio: ${album.title || "(Draft)"}`;
       $("status").value = album.status || "draft";
       $("titleInput").value = album.title || "";
       $("theme").value = album.theme || "";
       $("style").value = album.style || "";
       $("mood").value = album.mood || "";
-      $("lead_type").value = album.lead_type || "";
+      $("lead_type").value = album.lead_type || "solo";
       $("total_tracks").value = album.total_tracks || 12;
       $("notes").value = album.notes || "";
       $("prompt").value = album.chatgpt_prompt || "";
 
-      // show JSON as pretty if possible; else store newline list
       $("working_titles").value = album.working_titles ? JSON.stringify(album.working_titles, null, 2) : "";
       $("working_tracklist").value = album.working_tracklist ? JSON.stringify(album.working_tracklist, null, 2) : "";
 
@@ -280,7 +289,7 @@
         theme: $("theme").value.trim() || null,
         style: $("style").value.trim() || null,
         mood: $("mood").value.trim() || null,
-        lead_type: $("lead_type").value || null,
+        lead_type: $("lead_type").value || "solo",
         total_tracks: Number($("total_tracks").value || 12),
         notes: $("notes").value.trim() || null,
         chatgpt_prompt: $("prompt").value || null,
@@ -292,7 +301,7 @@
       const { error } = await supabase.from(ALBUMS).update(payload).eq("id", id);
       if (error) { $("statusLine").textContent = "Error: " + error.message; return; }
 
-      // Save song edits too (inline)
+      // Save song edits too
       const rows = [...document.querySelectorAll("#songsBody tr[data-song-id]")];
       for (const r of rows){
         const sid = r.dataset.songId;
@@ -320,7 +329,6 @@
       const list = parseMaybeList($("working_tracklist").value);
       if (!list || !list.length) return alert("Paste a tracklist first.");
 
-      // Accept either strings or objects {title, ...}
       const titles = list.map((x) => {
         if (typeof x === "string") return x.trim();
         if (x && typeof x === "object") return String(x.title || "").trim();
@@ -329,7 +337,7 @@
 
       if (!titles.length) return alert("Could not read titles.");
 
-      $("statusLine").textContent = "Upserting songs…";
+      $("statusLine").textContent = "Updating songs…";
 
       const rows = titles.map((t, idx) => ({
         album_id: id,
@@ -337,7 +345,7 @@
         title: t
       }));
 
-      // Upsert via delete+insert for simplicity
+      // recreate songs for simplicity
       await supabase.from(SONGS).delete().eq("album_id", id);
       const { error } = await supabase.from(SONGS).insert(rows);
       if (error) { $("statusLine").textContent = "Error: " + error.message; return; }
