@@ -207,12 +207,31 @@
       return lyr.length > 0;
     }
 
-    async function showSunoPromptPopup(prompt){
-      const p = (prompt || "").trim();
-      if (!p) return alert("No Suno prompt saved for this track yet.");
-      const ok = confirm("Copy this Suno prompt to clipboard?\n\n(OK = copy, Cancel = just view)");
-      if (ok) await navigator.clipboard.writeText(p);
-      window.prompt("Suno Prompt (copy/edit):", p);
+    // ✅ AUTO STATUS: approved -> producing when ALL songs have lyrics + suno_share_url
+    async function maybeAutoSetProducing(){
+      if (!album || !songs) return;
+
+      const current = (album.status || "").toLowerCase();
+      if (current !== "approved") return;
+
+      const allDone = songs.length > 0 && songs.every(s => {
+        const lyrOk = ((s.lyrics ?? "").toString().trim().length > 0);
+        const sunoOk = ((s.suno_share_url ?? "").toString().trim().length > 0);
+        return lyrOk && sunoOk;
+      });
+
+      if (!allDone) return;
+
+      const { error } = await supabase.from(ALBUMS).update({ status: "producing" }).eq("id", id);
+      if (error) {
+        console.warn("Auto status update failed:", error.message);
+        return;
+      }
+
+      album.status = "producing";
+      $("status").value = "producing";
+      setChips();
+      $("statusLine").textContent = "All tracks complete → status auto-set to producing ✅";
     }
 
     function renderSongs(){
@@ -245,7 +264,6 @@
           <td>
             <button class="btn secondary" data-lyrics>Edit Lyrics</button>
             <button class="btn secondary" data-suno-pack>Suno Pack</button>
-            
           </td>
         `;
         body.appendChild(tr);
@@ -257,8 +275,6 @@
         tr.querySelector("[data-suno-pack]").onclick = () => {
           window.location.href = `./song-suno.html?id=${encodeURIComponent(s.id)}&album_id=${encodeURIComponent(id)}`;
         };
-
-        
 
         const linkEl = tr.querySelector("[data-link]");
         linkEl.onclick = () => {
@@ -296,6 +312,9 @@
       $("statusLine").textContent = `Album ID: ${album.id}`;
       setChips();
       renderSongs();
+
+      // ✅ AFTER songs load + render, auto status update if complete
+      await maybeAutoSetProducing();
     }
 
     function normalizeTracks(arr){
