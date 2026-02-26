@@ -8,7 +8,7 @@
     :root{
       --bg:#0b0f19; --card:#121a2a; --card2:#0f1626; --border:#23304a;
       --muted:#92a4c7; --text:#e8eefc; --primary:#2f6fed; --danger:#d14b4b;
-      --ok:#2ecc71; --warn:#f5c542;
+      --ok:#2ecc71; --warn:#f5c542; --chip:#1c273f;
     }
     body { font-family: Arial, sans-serif; background:var(--bg); color:var(--text); margin:0; }
     .wrap { max-width: 1100px; margin: 0 auto; padding: 24px; }
@@ -47,6 +47,12 @@
     .copy { background:#16315f; border:1px solid #2a3a5c; }
     .badge { display:inline-block; padding:6px 10px; border-radius:999px; border:1px solid #2a3a5c; background:#0f1626; font-size:12px; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .panel {
+      padding:12px; border-radius:12px; background:#0f1626; border:1px solid #22304a;
+      white-space:pre-wrap;
+    }
+    .chips { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    .chip { font-size:12px; padding:6px 10px; border-radius:999px; border:1px solid #2a3a5c; background:var(--chip); color:var(--text); }
   </style>
 </head>
 <body>
@@ -82,52 +88,93 @@
           <div>
             <label for="artist_id">Artist</label>
             <select id="artist_id"></select>
-            <div class="hint">We’ll auto-load defaults (lane/persona/links) from the artist profile.</div>
+
+            <div class="hint">
+              This step only selects the artist for context.<br>
+              We do <b>not</b> auto-fill album fields with artist defaults — you choose album settings in Step 2.
+            </div>
           </div>
+
           <div>
-            <label>Artist Defaults (preview)</label>
-            <div id="artistPreview" class="mono" style="padding:12px; border-radius:12px; background:#0f1626; border:1px solid #22304a; min-height:48px;"></div>
+            <label>What these fields mean</label>
+            <div class="panel">
+- Artist Lane: the artist’s typical lane (example: Country / Soul / Pop). Used as a “style hint”.
+- Persona: the artist’s writing/production persona. Used as a “voice/style hint”.
+- Album Genre: default is Gospel, but you can change it per album.
+            </div>
           </div>
+        </div>
+
+        <div style="margin-top:12px;">
+          <label>Selected Artist (preview)</label>
+          <div id="artistPreview" class="panel mono">(select an artist)</div>
+          <div class="chips" id="artistChips"></div>
         </div>
       </div>
 
       <!-- Step 2 -->
       <div id="step2" style="display:none;">
         <h2 style="margin:14px 0 8px;">Album Setup</h2>
+
         <div class="grid">
+          <div>
+            <label for="album_genre">Album Genre</label>
+            <select id="album_genre">
+              <option value="gospel" selected>Gospel</option>
+              <option value="christian-pop">Christian Pop</option>
+              <option value="christian-rock">Christian Rock</option>
+              <option value="country-gospel">Country Gospel</option>
+              <option value="worship">Worship</option>
+              <option value="traditional-gospel">Traditional Gospel</option>
+              <option value="other">Other</option>
+            </select>
+            <div class="hint">Defaulted to Gospel. You can change it for special projects.</div>
+          </div>
+
+          <div>
+            <label for="lead_type">Lead Type</label>
+            <select id="lead_type">
+              <option value="solo" selected>solo (single artist lead)</option>
+              <option value="solo+choir">solo + choir (backing / response)</option>
+              <option value="choir">choir (choir-led)</option>
+            </select>
+            <div class="hint">Since it’s always the artist lead, choose solo or add choir support.</div>
+          </div>
+
           <div>
             <label for="theme">Theme</label>
             <input id="theme" placeholder="e.g. Revival Fire, Healing Waters, Freedom & Breakthrough">
           </div>
-          <div>
-            <label for="style">Style</label>
-            <input id="style" placeholder="e.g. Traditional Gospel Praise, Country Gospel, Soul Worship">
-          </div>
+
           <div>
             <label for="mood">Mood</label>
             <input id="mood" placeholder="e.g. Triumphant, Intimate, High-Energy, Reflective">
           </div>
+
           <div>
-            <label for="lead_type">Lead Type</label>
-            <select id="lead_type">
-              <option value="">(auto)</option>
-              <option value="male">male</option>
-              <option value="female">female</option>
-              <option value="choir">choir</option>
-              <option value="duet">duet</option>
-            </select>
+            <label for="style">Style / Lane Hint</label>
+            <input id="style" placeholder="e.g. Country Gospel, Soul Worship, Pop Praise (optional)">
+            <div class="hint">Optional. If blank, we’ll use the artist lane as the style hint.</div>
           </div>
+
           <div>
             <label for="total_tracks">Number of Tracks</label>
             <input id="total_tracks" type="number" min="1" max="50" value="12" class="tiny">
           </div>
+
           <div>
             <label for="notes">Album Notes</label>
             <input id="notes" placeholder="Any constraints, do/don’t, special direction">
           </div>
+
+          <div>
+            <label for="album_genre_other">If Genre = Other</label>
+            <input id="album_genre_other" placeholder="Type the genre (only if you chose Other)">
+          </div>
         </div>
+
         <div class="hint">
-          Pro workflow: keep this broad. Track-specific scripture/keywords go in the Track Planner.
+          Pro workflow: keep this broad. Track-specific keywords/scripture go in the Track Planner.
         </div>
       </div>
 
@@ -136,7 +183,7 @@
         <h2 style="margin:14px 0 8px;">Track Planner</h2>
         <div class="row">
           <button id="btnBuildTracks" class="btn secondary">Build Track Rows</button>
-          <div class="muted">Tip: Fill only the tracks that need special direction. Leave others blank for ChatGPT to design.</div>
+          <div class="muted">Fill only tracks that need special direction. Leave others blank.</div>
         </div>
 
         <table>
@@ -160,9 +207,11 @@
           <button id="btnCopy" class="btn copy">Copy Prompt</button>
           <button id="btnSaveDraft" class="btn primary">Save Draft Album</button>
         </div>
+
         <div class="hint">
-          Workflow: Generate → copy into ChatGPT → bring back the chosen album title + track list → open the saved draft and paste results.
+          Important: the prompt forces ChatGPT to output track titles in a strict JSON array so you can paste back into the app.
         </div>
+
         <textarea id="prompt" class="mono" placeholder="Click “Generate Prompt”…"></textarea>
       </div>
 
@@ -209,14 +258,15 @@
       };
     });
 
-    function normalizeHandle(v){
-      const s = (v || "").trim();
-      if (!s) return null;
-      return s.startsWith("@") ? s.slice(1) : s;
-    }
     function norm(v){
       const s = (v ?? "").toString().trim();
       return s ? s : null;
+    }
+
+    function getGenre(){
+      const g = $("album_genre").value;
+      if (g !== "other") return g;
+      return norm($("album_genre_other").value) || "other";
     }
 
     function getTrackPlan(){
@@ -227,121 +277,6 @@
         keywords: (r.querySelector("[data-keywords]").value || "").trim() || null,
         scripture: (r.querySelector("[data-scripture]").value || "").trim() || null,
       }));
-    }
-
-    function buildPrompt(){
-      if (!artist) return "";
-
-      const total = Number($("total_tracks").value || 12);
-      const trackPlan = getTrackPlan();
-
-      const artistInfo = {
-        name: artist.name,
-        channel_hand: artist.channel_hand ? ("@" + String(artist.channel_hand).replace(/^@/,"")) : null,
-        youtube_chan: artist.youtube_chan,
-        default_lane: artist.default_lane,
-        default_perso: artist.default_perso,
-        links: {
-          spotify: artist.spotify_url,
-          bandcamp: artist.bandcamp_ur,
-          apple_music: artist.apple_music_,
-          soundcloud: artist.soundcloud_u,
-          youtube: artist.youtube_url,
-          website: artist.website_url,
-          beacons: artist.beacons_url,
-          tiktok: artist.tiktok_url,
-          facebook: artist.facebook_url
-        }
-      };
-
-      const albumReq = {
-        theme: norm($("theme").value),
-        style: norm($("style").value),
-        mood: norm($("mood").value),
-        lead_type: norm($("lead_type").value) || null,
-        total_tracks: total,
-        notes: norm($("notes").value),
-      };
-
-      const specialLines = trackPlan
-        .filter(t => t.direction || t.keywords || t.scripture)
-        .map(t => {
-          const parts = [];
-          if (t.direction) parts.push("direction: " + t.direction);
-          if (t.keywords) parts.push("keywords: " + t.keywords);
-          if (t.scripture) parts.push("scripture: " + t.scripture);
-          return `Track ${t.track_number}: ${parts.join(" • ")}`;
-        });
-
-      const personaBlock = artistInfo.default_perso
-        ? `DEFAULT PERSONA:\n${artistInfo.default_perso}\n`
-        : "";
-
-      return [
-`You are helping me plan a professional music album for a YouTube-first AI-music workflow.
-
-ARTIST INFORMATION
-- Artist name: ${artistInfo.name}
-- Channel handle: ${artistInfo.channel_hand || "(none)"}
-- YouTube channel name: ${artistInfo.youtube_chan || "(none)"}
-- Default lane: ${artistInfo.default_lane || "(none)"}
-
-${personaBlock}ALBUM REQUIREMENTS
-- Theme: ${albumReq.theme || "(decide based on artist lane)"}
-- Style: ${albumReq.style || "(match default lane/persona)"}
-- Mood: ${albumReq.mood || "(match theme)"}
-- Lead type: ${albumReq.lead_type || "(infer from artist/lane)"}
-- Number of tracks: ${albumReq.total_tracks}
-- Notes: ${albumReq.notes || "(none)"}
-
-TRACK PLANNING (only fill what is specified; design the rest)
-${specialLines.length ? specialLines.join("\n") : "(No special track constraints. Create a natural flow.)"}
-
-TASK
-1) Give me 8 strong album title ideas (not generic).
-2) Ask me to pick ONE final album title from the list (or propose a best pick).
-3) Give me ${albumReq.total_tracks} track title ideas that flow like a real album.
-4) Provide a short 1-line theme/vibe summary for each track title (no lyrics yet).
-5) Keep the titles unique and consistent with the artist lane/persona.
-
-Output format:
-- Album titles (8)
-- Recommended album title (1)
-- Tracklist (${albumReq.total_tracks}) with short vibe summaries
-`,
-      ].join("\n");
-    }
-
-    async function loadArtists(){
-      const { data, error } = await supabase
-        .from(ARTISTS)
-        .select(`
-          id, name, channel_hand, default_lane, youtube_chan, default_perso,
-          spotify_url, bandcamp_ur, apple_music_, soundcloud_u,
-          youtube_url, website_url, beacons_url, tiktok_url, facebook_url
-        `)
-        .order("name", { ascending: true });
-
-      if (error) { $("msg").textContent = "Error: " + error.message; return; }
-
-      const sel = $("artist_id");
-      sel.innerHTML = '<option value="">Select…</option>';
-      for (const a of data) {
-        const opt = document.createElement("option");
-        opt.value = a.id;
-        opt.textContent = a.name || "(Untitled)";
-        opt.dataset.artist = JSON.stringify(a);
-        sel.appendChild(opt);
-      }
-    }
-
-    function setArtistPreview(a){
-      const lines = [];
-      lines.push(`name: ${a.name || "-"}`);
-      if (a.channel_hand) lines.push(`handle: @${String(a.channel_hand).replace(/^@/,"")}`);
-      if (a.default_lane) lines.push(`lane: ${a.default_lane}`);
-      if (a.default_perso) lines.push(`persona: ${a.default_perso}`);
-      $("artistPreview").textContent = lines.join("\n") || "(none)";
     }
 
     function ensureTrackRows(){
@@ -363,8 +298,119 @@ Output format:
       }
     }
 
+    function setArtistPreview(a){
+      const lines = [];
+      lines.push(`name: ${a.name || "-"}`);
+      lines.push(`lane: ${a.default_lane || "-"}`);
+      if (a.default_perso) lines.push(`persona: ${a.default_perso}`);
+      $("artistPreview").textContent = lines.join("\n");
+
+      const chips = $("artistChips");
+      chips.innerHTML = "";
+      const addChip = (txt) => {
+        const s = document.createElement("span");
+        s.className = "chip";
+        s.textContent = txt;
+        chips.appendChild(s);
+      };
+      if (a.default_lane) addChip("lane: " + a.default_lane);
+      if (a.default_perso) addChip("persona: set");
+    }
+
+    function buildPrompt(){
+      if (!artist) return "";
+
+      const total = Math.max(1, Math.min(50, Number($("total_tracks").value || 12)));
+      const trackPlan = getTrackPlan();
+
+      const albumGenre = getGenre();
+      const leadType = $("lead_type").value || "solo";
+      const theme = norm($("theme").value);
+      const mood = norm($("mood").value);
+      const styleInput = norm($("style").value);
+      const laneHint = norm(artist.default_lane) || null;
+      const styleHint = styleInput || laneHint || null;
+
+      const notes = norm($("notes").value);
+
+      const specialLines = trackPlan
+        .filter(t => t.direction || t.keywords || t.scripture)
+        .map(t => {
+          const parts = [];
+          if (t.direction) parts.push("direction: " + t.direction);
+          if (t.keywords) parts.push("keywords: " + t.keywords);
+          if (t.scripture) parts.push("scripture: " + t.scripture);
+          return `Track ${t.track_number}: ${parts.join(" • ")}`;
+        });
+
+      const personaBlock = artist.default_perso
+        ? `ARTIST PERSONA (STYLE VOICE)\n${artist.default_perso}\n`
+        : "";
+
+      // STRICT output blocks for copy/paste back into the app
+      return [
+`You are helping me plan a professional GOSPEL album for an AI music workflow.
+
+ARTIST
+- Name: ${artist.name}
+- Lane hint (style family): ${laneHint || "(none)"}
+
+${personaBlock}ALBUM REQUIREMENTS
+- Album genre: ${albumGenre}  (defaulted to Gospel; can be subgenre)
+- Style hint: ${styleHint || "(decide)"}
+- Mood: ${mood || "(decide)"}
+- Theme: ${theme || "(decide)"}
+- Lead type: ${leadType}  (solo / solo+choir / choir)
+- Track count: ${total}
+- Notes: ${notes || "(none)"}
+
+TRACK PLANNING (only constraints listed; design the rest naturally)
+${specialLines.length ? specialLines.join("\n") : "(No special track constraints.)"}
+
+TASK
+1) Create 8 strong album title ideas (not generic).
+2) Recommend ONE best album title from the 8.
+3) Create EXACTLY ${total} track titles (titles only) that flow like a real album (no numbering inside the title text).
+
+STRICT OUTPUT (IMPORTANT — MUST MATCH EXACTLY)
+Return ONLY these three blocks in this exact order:
+
+ALBUM_TITLES_JSON:
+["Title 1","Title 2","Title 3","Title 4","Title 5","Title 6","Title 7","Title 8"]
+
+RECOMMENDED_ALBUM_TITLE:
+"One exact title from the album titles above"
+
+TRACK_TITLES_JSON:
+["Track 1","Track 2", ... exactly ${total} total items]
+
+Do NOT add any extra commentary outside those blocks.
+`,
+      ].join("\n");
+    }
+
+    async function loadArtists(){
+      const { data, error } = await supabase
+        .from(ARTISTS)
+        .select(`id,name,default_lane,default_perso`)
+        .order("name", { ascending: true });
+
+      if (error) { $("msg").textContent = "Error: " + error.message; return; }
+
+      const sel = $("artist_id");
+      sel.innerHTML = '<option value="">Select…</option>';
+      for (const a of data) {
+        const opt = document.createElement("option");
+        opt.value = a.id;
+        opt.textContent = a.name || "(Untitled)";
+        opt.dataset.artist = JSON.stringify(a);
+        sel.appendChild(opt);
+      }
+    }
+
     async function saveDraft(){
       if (!artist) return alert("Select an artist first.");
+
       const total = Math.max(1, Math.min(50, Number($("total_tracks").value || 12)));
 
       const prompt = $("prompt").value.trim() || buildPrompt();
@@ -375,29 +421,24 @@ Output format:
         status: "ideation",
         total_tracks: total,
         theme: norm($("theme").value),
-        style: norm($("style").value),
+        style: norm($("style").value) || norm(artist.default_lane),  // store a usable style hint
         mood: norm($("mood").value),
-        lead_type: norm($("lead_type").value),
+        lead_type: $("lead_type").value || "solo",
         notes: norm($("notes").value),
+        chatgpt_prompt: prompt,
         prompt_snapshot: {
-          artist: {
-            id: artist.id,
-            name: artist.name,
-            channel_hand: artist.channel_hand,
-            default_lane: artist.default_lane,
-            default_perso: artist.default_perso
-          },
+          artist: { id: artist.id, name: artist.name, lane: artist.default_lane || null },
           album: {
+            album_genre: getGenre(),
             theme: norm($("theme").value),
-            style: norm($("style").value),
             mood: norm($("mood").value),
-            lead_type: norm($("lead_type").value),
+            style_hint: norm($("style").value) || norm(artist.default_lane),
+            lead_type: $("lead_type").value || "solo",
             total_tracks: total,
             notes: norm($("notes").value)
           },
           track_plan: getTrackPlan()
         },
-        chatgpt_prompt: prompt,
         working_titles: null,
         working_tracklist: null,
         title: null
@@ -418,7 +459,12 @@ Output format:
 
     $("artist_id").onchange = (e) => {
       const opt = e.target.selectedOptions?.[0];
-      if (!opt || !opt.value) { artist = null; $("artistPreview").textContent = ""; return; }
+      if (!opt || !opt.value) {
+        artist = null;
+        $("artistPreview").textContent = "(select an artist)";
+        $("artistChips").innerHTML = "";
+        return;
+      }
       artist = JSON.parse(opt.dataset.artist);
       setArtistPreview(artist);
     };
@@ -446,13 +492,11 @@ Output format:
         if (!$("artist_id").value) return alert("Select an artist to continue.");
         showStep(2);
       } else if (step === 2){
-        // build tracks if not built yet
         if (!$("tracksBody").children.length) ensureTrackRows();
         showStep(3);
       } else if (step === 3){
         showStep(4);
       } else {
-        // Finish = save draft
         saveDraft();
       }
     };
