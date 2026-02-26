@@ -258,7 +258,7 @@
           window.location.href = `./song-suno.html?id=${encodeURIComponent(s.id)}&album_id=${encodeURIComponent(id)}`;
         };
 
-        tr.querySelector("[data-view-suno]").onclick = () => showSunoPromptPopup(s.suno_prompt || "");
+        
 
         const linkEl = tr.querySelector("[data-link]");
         linkEl.onclick = () => {
