@@ -58,6 +58,7 @@
         <div class="row">
           <button id="btnBuildLyricsPrompt" class="btn secondary">Build Lyrics Prompt</button>
           <button id="btnCopyLyricsPrompt" class="btn copy">Copy Lyrics Prompt</button>
+          <button id="btnCopyForSuno" class="btn copy">Copy for Suno</button>
           <button id="btnSave" class="btn primary">Save</button>
         </div>
       </div>
@@ -83,6 +84,12 @@
           <label for="suno_prompt">Suno Prompt</label>
           <textarea id="suno_prompt" class="mono"></textarea>
         </div>
+
+        <div style="grid-column: 1 / -1;">
+          <label for="suno_share_url">Suno Share Link (paste after you create it in Suno)</label>
+          <input id="suno_share_url" placeholder="https://suno.com/song/..." />
+          <div class="hint">This gets saved to the song so later you can open Suno quickly.</div>
+        </div>
       </div>
 
       <h2 style="margin:18px 0 8px;">Lyrics Prompt (for ChatGPT)</h2>
@@ -93,6 +100,12 @@
 
       <h2 style="margin:18px 0 8px;">Lyrics (paste from ChatGPT)</h2>
       <textarea id="lyrics" class="mono" placeholder="Paste full lyrics here…"></textarea>
+
+      <h2 style="margin:18px 0 8px;">Suno Paste Preview (auto-cleaned)</h2>
+      <textarea id="suno_paste" class="mono" style="min-height:180px;" readonly></textarea>
+      <div class="hint">
+        “Copy for Suno” copies exactly what you see here (no \`\`\` fences, no “LYRICS:” header).
+      </div>
     </div>
   </div>
 
@@ -138,6 +151,34 @@
       return s ? s : null;
     }
 
+    // ✅ Converts whatever you pasted into clean Suno-ready lyrics
+    function makeSunoPaste(raw){
+      let t = (raw || "").toString().trim();
+      if (!t) return "";
+
+      // Remove "LYRICS:" header if present
+      t = t.replace(/^LYRICS:\s*/i, "");
+
+      // Remove surrounding triple-backtick blocks if present
+      // Handles:
+      // ``` ... ```
+      // ```text ... ```
+      t = t.replace(/^```[a-zA-Z]*\s*/m, "");
+      t = t.replace(/```$/m, "");
+
+      // Trim extra whitespace
+      t = t.trim();
+
+      // Optional cleanup: remove excessive blank lines (keep max 1)
+      t = t.replace(/\n{3,}/g, "\n\n");
+
+      return t;
+    }
+
+    function refreshSunoPreview(){
+      $("suno_paste").value = makeSunoPaste($("lyrics").value);
+    }
+
     function buildLyricsPrompt(){
       const title = norm($("title").value) || "(Untitled)";
       const keywords = norm($("keywords").value);
@@ -146,7 +187,6 @@
       const laneHint = artist?.default_lane || "";
       const persona = artist?.default_perso || "";
 
-      // We keep it strict to force clean copy/paste.
       return `Write original gospel song lyrics for the track below.
 
 SONG
@@ -217,6 +257,9 @@ ERROR: NON_COMPLIANT_OUTPUT
       $("suno_prompt").value = song.suno_prompt || "";
       $("lyrics_prompt").value = song.lyrics_prompt || "";
       $("lyrics").value = song.lyrics || "";
+      $("suno_share_url").value = song.suno_share_url || "";
+
+      refreshSunoPreview();
 
       setChips();
       $("statusLine").textContent = `Song ID: ${song.id}`;
@@ -232,6 +275,7 @@ ERROR: NON_COMPLIANT_OUTPUT
         suno_prompt: norm($("suno_prompt").value),
         lyrics_prompt: norm($("lyrics_prompt").value),
         lyrics: norm($("lyrics").value),
+        suno_share_url: norm($("suno_share_url").value),
       };
 
       // Try full update; fallback if some columns don't exist
@@ -240,11 +284,14 @@ ERROR: NON_COMPLIANT_OUTPUT
       if (upd.error){
         const msg = String(upd.error.message || "").toLowerCase();
 
-        // Remove fields that may not exist and retry safely
+        // Safe minimal fields that always exist
         const safe = { title: payload.title, keywords: payload.keywords, scripture: payload.scripture };
+
+        // Only include these if the column exists (avoid repeated errors)
         if (!msg.includes("suno_prompt")) safe.suno_prompt = payload.suno_prompt;
         if (!msg.includes("lyrics_prompt")) safe.lyrics_prompt = payload.lyrics_prompt;
         if (!msg.includes("lyrics")) safe.lyrics = payload.lyrics;
+        if (!msg.includes("suno_share_url")) safe.suno_share_url = payload.suno_share_url;
 
         const upd2 = await supabase.from(SONGS).update(safe).eq("id", songId);
         if (upd2.error){
@@ -269,6 +316,16 @@ ERROR: NON_COMPLIANT_OUTPUT
       await navigator.clipboard.writeText(p);
       $("statusLine").textContent = "Lyrics prompt copied ✅";
     };
+
+    $("btnCopyForSuno").onclick = async () => {
+      refreshSunoPreview();
+      const t = $("suno_paste").value.trim();
+      if (!t) return alert("No lyrics to copy.");
+      await navigator.clipboard.writeText(t);
+      $("statusLine").textContent = "Copied for Suno ✅";
+    };
+
+    $("lyrics").addEventListener("input", refreshSunoPreview);
 
     $("btnSave").onclick = saveSong;
 
