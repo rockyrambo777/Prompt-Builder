@@ -12,9 +12,10 @@
     }
     body { font-family: Arial, sans-serif; background:var(--bg); color:var(--text); margin:0; }
     .wrap { max-width: 1100px; margin: 0 auto; padding: 24px; }
-    .top { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+    .top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
     .muted { color:var(--muted); font-size: 14px; }
-    .btn { padding:12px 14px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); cursor:pointer; font-weight:800; }
+    .btn { padding:12px 16px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); cursor:pointer; font-weight:800; }
+    .btn.primary { background:var(--primary); border:none; }
     .btn.secondary { background:#1c273f; border:1px solid #2a3a5c; }
     .btn.danger { background:var(--danger); border:none; }
     .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-top:14px; }
@@ -32,26 +33,7 @@
     .chips { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
     .chip { font-size:12px; padding:6px 10px; border-radius:999px; border:1px solid #2a3a5c; background:var(--chip); color:var(--text); }
     .pill { font-size:12px; padding:6px 10px; border-radius:999px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); }
-    .nav { display:flex; gap:10px; align-items:center; }
-
-    .fab {
-      position: fixed;
-      right: 18px;
-      bottom: 18px;
-      width: 56px;
-      height: 56px;
-      border-radius: 18px;
-      border: none;
-      cursor: pointer;
-      background: var(--primary);
-      color: white;
-      font-size: 28px;
-      font-weight: 900;
-      box-shadow: 0 12px 32px rgba(0,0,0,0.35);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-    }
+    .nav { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
   </style>
 </head>
 <body>
@@ -62,6 +44,7 @@
         <div id="who" class="muted"></div>
       </div>
       <div class="nav">
+        <button id="btnAdd" class="btn primary">+ Add Album</button>
         <button id="btnHome" class="btn secondary">Home</button>
         <button id="btnLogout" class="btn danger">Logout</button>
       </div>
@@ -95,8 +78,6 @@
     </div>
   </div>
 
-  <button id="fabAdd" class="fab" title="Create Album" aria-label="Create Album">+</button>
-
   <script type="module">
     import { supabase, requireSessionOrRedirect } from "./app.js";
     const $ = (id) => document.getElementById(id);
@@ -110,19 +91,17 @@
     let artistsById = {};
 
     async function loadArtistsFilter(){
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from(ARTISTS)
         .select("id,name")
         .order("name", { ascending: true });
 
-      if (error) { $("msg").textContent = "Error loading artists: " + error.message; return; }
-
       artistsById = {};
-      for (const a of data) artistsById[a.id] = a;
-
       const sel = $("artistFilter");
       sel.innerHTML = '<option value="">All artists</option>';
-      for (const a of data) {
+
+      for (const a of data || []) {
+        artistsById[a.id] = a;
         const opt = document.createElement("option");
         opt.value = a.id;
         opt.textContent = a.name || "(Untitled)";
@@ -133,8 +112,6 @@
     function fmtDate(iso){
       try { return new Date(iso).toLocaleString(); } catch { return iso; }
     }
-
-    function safeText(v){ return (v === null || v === undefined) ? "" : String(v); }
 
     async function loadAlbums(){
       $("msg").textContent = "Loading…";
@@ -152,22 +129,21 @@
       if (af) query = query.eq("artist_id", af);
       if (sf) query = query.eq("status", sf);
 
-      const { data, error } = await query;
+      const { data } = await query;
 
-      if (error) { $("msg").textContent = "Error: " + error.message; return; }
-
-      // client-side search (simple)
-      const filtered = q ? data.filter(a =>
-        (safeText(a.title).toLowerCase().includes(q)) ||
-        (safeText(a.theme).toLowerCase().includes(q)) ||
-        (safeText(a.style).toLowerCase().includes(q)) ||
-        (safeText(a.mood).toLowerCase().includes(q))
-      ) : data;
+      const filtered = q
+        ? data.filter(a =>
+            (a.title || "").toLowerCase().includes(q) ||
+            (a.theme || "").toLowerCase().includes(q) ||
+            (a.style || "").toLowerCase().includes(q) ||
+            (a.mood || "").toLowerCase().includes(q)
+          )
+        : data;
 
       $("msg").textContent = `Loaded ${filtered.length} album(s).`;
 
       if (!filtered.length) {
-        $("list").innerHTML = "<li class='muted'>No albums yet. Tap + to create one.</li>";
+        $("list").innerHTML = "<li class='muted'>No albums yet. Click “Add Album”.</li>";
         return;
       }
 
@@ -188,25 +164,8 @@
         meta.className = "meta";
         meta.textContent = `${artistName} • status: ${a.status} • tracks: ${a.total_tracks} • updated: ${fmtDate(a.updated_at || a.created_at)}`;
 
-        const chips = document.createElement("div");
-        chips.className = "chips";
-        const chipVals = [
-          a.lead_type ? ("lead: " + a.lead_type) : null,
-          a.mood ? ("mood: " + a.mood) : null,
-          a.style ? ("style: " + a.style) : null,
-          a.theme ? ("theme: " + a.theme) : null,
-        ].filter(Boolean);
-
-        for (const cv of chipVals) {
-          const c = document.createElement("span");
-          c.className = "chip";
-          c.textContent = cv;
-          chips.appendChild(c);
-        }
-
         left.appendChild(t);
         left.appendChild(meta);
-        if (chipVals.length) left.appendChild(chips);
 
         const right = document.createElement("div");
         right.className = "pill";
@@ -218,22 +177,17 @@
       }
     }
 
+    $("btnAdd").onclick = () => window.location.href = "./album-new.html";
     $("btnRefresh").onclick = loadAlbums;
     $("artistFilter").onchange = loadAlbums;
     $("statusFilter").onchange = loadAlbums;
-    $("q").oninput = () => {
-      // debounced-ish
-      clearTimeout(window.__t);
-      window.__t = setTimeout(loadAlbums, 200);
-    };
+    $("q").oninput = () => setTimeout(loadAlbums, 200);
 
     $("btnHome").onclick = () => window.location.href = "./home.html";
     $("btnLogout").onclick = async () => {
       await supabase.auth.signOut();
       window.location.href = "./index.html";
     };
-
-    $("fabAdd").onclick = () => window.location.href = "./album-new.html";
 
     await loadArtistsFilter();
     loadAlbums();
