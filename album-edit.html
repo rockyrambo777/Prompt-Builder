@@ -210,11 +210,8 @@
     async function showSunoPromptPopup(prompt){
       const p = (prompt || "").trim();
       if (!p) return alert("No Suno prompt saved for this track yet.");
-      const ok = confirm("Copy this Suno prompt to clipboard?\n\n(Press OK to copy. Press Cancel to just view it in the box that opens next.)");
-      if (ok) {
-        await navigator.clipboard.writeText(p);
-      }
-      // Always show in a prompt box for quick view/select
+      const ok = confirm("Copy this Suno prompt to clipboard?\n\n(OK = copy, Cancel = just view)");
+      if (ok) await navigator.clipboard.writeText(p);
       window.prompt("Suno Prompt (copy/edit):", p);
     }
 
@@ -247,6 +244,7 @@
           </td>
           <td>
             <button class="btn secondary" data-lyrics>Edit Lyrics</button>
+            <button class="btn secondary" data-suno-pack>Suno Pack</button>
             <button class="btn secondary" data-view-suno>View Suno</button>
           </td>
         `;
@@ -254,6 +252,10 @@
 
         tr.querySelector("[data-lyrics]").onclick = () => {
           window.location.href = `./song-edit.html?id=${encodeURIComponent(s.id)}&album_id=${encodeURIComponent(id)}`;
+        };
+
+        tr.querySelector("[data-suno-pack]").onclick = () => {
+          window.location.href = `./song-suno.html?id=${encodeURIComponent(s.id)}&album_id=${encodeURIComponent(id)}`;
         };
 
         tr.querySelector("[data-view-suno]").onclick = () => showSunoPromptPopup(s.suno_prompt || "");
@@ -276,7 +278,6 @@
       const { data: art, error: e2 } = await supabase.from(ARTISTS).select("id,name").eq("id", album.artist_id).single();
       if (!e2) artist = art;
 
-      // select("*") ensures lyrics + suno_share_url appear when columns exist
       const { data: s, error: e3 } = await supabase.from(SONGS).select("*").eq("album_id", id).order("track_number", { ascending: true });
       songs = e3 ? [] : (s || []);
 
@@ -339,7 +340,6 @@
       const { error } = await supabase.from(ALBUMS).update(payload).eq("id", id);
       if (error) { $("statusLine").textContent = "Error: " + error.message; return; }
 
-      // Save edits per row (title/keywords/scripture/suno_prompt)
       const rows = [...document.querySelectorAll("#songsBody tr[data-song-id]")];
       for (const r of rows){
         const sid = r.dataset.songId;
