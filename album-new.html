@@ -76,7 +76,7 @@
           <div class="step" data-step="3">3) Track Planner</div>
           <div class="step" data-step="4">4) Prompt</div>
         </div>
-        <div class="badge">Full Studio v1</div>
+        <div class="badge">Full Studio v2</div>
       </div>
 
       <div id="msg" class="muted" style="margin-top:10px;"></div>
@@ -99,7 +99,7 @@
             <label>What these fields mean</label>
             <div class="panel">
 - Artist Lane: the artist’s typical lane (example: Country / Soul / Pop). Used as a “style hint”.
-- Persona: the artist’s writing/production persona. Used as a “voice/style hint”.
+- Persona: the artist’s writing/production persona. Used as the core style rule for Suno prompts.
 - Album Genre: default is Gospel, but you can change it per album.
             </div>
           </div>
@@ -138,7 +138,6 @@
               <option value="solo+choir">solo + choir (backing / response)</option>
               <option value="choir">choir (choir-led)</option>
             </select>
-            <div class="hint">Since it’s always the artist lead, choose solo or add choir support.</div>
           </div>
 
           <div>
@@ -209,7 +208,8 @@
         </div>
 
         <div class="hint">
-          Important: the prompt forces ChatGPT to output track titles in a strict JSON array so you can paste back into the app.
+          This prompt forces ChatGPT to output a strict JSON array where EACH track includes a <b>suno_prompt</b>.
+          If ChatGPT fails to comply, it must output <b>ERROR: NON_COMPLIANT_OUTPUT</b>.
         </div>
 
         <textarea id="prompt" class="mono" placeholder="Click “Generate Prompt”…"></textarea>
@@ -287,7 +287,6 @@
         const tr = document.createElement("tr");
         tr.setAttribute("data-track-row", "1");
         tr.dataset.track = String(i);
-
         tr.innerHTML = `
           <td class="tiny"><b>${i}</b></td>
           <td><input data-direction placeholder="e.g. opener praise, altar call ballad, breakthrough anthem"></td>
@@ -300,9 +299,9 @@
 
     function setArtistPreview(a){
       const lines = [];
-      lines.push(`name: ${a.name || "-"}`);
-      lines.push(`lane: ${a.default_lane || "-"}`);
-      if (a.default_perso) lines.push(`persona: ${a.default_perso}`);
+      lines.push(\`name: \${a.name || "-"}\`);
+      lines.push(\`lane: \${a.default_lane || "-"}\`);
+      if (a.default_perso) lines.push(\`persona: \${a.default_perso}\`);
       $("artistPreview").textContent = lines.join("\n");
 
       const chips = $("artistChips");
@@ -330,7 +329,6 @@
       const styleInput = norm($("style").value);
       const laneHint = norm(artist.default_lane) || null;
       const styleHint = styleInput || laneHint || null;
-
       const notes = norm($("notes").value);
 
       const specialLines = trackPlan
@@ -340,27 +338,25 @@
           if (t.direction) parts.push("direction: " + t.direction);
           if (t.keywords) parts.push("keywords: " + t.keywords);
           if (t.scripture) parts.push("scripture: " + t.scripture);
-          return `Track ${t.track_number}: ${parts.join(" • ")}`;
+          return \`Track \${t.track_number}: \${parts.join(" • ")}\`;
         });
 
       const personaBlock = artist.default_perso
-        ? `ARTIST PERSONA (STYLE VOICE)\n${artist.default_perso}\n`
+        ? \`ARTIST PERSONA (STYLE VOICE)\n\${artist.default_perso}\n\`
         : "";
 
-      // STRICT output blocks for copy/paste back into the app
-      return [
-`You are helping me plan a professional GOSPEL album for an AI music workflow.
+      return `You are helping me plan a professional GOSPEL album for an AI music workflow.
 
 ARTIST
 - Name: ${artist.name}
 - Lane hint (style family): ${laneHint || "(none)"}
 
 ${personaBlock}ALBUM REQUIREMENTS
-- Album genre: ${albumGenre}  (defaulted to Gospel; can be subgenre)
-- Style hint: ${styleHint || "(decide)"}
+- Album genre: ${albumGenre} (default: Gospel; may be a subgenre)
+- Style hint: ${styleHint || "(decide)"}  (use the ARTIST PERSONA as the main rule)
 - Mood: ${mood || "(decide)"}
 - Theme: ${theme || "(decide)"}
-- Lead type: ${leadType}  (solo / solo+choir / choir)
+- Lead type: ${leadType} (solo / solo+choir / choir)
 - Track count: ${total}
 - Notes: ${notes || "(none)"}
 
@@ -368,25 +364,35 @@ TRACK PLANNING (only constraints listed; design the rest naturally)
 ${specialLines.length ? specialLines.join("\n") : "(No special track constraints.)"}
 
 TASK
-1) Create 8 strong album title ideas (not generic).
-2) Recommend ONE best album title from the 8.
-3) Create EXACTLY ${total} track titles (titles only) that flow like a real album (no numbering inside the title text).
+1) Generate 8 album title ideas.
+2) Choose the ONE best album title that matches the tracklist you are about to create.
+3) Create EXACTLY ${total} tracks. For EACH track include:
+   - track_number (1..${total})
+   - title (no numbering in the title text)
+   - suno_prompt (REQUIRED: must match ARTIST PERSONA + lead type + vibe; include instrumentation/tempo feel/mood/vocal direction; avoid contradictions)
+   - keywords (optional, short comma list)
+   - scripture (optional reference if relevant)
 
-STRICT OUTPUT (IMPORTANT — MUST MATCH EXACTLY)
-Return ONLY these three blocks in this exact order:
-
-ALBUM_TITLES_JSON:
-["Title 1","Title 2","Title 3","Title 4","Title 5","Title 6","Title 7","Title 8"]
+STRICT OUTPUT (MUST MATCH EXACTLY)
+Return ONLY these two blocks in this exact order:
 
 RECOMMENDED_ALBUM_TITLE:
-"One exact title from the album titles above"
+"One best album title"
 
-TRACK_TITLES_JSON:
-["Track 1","Track 2", ... exactly ${total} total items]
+TRACKS_JSON:
+[
+  {"track_number":1,"title":"...","suno_prompt":"...","keywords":"...","scripture":"..."},
+  ...
+]
 
-Do NOT add any extra commentary outside those blocks.
-`,
-      ].join("\n");
+HARD RULES:
+- TRACKS_JSON must contain exactly ${total} objects.
+- Every object MUST include suno_prompt and it MUST NOT be empty.
+- Do NOT output album title ideas list.
+- Do NOT output anything outside the two blocks.
+- If you cannot comply, output exactly:
+ERROR: NON_COMPLIANT_OUTPUT
+`;
     }
 
     async function loadArtists(){
@@ -410,7 +416,6 @@ Do NOT add any extra commentary outside those blocks.
 
     async function saveDraft(){
       if (!artist) return alert("Select an artist first.");
-
       const total = Math.max(1, Math.min(50, Number($("total_tracks").value || 12)));
 
       const prompt = $("prompt").value.trim() || buildPrompt();
@@ -421,7 +426,7 @@ Do NOT add any extra commentary outside those blocks.
         status: "ideation",
         total_tracks: total,
         theme: norm($("theme").value),
-        style: norm($("style").value) || norm(artist.default_lane),  // store a usable style hint
+        style: norm($("style").value) || norm(artist.default_lane),
         mood: norm($("mood").value),
         lead_type: $("lead_type").value || "solo",
         notes: norm($("notes").value),
