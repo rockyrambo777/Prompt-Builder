@@ -1,1 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SVS System – Artists</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#0b0f19; color:#e8eefc; margin:0; }
+    .wrap { max-width: 1000px; margin: 0 auto; padding: 24px; }
+    .top { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+    .muted { color:#92a4c7; font-size: 14px; }
+    .btn { padding:12px 14px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:#e8eefc; cursor:pointer; font-weight:700; }
+    .btn.primary { background:#2f6fed; border:none; }
+    .btn.secondary { background:#1c273f; border:1px solid #2a3a5c; }
+    .btn.danger { background:#d14b4b; border:none; }
+    .card { background:#121a2a; border:1px solid #23304a; border-radius:16px; padding:18px; margin-top:14px; }
+    input { padding:12px; border-radius:12px; border:1px solid #2a3a5c; background:#0f1626; color:#e8eefc; width: 320px; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    ul { margin: 10px 0 0; padding-left: 18px; }
+    li { margin: 8px 0; cursor:pointer; }
+    li.selected { font-weight: bold; text-decoration: underline; }
+    .nav { display:flex; gap:10px; align-items:center; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1 style="margin:0;">Artists</h1>
+        <div id="who" class="muted"></div>
+      </div>
+      <div class="nav">
+        <button id="btnHome" class="btn secondary">Home</button>
+        <button id="btnLogout" class="btn danger">Logout</button>
+      </div>
+    </div>
 
+    <div class="card">
+      <div class="row">
+        <input id="newArtist" placeholder="Artist name…">
+        <button id="btnAdd" class="btn primary">Add Artist</button>
+        <button id="btnRefresh" class="btn secondary">Refresh</button>
+      </div>
+      <div id="msg" class="muted" style="margin-top:10px;"></div>
+      <ul id="list"></ul>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-top:0;">Selected Artist</h2>
+      <div id="selected" class="muted">None selected.</div>
+      <p class="muted">Next: from here we can go to Personas for this artist.</p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { supabase, requireSessionOrRedirect } from "./app.js";
+    const $ = (id) => document.getElementById(id);
+
+    const session = await requireSessionOrRedirect();
+    $("who").textContent = `Signed in: ${session.user.email}`;
+
+    let selectedId = localStorage.getItem("selectedArtistId") || null;
+    let selectedName = localStorage.getItem("selectedArtistName") || null;
+
+    function renderSelected() {
+      $("selected").textContent = selectedId ? `${selectedName} (id: ${selectedId})` : "None selected.";
+    }
+    renderSelected();
+
+    async function loadArtists() {
+      $("msg").textContent = "Loading…";
+      $("list").innerHTML = "";
+
+      const { data, error } = await supabase
+        .from("artist") // change to "artists" if needed
+        .select("id,name,created_at")
+        .order("created_at", { ascending: false });
+
+      if (error) { $("msg").textContent = "Error: " + error.message; return; }
+
+      $("msg").textContent = `Loaded ${data.length} artist(s).`;
+      if (!data.length) { $("list").innerHTML = "<li class='muted'>No artists yet.</li>"; return; }
+
+      for (const a of data) {
+        const li = document.createElement("li");
+        li.textContent = a.name;
+        if (a.id === selectedId) li.classList.add("selected");
+        li.onclick = () => {
+          selectedId = a.id;
+          selectedName = a.name;
+
+          localStorage.setItem("selectedArtistId", selectedId);
+          localStorage.setItem("selectedArtistName", selectedName);
+
+          renderSelected();
+          loadArtists();
+        };
+        $("list").appendChild(li);
+      }
+    }
+
+    async function addArtist() {
+      const name = $("newArtist").value.trim();
+      if (!name) return alert("Enter an artist name.");
+      $("msg").textContent = "Adding…";
+
+      const { error } = await supabase.from("artist").insert([{ name }]);
+      if (error) { $("msg").textContent = "Error: " + error.message; return; }
+
+      $("newArtist").value = "";
+      $("msg").textContent = "Artist added!";
+      await loadArtists();
+    }
+
+    $("btnAdd").onclick = addArtist;
+    $("btnRefresh").onclick = loadArtists;
+
+    $("btnHome").onclick = () => window.location.href = "./home.html";
+
+    $("btnLogout").onclick = async () => {
+      await supabase.auth.signOut();
+      window.location.href = "./index.html";
+    };
+
+    loadArtists();
+  </script>
+</body>
+</html>
