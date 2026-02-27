@@ -7,7 +7,7 @@
   <style>
     :root{
       --bg:#0b0f19; --card:#121a2a; --card2:#0f1626; --border:#23304a;
-      --muted:#92a4c7; --text:#e8eefc; --primary:#2f6fed; --danger:#d14b4b;
+      --muted:#92a4c7; --text:#e8eefc; --primary:#2f6fed; --danger:#d14b4b6;
       --ok:#2ecc71; --warn:#f5c542; --chip:#1c273f;
     }
     body { font-family: Arial, sans-serif; background:var(--bg); color:var(--text); margin:0; }
@@ -17,7 +17,7 @@
     .btn { padding:12px 14px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); cursor:pointer; font-weight:800; }
     .btn.primary { background:var(--primary); border:none; }
     .btn.secondary { background:#1c273f; border:1px solid #2a3a5c; }
-    .btn.danger { background:var(--danger); border:none; }
+    .btn.danger { background:#d14b4b; border:none; }
     .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-top:14px; }
     .grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; }
     @media (max-width: 900px){ .grid { grid-template-columns: 1fr; } }
@@ -101,6 +101,7 @@
 - Artist Lane: the artist’s typical lane (example: Country / Soul / Pop). Used as a “style hint”.
 - Persona: the artist’s writing/production persona. Used as the core style rule for Suno prompts.
 - Album Genre: default is Gospel, but you can change it per album.
+- Artist DNA: stable voice + genre family + instrument rules (always injected into prompts).
             </div>
           </div>
         </div>
@@ -128,7 +129,7 @@
               <option value="traditional-gospel">Traditional Gospel</option>
               <option value="other">Other</option>
             </select>
-            <div class="hint">Defaulted to Gospel. You can change it for special projects.</div>
+            <div class="hint">Album mood/style changes here — artist voice/genre family stays stable.</div>
           </div>
 
           <div>
@@ -299,9 +300,14 @@
 
     function setArtistPreview(a){
       const lines = [];
-      lines.push(`name: \${a.name || "-"}`);
-      lines.push(`lane: \${a.default_lane || "-"}`);
-      if (a.default_perso) lines.push(`persona: \${a.default_perso}`);
+      lines.push(`name: ${a.name || "-"}`);
+      if (a.main_genre || a.secondary_genre) lines.push(`genre: ${(a.main_genre || "—")} / ${(a.secondary_genre || "—")}`);
+      lines.push(`lane: ${a.default_lane || "-"}`);
+      if (a.voice_identity) lines.push(`voice_identity: ${a.voice_identity}`);
+      if (a.must_include) lines.push(`must_include: ${a.must_include}`);
+      if (a.never_include) lines.push(`never_include: ${a.never_include}`);
+      if (a.suno_voice_anchor) lines.push(`suno_voice_anchor: ${a.suno_voice_anchor}`);
+      if (a.default_perso) lines.push(`persona: ${a.default_perso}`);
       $("artistPreview").textContent = lines.join("\n");
 
       const chips = $("artistChips");
@@ -312,7 +318,11 @@
         s.textContent = txt;
         chips.appendChild(s);
       };
+      if (a.main_genre) addChip("main: " + a.main_genre);
+      if (a.secondary_genre) addChip("secondary: " + a.secondary_genre);
       if (a.default_lane) addChip("lane: " + a.default_lane);
+      if (a.voice_identity) addChip("voice: set");
+      if (a.suno_voice_anchor) addChip("voice_anchor: set");
       if (a.default_perso) addChip("persona: set");
     }
 
@@ -338,11 +348,11 @@
           if (t.direction) parts.push("direction: " + t.direction);
           if (t.keywords) parts.push("keywords: " + t.keywords);
           if (t.scripture) parts.push("scripture: " + t.scripture);
-          return `Track \${t.track_number}: \${parts.join(" • ")}`;
+          return `Track ${t.track_number}: ${parts.join(" • ")}`;
         });
 
       const personaBlock = artist.default_perso
-        ? `ARTIST PERSONA (STYLE VOICE)\n\${artist.default_perso}\n`
+        ? `ARTIST PERSONA (STYLE VOICE)\n${artist.default_perso}\n`
         : "";
 
       return `You are helping me plan a professional GOSPEL album for an AI music workflow.
@@ -350,6 +360,14 @@
 ARTIST
 - Name: ${artist.name}
 - Lane hint (style family): ${laneHint || "(none)"}
+- Main Genre (stable): ${artist.main_genre || "(none)"}
+- Secondary Genre (stable): ${artist.secondary_genre || "(none)"}
+
+ARTIST DNA (STABLE — MUST APPLY TO EVERY TRACK)
+- Voice Identity: ${artist.voice_identity || "(none)"}
+- Must Include (always instruments): ${artist.must_include || "(none)"}
+- Never Include: ${artist.never_include || "(none)"}
+- Suno Voice Anchor (VOICE): ${artist.suno_voice_anchor || "(none)"}
 
 ${personaBlock}ALBUM REQUIREMENTS
 - Album genre: ${albumGenre} (default: Gospel; may be a subgenre)
@@ -369,7 +387,7 @@ TASK
 3) Create EXACTLY ${total} tracks. For EACH track include:
    - track_number (1..${total})
    - title (no numbering in the title text)
-   - suno_prompt (REQUIRED: must match ARTIST PERSONA + lead type + vibe; include instrumentation/tempo feel/mood/vocal direction; avoid contradictions)
+   - suno_prompt (REQUIRED: must match ARTIST PERSONA + ARTIST DNA + lead type + vibe; include instrumentation/tempo feel/mood/vocal direction; avoid contradictions)
    - keywords (optional, short comma list)
    - scripture (optional reference if relevant)
 
@@ -398,7 +416,7 @@ ERROR: NON_COMPLIANT_OUTPUT
     async function loadArtists(){
       const { data, error } = await supabase
         .from(ARTISTS)
-        .select(`id,name,default_lane,default_perso`)
+        .select(`id,name,default_lane,default_perso,main_genre,secondary_genre,voice_identity,must_include,never_include,suno_voice_anchor`)
         .order("name", { ascending: true });
 
       if (error) { $("msg").textContent = "Error: " + error.message; return; }
@@ -432,7 +450,17 @@ ERROR: NON_COMPLIANT_OUTPUT
         notes: norm($("notes").value),
         chatgpt_prompt: prompt,
         prompt_snapshot: {
-          artist: { id: artist.id, name: artist.name, lane: artist.default_lane || null },
+          artist: {
+            id: artist.id,
+            name: artist.name,
+            lane: artist.default_lane || null,
+            main_genre: artist.main_genre || null,
+            secondary_genre: artist.secondary_genre || null,
+            voice_identity: artist.voice_identity || null,
+            must_include: artist.must_include || null,
+            never_include: artist.never_include || null,
+            suno_voice_anchor: artist.suno_voice_anchor || null,
+          },
           album: {
             album_genre: getGenre(),
             theme: norm($("theme").value),
