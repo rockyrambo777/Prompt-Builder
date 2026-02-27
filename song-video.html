@@ -259,6 +259,14 @@ ARTIST
 - lane/style family: ${lane}
 - lead type: ${leadType}
 - persona / style voice: ${persona}
+- main genre (stable): ${artist?.main_genre || ""}
+- secondary genre (stable): ${artist?.secondary_genre || ""}
+
+ARTIST DNA (STABLE)
+- voice identity: ${artist?.voice_identity || ""}
+- must include (always instruments): ${artist?.must_include || ""}
+- never include: ${artist?.never_include || ""}
+- suno voice anchor: ${artist?.suno_voice_anchor || ""}
 
 ALBUM: ${albumTitle}
 SONG: ${song?.title || ""}
@@ -279,6 +287,7 @@ RULES FOR IMAGE_PROMPT (for every scene)
 - Must be Flow-ready image prompt (cinematic, 16:9, 1920x1080).
 - Leave clean open space for lyric text overlay (avoid busy center).
 - Keep a consistent look across all scenes (same palette/lighting/world).
+- Must match the artist genre family (main/secondary) and the song mood implied by the Suno prompt.
 - If reference image is YES: include the phrase "use the uploaded artist reference image" in every IMAGE_PROMPT, and keep identity consistent.
 - If reference image is NO: do NOT describe a specific real person; keep it generic (worship atmosphere / symbolic imagery / cinematic environments).
 
@@ -300,19 +309,19 @@ ${strict}
     }
 
     function buildShortChatGPTPrompt(){
-  const useArtist = $("short_use_artist_ref").checked;
+      const useArtist = $("short_use_artist_ref").checked;
 
-  const lane = artist?.default_lane || "";
-  const persona = artist?.default_perso || "";
-  const artistName = artist?.name || "";
-  const leadType = album?.lead_type || "solo";
+      const lane = artist?.default_lane || "";
+      const persona = artist?.default_perso || "";
+      const artistName = artist?.name || "";
+      const leadType = album?.lead_type || "solo";
 
-  const lyrics = (song?.lyrics || "").trim();
-  const keywords = (song?.keywords || "").trim();
-  const scripture = (song?.scripture || "").trim();
-  const suno = (song?.suno_prompt || "").trim();
+      const lyrics = (song?.lyrics || "").trim();
+      const keywords = (song?.keywords || "").trim();
+      const scripture = (song?.scripture || "").trim();
+      const suno = (song?.suno_prompt || "").trim();
 
-  const strict = `
+      const strict = `
 STRICT OUTPUT (MUST MATCH EXACTLY)
 Return ONLY 3 shorts.
 NO JSON. NO markdown. NO commentary. NO extra explanations.
@@ -358,7 +367,7 @@ RULES:
 - Do NOT include anything outside this structure.
 `.trim();
 
-  const prompt = `
+      const prompt = `
 You are creating 3 high-performing YouTube Shorts for a gospel song.
 These will be used in Google Flow (images) and optionally Grok image-to-video.
 
@@ -367,6 +376,14 @@ ARTIST
 - lane/style family: ${lane}
 - lead type: ${leadType}
 - persona / style voice: ${persona}
+- main genre (stable): ${artist?.main_genre || ""}
+- secondary genre (stable): ${artist?.secondary_genre || ""}
+
+ARTIST DNA (STABLE)
+- voice identity: ${artist?.voice_identity || ""}
+- must include (always instruments): ${artist?.must_include || ""}
+- never include: ${artist?.never_include || ""}
+- suno voice anchor: ${artist?.suno_voice_anchor || ""}
 
 SONG: ${song?.title || ""}
 Suno music style prompt: ${suno || "(none saved yet)"}
@@ -384,6 +401,7 @@ Each short must:
 - Optionally include Grok 10s video prompts per scene
 
 VISUAL STYLE RULES
+- Must match the artist genre family (main/secondary) and the song mood implied by the Suno prompt.
 - Vertical-friendly composition (but still generate 1920x1080 safe framing).
 - Clean open space for captions.
 - Strong emotional lighting.
@@ -400,8 +418,8 @@ Scripture: ${scripture || "(none)"}
 ${strict}
 `.trim();
 
-  return prompt;
-}
+      return prompt;
+    }
 
     async function load(){
       $("statusLine").textContent = "Loading…";
@@ -420,7 +438,6 @@ ${strict}
 
       $("title").textContent = `Production: ${song.title || "(Untitled)"}`;
 
-      // Load only the settings/ticks we still store
       $("longform_done").checked = !!song.longform_done;
       $("short_done").checked = !!song.short_done;
 
@@ -429,7 +446,6 @@ ${strict}
 
       $("short_use_artist_ref").checked = !!song.short_use_artist_ref;
 
-      // Pills
       const pills = $("pills");
       pills.innerHTML = "";
       pills.appendChild(pill(`song: ${song.id}`));
@@ -471,15 +487,9 @@ ${strict}
       const payload = {
         longform_done: $("longform_done").checked,
         short_done: $("short_done").checked,
-
         longform_type: $("longform_type").value,
         longform_use_artist_ref: $("longform_use_artist_ref").checked,
-
         short_use_artist_ref: $("short_use_artist_ref").checked,
-
-        // We intentionally DO NOT save prompts/results anymore:
-        // flow_prompt_long, image_prompts_long_json, grok_i2v_prompt_long,
-        // flow_prompt_short, shorts_plan_json
       };
 
       const { error } = await supabase.from("songs").update(payload).eq("id", songId);
