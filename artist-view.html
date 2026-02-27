@@ -88,10 +88,6 @@
           <div class="k">Thumbnail Style (Long Videos)</div>
           <div class="v mono" id="thumbLong">—</div>
         </div>
-        <div class="kv">
-          <div class="k">Visual Style (Shorts)</div>
-          <div class="v mono" id="thumbShorts">—</div>
-        </div>
       </div>
 
       <hr class="divider">
@@ -152,7 +148,6 @@
       $("thumbDefault").textContent = data.thumb_use_artist_default ? "YES" : "NO";
       $("about").textContent = data.youtube_about ? data.youtube_about : "—";
       $("thumbLong").textContent = data.thumbnail_style_long ? data.thumbnail_style_long : "—";
-      $("thumbShorts").textContent = data.thumbnail_style_shorts ? data.thumbnail_style_shorts : "—";
 
       const linksGrid = $("linksGrid");
       linksGrid.innerHTML = "";
