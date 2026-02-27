@@ -49,7 +49,7 @@
     <div class="top">
       <div>
         <h1 style="margin:0;">Distribution – Bandcamp</h1>
-        <div class="muted">Generate Bandcamp album about + genre + per-song about + follower message.</div>
+        <div class="muted">Albums not yet distributed → build Bandcamp copy + cover prompt.</div>
         <div id="who" class="muted"></div>
       </div>
       <div class="row">
@@ -99,11 +99,12 @@
       <div class="help">
         ChatGPT must return ONLY these blocks (no markdown, no extra text):<br>
         <span class="mono">
+COVER_IMAGE_PROMPT:<br>
 BANDCAMP_ALBUM_ABOUT:<br>
 BANDCAMP_GENRE:<br>
 FOLLOWERS_MESSAGE:<br>
 TRACKS:<br>
-- Track 1: <Title><br>
+- Track 1: &lt;Title&gt;<br>
   ABOUT: ...<br>
   LYRICS: ...<br>
 - Track 2: ...
@@ -144,8 +145,8 @@ TRACKS:<br>
 TRACK ${idx+1}
 - Title: ${safe(s.title)}
 - Suno prompt (infer genre/mood): ${safe(s.suno_prompt || "")}
-- Lyrics (use EXACTLY, do not rewrite unless empty):
-${(s.lyrics || "").trim() || "(EMPTY)"}
+- Lyrics (paste EXACTLY; do not rewrite):
+${(s.lyrics || "").trim() || "(LYRICS NOT PROVIDED)"}
 `.trim();
       }).join("\n\n---\n\n");
 
@@ -153,6 +154,7 @@ ${(s.lyrics || "").trim() || "(EMPTY)"}
 You are helping me publish an AI music album on Bandcamp.
 
 STRICT OUTPUT ONLY (no markdown, no commentary):
+COVER_IMAGE_PROMPT:
 BANDCAMP_ALBUM_ABOUT:
 BANDCAMP_GENRE:
 FOLLOWERS_MESSAGE:
@@ -172,17 +174,23 @@ ALBUM DATA
 ALBUM CREATIVE CONTEXT (optional)
 ${albumPrompt ? albumPrompt : "(No album prompt saved.)"}
 
-SONGS (title + lyrics + suno prompt)
+SONGS
 ${songBlock || "(No songs found for this album.)"}
 
-RULES
-- BANDCAMP_ALBUM_ABOUT: 5–10 sentences, story-driven, matches lane/persona, no cringe, no over-hype.
-- BANDCAMP_GENRE: one clean genre label that fits Bandcamp (keep it realistic).
-- FOLLOWERS_MESSAGE: short friendly message to followers, invite them to listen/support/share.
-- TRACKS: for each track, include:
-  - Title
-  - ABOUT: 2–4 sentences about the song (based on lyrics + suno prompt)
-  - LYRICS: paste the lyrics exactly as provided (if empty, write: (LYRICS NOT PROVIDED))
+RULES FOR COVER_IMAGE_PROMPT (IMPORTANT)
+- Must generate a square album cover (1:1).
+- MUST include readable baked-in text on the artwork:
+  - Top: Artist name: "${safe(ar.name)}"
+  - Center/Bottom: Album title: "${safe(a.title)}"
+- Text must be high-contrast, clean typography, not messy, no spelling errors.
+- Keep safe margins for cropping; no tiny text.
+- Style must match album theme/mood/style.
+
+RULES FOR BANDCAMP COPY
+- BANDCAMP_ALBUM_ABOUT: 5–10 sentences, story-driven, matches lane/persona, no cringe.
+- BANDCAMP_GENRE: one clean realistic Bandcamp genre label.
+- FOLLOWERS_MESSAGE: short friendly message to followers (invite listen/support/share).
+- TRACKS: for each track include Title + ABOUT (2–4 sentences) + LYRICS (exact paste).
 `.trim();
     }
 
@@ -222,11 +230,11 @@ RULES
       $("statusLine").textContent = "Loading…";
       $("body").innerHTML = "";
 
+      // IMPORTANT FIX: include NULL OR false
       const { data: albums, error: e1 } = await supabase
         .from("albums")
         .select("id,title,artist_id,status,theme,mood,style,notes,chatgpt_prompt")
-        .eq("bandcamp_distributed", false)
-        .in("status", ["approved","producing","released"])
+        .or("bandcamp_distributed.is.null,bandcamp_distributed.eq.false")
         .not("title", "is", null)
         .order("updated_at", { ascending: false });
 
