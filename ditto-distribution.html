@@ -49,7 +49,7 @@
     <div class="top">
       <div>
         <h1 style="margin:0;">Distribution – Ditto</h1>
-        <div class="muted">Albums not yet distributed → build a Ditto-ready ChatGPT prompt.</div>
+        <div class="muted">Albums not yet distributed → build Ditto text + cover description.</div>
         <div id="who" class="muted"></div>
       </div>
       <div class="row">
@@ -77,7 +77,7 @@
     <div class="card" id="builder" style="display:none;">
       <div class="row" style="justify-content:space-between;">
         <div>
-          <h2 style="margin:0;" id="title">Ditto Prompt</h2>
+          <h2 style="margin:0;">Ditto Prompt</h2>
           <div class="muted" id="sub"></div>
           <div class="row" style="margin-top:8px;">
             <span class="pill" id="pillLane"></span>
@@ -97,16 +97,16 @@
       <textarea id="out" class="mono" placeholder="Click Build Prompt"></textarea>
 
       <div class="help">
-        ChatGPT must return ONLY these blocks (no markdown, no extra text):<br>
+        ChatGPT output should include:<br>
         <span class="mono">
-COVER_IMAGE_PROMPT:<br>
+ALBUM_COVER_DESCRIPTION:<br>
 GENRE_1:<br>
 GENRE_2:<br>
 RELEASE_DATE:<br>
 ALBUM_DESCRIPTION:
         </span>
         <br><br>
-        <b>Cover requirement:</b> Image prompt must include the Artist + Album Title as baked-in text on the artwork.
+        And in the cover description it MUST end with: <b>Please generate the image for me as 1 x 1</b>
       </div>
     </div>
   </div>
@@ -135,45 +135,46 @@ ALBUM_DESCRIPTION:
       const baseMood  = safe(a.mood || "");
       const baseStyle = safe(a.style || "");
       const notes = safe(a.notes || "");
-      const albumPrompt = safe(a.chatgpt_prompt || "");
 
       return `
-You are helping me distribute an AI music album via Ditto.
+Create distribution copy for Ditto.
 
-STRICT OUTPUT ONLY (no markdown, no commentary):
-COVER_IMAGE_PROMPT:
+Return these sections (keep it clean, no extra talk):
+ALBUM_COVER_DESCRIPTION:
 GENRE_1:
 GENRE_2:
 RELEASE_DATE:
 ALBUM_DESCRIPTION:
 
-ALBUM DATA
+Album info:
 - Artist: ${safe(ar.name)}
 - Album Title: ${safe(a.title)}
 - Release Date: ${date}
-- Default Lane: ${safe(ar.default_lane)}
-- Default Persona: ${safe(ar.default_perso)}
-- Album theme: ${baseTheme || "(none)"}
-- Album mood: ${baseMood || "(none)"}
-- Album style: ${baseStyle || "(none)"}
+- Lane: ${safe(ar.default_lane)}
+- Persona: ${safe(ar.default_perso)}
+- Theme: ${baseTheme || "(none)"}
+- Mood: ${baseMood || "(none)"}
+- Style: ${baseStyle || "(none)"}
 - Notes: ${notes || "(none)"}
 
-ALBUM CREATIVE CONTEXT (optional)
-${albumPrompt ? albumPrompt : "(No album prompt saved.)"}
+Rules for ALBUM_COVER_DESCRIPTION:
+- Describe a square (1:1) album cover.
+- Include baked-in text EXACTLY:
+  - Artist name: "${safe(ar.name)}"
+  - Album title: "${safe(a.title)}"
+- Mention typography style (font vibe), placement, color, glow/shadow, and safe margins.
+- Match the theme/mood/style.
+- End the cover description with this exact line:
+Please generate the image for me as 1 x 1
 
-RULES FOR COVER_IMAGE_PROMPT (IMPORTANT)
-- Must generate a square album cover (1:1).
-- MUST include readable baked-in text on the artwork:
-  - Top: Artist name: "${safe(ar.name)}"
-  - Center/Bottom: Album title: "${safe(a.title)}"
-- Text must be high-contrast, clean typography, not messy, no spelling errors.
-- Keep safe margins for cropping; no tiny text.
-- Style must match album theme/mood/style.
+Rules for GENRE_1 and GENRE_2:
+- Choose 2 genres that match the style/mood (realistic platform genres).
 
-RULES
-- GENRE_1 and GENRE_2 must match the album’s style/mood (keep them realistic for platforms).
-- RELEASE_DATE must repeat the date exactly: ${date}
-- ALBUM_DESCRIPTION: 2–4 sentences, clean, platform-friendly, no emojis.
+Rules for RELEASE_DATE:
+- Repeat exactly: ${date}
+
+Rules for ALBUM_DESCRIPTION:
+- 2–4 sentences, platform friendly, no emojis.
 `.trim();
     }
 
@@ -213,10 +214,9 @@ RULES
       $("statusLine").textContent = "Loading…";
       $("body").innerHTML = "";
 
-      // IMPORTANT FIX: include NULL OR false
       const { data: albums, error: e1 } = await supabase
         .from("albums")
-        .select("id,title,artist_id,status,theme,mood,style,notes,chatgpt_prompt")
+        .select("id,title,artist_id,status,theme,mood,style,notes")
         .or("ditto_distributed.is.null,ditto_distributed.eq.false")
         .not("title", "is", null)
         .order("updated_at", { ascending: false });
@@ -245,7 +245,6 @@ RULES
         tr.querySelector("button").onclick = () => {
           selected = { album:a, artist:ar };
           $("builder").style.display = "block";
-          $("title").textContent = "Ditto Prompt";
           $("sub").textContent = `${safe(ar?.name)} • ${safe(a.title)}`;
           $("pillLane").textContent = `lane: ${safe(ar?.default_lane)}`;
           $("pillPersona").textContent = `persona: ${safe(ar?.default_perso)}`;
