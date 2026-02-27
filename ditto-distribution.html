@@ -105,6 +105,8 @@ GENRE_2:<br>
 RELEASE_DATE:<br>
 ALBUM_DESCRIPTION:
         </span>
+        <br><br>
+        <b>Cover requirement:</b> Image prompt must include the Artist + Album Title as baked-in text on the artwork.
       </div>
     </div>
   </div>
@@ -159,8 +161,16 @@ ALBUM DATA
 ALBUM CREATIVE CONTEXT (optional)
 ${albumPrompt ? albumPrompt : "(No album prompt saved.)"}
 
+RULES FOR COVER_IMAGE_PROMPT (IMPORTANT)
+- Must generate a square album cover (1:1).
+- MUST include readable baked-in text on the artwork:
+  - Top: Artist name: "${safe(ar.name)}"
+  - Center/Bottom: Album title: "${safe(a.title)}"
+- Text must be high-contrast, clean typography, not messy, no spelling errors.
+- Keep safe margins for cropping; no tiny text.
+- Style must match album theme/mood/style.
+
 RULES
-- COVER_IMAGE_PROMPT must be a single strong image prompt for a square album cover (no text on image).
 - GENRE_1 and GENRE_2 must match the album’s style/mood (keep them realistic for platforms).
 - RELEASE_DATE must repeat the date exactly: ${date}
 - ALBUM_DESCRIPTION: 2–4 sentences, clean, platform-friendly, no emojis.
@@ -203,12 +213,11 @@ RULES
       $("statusLine").textContent = "Loading…";
       $("body").innerHTML = "";
 
-      // Pull albums not distributed to Ditto (ignore drafts)
+      // IMPORTANT FIX: include NULL OR false
       const { data: albums, error: e1 } = await supabase
         .from("albums")
         .select("id,title,artist_id,status,theme,mood,style,notes,chatgpt_prompt")
-        .eq("ditto_distributed", false)
-        .in("status", ["approved","producing","released"])
+        .or("ditto_distributed.is.null,ditto_distributed.eq.false")
         .not("title", "is", null)
         .order("updated_at", { ascending: false });
 
