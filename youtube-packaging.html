@@ -106,6 +106,7 @@
           <div class="row" style="margin-top:8px;">
             <span class="pill" id="pillLane"></span>
             <span class="pill" id="pillPersona"></span>
+            <span class="pill" id="pillGenre"></span>
           </div>
         </div>
         <div class="row">
@@ -115,13 +116,14 @@
         </div>
       </div>
 
+      <!-- LONG only -->
       <div class="help" id="thumbHelp" style="display:none;">
         <div class="row" style="align-items:center;">
           <input id="thumbUseArtist" type="checkbox">
           <div><b>Include artist image in thumbnail</b> (uses artist default, you can toggle)</div>
         </div>
         <div class="muted" style="margin-top:6px;">
-          Thumbnail style rules are pulled from the artist setup.
+          Thumbnail style rules are pulled from the artist setup (or blueprint fallback).
         </div>
       </div>
 
@@ -131,12 +133,12 @@
       <div class="help">
         <b>ChatGPT must return ONLY blocks:</b><br>
         <span class="mono">
-YOUTUBE_TITLE:<br>
-YOUTUBE_DESCRIPTION:<br>
-YOUTUBE_TAGS:<br>
-PINNED_COMMENT:<br>
-(LONG only) THUMBNAIL_TEXT:<br>
-(LONG only) THUMBNAIL_VIDIQ_DESCRIPTION:<br>
+YOUTUBE_TITLE:
+YOUTUBE_DESCRIPTION:
+YOUTUBE_TAGS:
+PINNED_COMMENT:
+(LONG only) THUMBNAIL_TEXT:
+(LONG only) THUMBNAIL_VIDIQ_DESCRIPTION:
 (SHORTS only) TIKTOK_DESCRIPTION:
         </span>
         <br><br>
@@ -171,10 +173,19 @@ PINNED_COMMENT:<br>
       artist: null
     };
 
+    function getBlueprint(ar){
+      const bp = ar?.blueprint;
+      if (!bp) return {};
+      if (typeof bp === "object") return bp; // already json
+      try { return JSON.parse(bp); } catch { return {}; }
+    }
+
     function setSelectedUI(){
       const s = selected.song || {};
       const al = selected.album || {};
       const ar = selected.artist || {};
+      const mainG = ar.main_genre || "—";
+      const secG = ar.secondary_genre || "—";
 
       $("builderCard").style.display = "block";
       $("builderTitle").textContent = selected.mode === "long" ? "Long Video Packaging Prompt" : "Shorts Packaging Prompt";
@@ -182,6 +193,7 @@ PINNED_COMMENT:<br>
 
       $("pillLane").textContent = `lane: ${ar.default_lane || "—"}`;
       $("pillPersona").textContent = `persona: ${ar.default_perso || "—"}`;
+      $("pillGenre").textContent = `genre: ${mainG} / ${secG}`;
 
       if (selected.mode === "long") {
         $("thumbHelp").style.display = "block";
@@ -199,11 +211,21 @@ PINNED_COMMENT:<br>
       const s = selected.song || {};
       const al = selected.album || {};
       const ar = selected.artist || {};
+      const bp = getBlueprint(ar);
 
       const includeArtistThumb = (mode === "long") ? $("thumbUseArtist").checked : false;
 
-      const artistAbout = (ar.youtube_about || "").trim();
-      const thumbStyleLong = (ar.thumbnail_style_long || "").trim();
+      // Prefer YouTube About override, else artist_about, else fallback instruction
+      const artistAbout =
+        (ar.youtube_about || "").trim() ||
+        (ar.artist_about || "").trim();
+
+      const tagline = (ar.tagline || "").trim();
+
+      // Thumbnail style: column first, then blueprint fallback
+      const thumbStyleLong =
+        (ar.thumbnail_style_long || "").trim() ||
+        (bp?.visual?.thumbnail_long_style || "").trim();
 
       const links = [
         ["YouTube", ar.youtube_url],
@@ -282,30 +304,35 @@ TIKTOK_DESCRIPTION:
       const thumbBlock = mode === "long" ? `
 THUMBNAIL SETTINGS (LONG)
 - Include artist image: ${includeArtistThumb ? "YES" : "NO"}
-- Use this artist thumbnail style:
-${thumbStyleLong || "(No thumbnail_style_long saved. Create an SEO thumbnail plan that matches the lane/persona and genre.)"}
+- Use this artist thumbnail style (or create one if empty):
+${thumbStyleLong || "(EMPTY) Create an SEO thumbnail plan that matches the artist genre + voice identity. Must be clear, high contrast, readable on mobile, and eye-catching.)"}
 `.trim() : ``;
+
+      const dnaBlock = `
+ARTIST DNA (MUST BE FOLLOWED)
+- Main Genre: ${ar.main_genre || "(missing)"}
+- Secondary Genre: ${ar.secondary_genre || "(missing)"}
+- Voice Identity: ${ar.voice_identity || "(missing)"}
+- Must Include: ${ar.must_include || "(missing)"}
+- Never Include: ${ar.never_include || "(missing)"}
+- Suno Voice Anchor (voice only): ${ar.suno_voice_anchor || "(missing)"}
+`.trim();
 
       const prompt = `
 You are creating a publish-ready YouTube package for a finished ${mode === "long" ? "LONG video" : "SHORT"}.
 
 ARTIST SETUP (MUST BE USED)
 - Artist Name: ${ar.name || ""}
+- Tagline: ${tagline || "(none)"}
 - Default Lane: ${ar.default_lane || ""}
 - Default Persona: ${ar.default_perso || ""}
 - Channel Handle: ${ar.channel_hand ? ("@" + String(ar.channel_hand).replace(/^@/,"")) : "(none)"}
 - YouTube Channel Name: ${ar.youtube_chan || "(none)"}
 
-ARTIST DNA (STABLE — use to keep voice + genre consistent)
-- Main Genre: ${ar.main_genre || "(none)"}
-- Secondary Genre: ${ar.secondary_genre || "(none)"}
-- Voice Identity: ${ar.voice_identity || "(none)"}
-- Must Include (always instruments): ${ar.must_include || "(none)"}
-- Never Include: ${ar.never_include || "(none)"}
-- Suno Voice Anchor (voice/persona): ${ar.suno_voice_anchor || "(none)"}
+${dnaBlock}
 
 ABOUT THE ARTIST (use as-is, do not rewrite unless empty)
-${artistAbout || "(EMPTY) Write a short 2–4 sentence artist about that matches the lane/persona and genre."}
+${artistAbout || "(EMPTY) Write a short 2–4 sentence artist about that matches the Artist DNA and genre."}
 
 LINKS (include only if any exist)
 ${links || "(none)"}
@@ -327,7 +354,7 @@ TITLE RULES
 
 DESCRIPTION RULES
 - No BPM/Key/Genre/Mood line.
-- Must fit the inferred genre/mood from Suno prompt AND the artist main/secondary genre.
+- Must fit the inferred genre/mood from Suno prompt.
 - End with hashtags that match genre/mood.
 
 TAGS RULES
@@ -399,7 +426,12 @@ ${strict}
       const artistIds = [...new Set((albums||[]).map(a => a.artist_id).filter(Boolean))];
       const { data: artists, error: e3 } = await supabase
         .from("artists")
-        .select("id,name,channel_hand,youtube_chan,default_lane,default_perso,main_genre,secondary_genre,voice_identity,must_include,never_include,suno_voice_anchor,youtube_about,thumbnail_style_long,thumb_use_artist_default,spotify_url,bandcamp_ur,apple_music_,soundcloud_u,youtube_url,website_url,beacons_url,tiktok_url,facebook_url")
+        .select([
+          "id,name,tagline,artist_about,channel_hand,youtube_chan,default_lane,default_perso,youtube_about",
+          "main_genre,secondary_genre,voice_identity,must_include,never_include,suno_voice_anchor",
+          "thumbnail_style_long,thumb_use_artist_default,blueprint",
+          "spotify_url,bandcamp_ur,apple_music_,soundcloud_u,youtube_url,website_url,beacons_url,tiktok_url,facebook_url"
+        ].join(","))
         .in("id", artistIds);
       if (e3) { $("statusLine").textContent = "Error: " + e3.message; return; }
 
