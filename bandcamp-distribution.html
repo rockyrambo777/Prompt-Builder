@@ -28,7 +28,7 @@
     textarea {
       padding:12px; border-radius:12px; border:1px solid #2a3a5c;
       background:var(--card2); color:var(--text); width:100%;
-      box-sizing:border-box; min-height: 300px; resize: vertical;
+      box-sizing:border-box; min-height: 320px; resize: vertical;
     }
     input[type="date"]{
       padding:10px; border-radius:12px; border:1px solid #2a3a5c;
@@ -49,7 +49,7 @@
     <div class="top">
       <div>
         <h1 style="margin:0;">Distribution – Bandcamp</h1>
-        <div class="muted">Albums not yet distributed → build Bandcamp copy + cover prompt.</div>
+        <div class="muted">Albums not yet distributed → build Bandcamp about + track abouts + follower message + cover description.</div>
         <div id="who" class="muted"></div>
       </div>
       <div class="row">
@@ -77,7 +77,7 @@
     <div class="card" id="builder" style="display:none;">
       <div class="row" style="justify-content:space-between;">
         <div>
-          <h2 style="margin:0;" id="title">Bandcamp Prompt</h2>
+          <h2 style="margin:0;">Bandcamp Prompt</h2>
           <div class="muted" id="sub"></div>
           <div class="row" style="margin-top:8px;">
             <span class="pill" id="pillLane"></span>
@@ -97,9 +97,9 @@
       <textarea id="out" class="mono" placeholder="Click Build Prompt"></textarea>
 
       <div class="help">
-        ChatGPT must return ONLY these blocks (no markdown, no extra text):<br>
+        ChatGPT output should include:<br>
         <span class="mono">
-COVER_IMAGE_PROMPT:<br>
+ALBUM_COVER_DESCRIPTION:<br>
 BANDCAMP_ALBUM_ABOUT:<br>
 BANDCAMP_GENRE:<br>
 FOLLOWERS_MESSAGE:<br>
@@ -109,6 +109,8 @@ TRACKS:<br>
   LYRICS: ...<br>
 - Track 2: ...
         </span>
+        <br><br>
+        Cover description must end with: <b>Please generate the image for me as 1 x 1</b>
       </div>
     </div>
   </div>
@@ -138,7 +140,6 @@ TRACKS:<br>
       const albumMood  = safe(a.mood || "");
       const albumStyle = safe(a.style || "");
       const notes = safe(a.notes || "");
-      const albumPrompt = safe(a.chatgpt_prompt || "");
 
       const songBlock = songs.map((s, idx) => {
         return `
@@ -151,46 +152,50 @@ ${(s.lyrics || "").trim() || "(LYRICS NOT PROVIDED)"}
       }).join("\n\n---\n\n");
 
       return `
-You are helping me publish an AI music album on Bandcamp.
+Create Bandcamp release copy.
 
-STRICT OUTPUT ONLY (no markdown, no commentary):
-COVER_IMAGE_PROMPT:
+Return these sections (keep it clean, no extra talk):
+ALBUM_COVER_DESCRIPTION:
 BANDCAMP_ALBUM_ABOUT:
 BANDCAMP_GENRE:
 FOLLOWERS_MESSAGE:
 TRACKS:
 
-ALBUM DATA
+Album info:
 - Artist: ${safe(ar.name)}
 - Album Title: ${safe(a.title)}
 - Release Date: ${date}
-- Default Lane: ${safe(ar.default_lane)}
-- Default Persona: ${safe(ar.default_perso)}
-- Album theme: ${albumTheme || "(none)"}
-- Album mood: ${albumMood || "(none)"}
-- Album style: ${albumStyle || "(none)"}
+- Lane: ${safe(ar.default_lane)}
+- Persona: ${safe(ar.default_perso)}
+- Theme: ${albumTheme || "(none)"}
+- Mood: ${albumMood || "(none)"}
+- Style: ${albumStyle || "(none)"}
 - Notes: ${notes || "(none)"}
 
-ALBUM CREATIVE CONTEXT (optional)
-${albumPrompt ? albumPrompt : "(No album prompt saved.)"}
-
-SONGS
+Songs:
 ${songBlock || "(No songs found for this album.)"}
 
-RULES FOR COVER_IMAGE_PROMPT (IMPORTANT)
-- Must generate a square album cover (1:1).
-- MUST include readable baked-in text on the artwork:
-  - Top: Artist name: "${safe(ar.name)}"
-  - Center/Bottom: Album title: "${safe(a.title)}"
-- Text must be high-contrast, clean typography, not messy, no spelling errors.
-- Keep safe margins for cropping; no tiny text.
-- Style must match album theme/mood/style.
+Rules for ALBUM_COVER_DESCRIPTION:
+- Describe a square (1:1) album cover.
+- Include baked-in text EXACTLY:
+  - Artist name: "${safe(ar.name)}"
+  - Album title: "${safe(a.title)}"
+- Mention typography style (font vibe), placement, color, glow/shadow, safe margins.
+- Match the theme/mood/style.
+- End the cover description with this exact line:
+Please generate the image for me as 1 x 1
 
-RULES FOR BANDCAMP COPY
-- BANDCAMP_ALBUM_ABOUT: 5–10 sentences, story-driven, matches lane/persona, no cringe.
-- BANDCAMP_GENRE: one clean realistic Bandcamp genre label.
-- FOLLOWERS_MESSAGE: short friendly message to followers (invite listen/support/share).
-- TRACKS: for each track include Title + ABOUT (2–4 sentences) + LYRICS (exact paste).
+Rules for BANDCAMP_ALBUM_ABOUT:
+- 5–10 sentences, story-driven, matches lane/persona, no cringe.
+
+Rules for BANDCAMP_GENRE:
+- One realistic Bandcamp genre label.
+
+Rules for FOLLOWERS_MESSAGE:
+- Short friendly message to followers, invite them to listen/support/share.
+
+Rules for TRACKS:
+- For each track: Title + ABOUT (2–4 sentences) + LYRICS (paste exactly as provided).
 `.trim();
     }
 
@@ -230,10 +235,9 @@ RULES FOR BANDCAMP COPY
       $("statusLine").textContent = "Loading…";
       $("body").innerHTML = "";
 
-      // IMPORTANT FIX: include NULL OR false
       const { data: albums, error: e1 } = await supabase
         .from("albums")
-        .select("id,title,artist_id,status,theme,mood,style,notes,chatgpt_prompt")
+        .select("id,title,artist_id,status,theme,mood,style,notes")
         .or("bandcamp_distributed.is.null,bandcamp_distributed.eq.false")
         .not("title", "is", null)
         .order("updated_at", { ascending: false });
@@ -274,7 +278,6 @@ RULES FOR BANDCAMP COPY
           selected = { album:a, artist:ar, songs:(songs||[]) };
 
           $("builder").style.display = "block";
-          $("title").textContent = "Bandcamp Prompt";
           $("sub").textContent = `${safe(ar?.name)} • ${safe(a.title)} • tracks: ${(songs||[]).length}`;
           $("pillLane").textContent = `lane: ${safe(ar?.default_lane)}`;
           $("pillPersona").textContent = `persona: ${safe(ar?.default_perso)}`;
