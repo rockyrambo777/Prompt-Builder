@@ -21,15 +21,18 @@
     .grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; }
     @media (max-width: 800px){ .grid { grid-template-columns: 1fr; } }
     label { font-size:12px; color:var(--muted); display:block; margin:8px 0 6px; }
-    input, select {
+    input, select, textarea {
       padding:12px; border-radius:12px; border:1px solid #2a3a5c;
       background:var(--card2); color:var(--text); width:100%;
       box-sizing:border-box;
     }
+    textarea { min-height: 110px; resize: vertical; }
     .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
     .sectionTitle { margin: 0 0 10px; }
     .hint { font-size:12px; color:var(--muted); margin-top:4px; }
     .actions { display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+    .checkRow { display:flex; align-items:center; gap:10px; margin:10px 0; }
+    input[type="checkbox"]{ width:18px; height:18px; accent-color: var(--primary); }
   </style>
 </head>
 <body>
@@ -52,11 +55,11 @@
       <div class="grid">
         <div>
           <label for="name">Name *</label>
-          <input id="name" placeholder="e.g. SoulVibe Sanctuary">
+          <input id="name" placeholder="e.g. Nina's Gospel Groove">
         </div>
         <div>
           <label for="channel_hand">Channel Handle</label>
-          <input id="channel_hand" placeholder="e.g. @SoulVibeSanctuary">
+          <input id="channel_hand" placeholder="e.g. @NinasGospelGroove">
           <div class="hint">You can paste with or without @.</div>
         </div>
         <div>
@@ -76,9 +79,25 @@
         </div>
         <div>
           <label for="default_perso">Default Persona</label>
-          <input id="default_perso" placeholder="e.g. Persona v3 / Worship Anthem / etc">
+          <input id="default_perso" placeholder="e.g. Persona v3 / Country Gospel / etc">
         </div>
       </div>
+
+      <h2 class="sectionTitle" style="margin-top:18px;">YouTube Packaging Defaults</h2>
+
+      <label for="youtube_about">Artist About (auto-inserted into YouTube descriptions)</label>
+      <textarea id="youtube_about" placeholder="2–5 sentences about the artist, genre, and message."></textarea>
+
+      <div class="checkRow">
+        <input id="thumb_use_artist_default" type="checkbox">
+        <label for="thumb_use_artist_default" style="margin:0;">Default: include artist image in thumbnails (long videos)</label>
+      </div>
+
+      <label for="thumbnail_style_long">Default Thumbnail Style (Long Videos)</label>
+      <textarea id="thumbnail_style_long" placeholder="Describe the default thumbnail look: colors, lighting, composition, text rules, SEO/CTR rules."></textarea>
+
+      <label for="thumbnail_style_shorts">Default Shorts Visual Style (Shorts)</label>
+      <textarea id="thumbnail_style_shorts" placeholder="Describe the default short visual style: vertical-friendly, text placement, vibe."></textarea>
 
       <h2 class="sectionTitle" style="margin-top:18px;">Links</h2>
       <div class="grid">
@@ -103,7 +122,6 @@
   <script type="module">
     import { supabase, requireSessionOrRedirect } from "./app.js";
     const $ = (id) => document.getElementById(id);
-
     const TABLE = "artists";
 
     const session = await requireSessionOrRedirect();
@@ -114,15 +132,10 @@
       if (!s) return null;
       return s.startsWith("@") ? s.slice(1) : s;
     }
-
     function normalizeUrl(v){
       const s = (v || "").trim();
       if (!s) return null;
-
-      // already valid
       if (s.startsWith("http://") || s.startsWith("https://")) return s;
-
-      // allow things like "www.site.com" or "site.com"
       return "https://" + s;
     }
 
@@ -138,6 +151,11 @@
         default_lane: $("default_lane").value || null,
         youtube_chan: $("youtube_chan").value.trim() || null,
         default_perso: $("default_perso").value.trim() || null,
+
+        youtube_about: ($("youtube_about").value || "").trim() || null,
+        thumb_use_artist_default: !!$("thumb_use_artist_default").checked,
+        thumbnail_style_long: ($("thumbnail_style_long").value || "").trim() || null,
+        thumbnail_style_shorts: ($("thumbnail_style_shorts").value || "").trim() || null,
 
         spotify_url: normalizeUrl($("spotify_url").value),
         bandcamp_ur: normalizeUrl($("bandcamp_ur").value),
@@ -156,21 +174,15 @@
         .select("id")
         .single();
 
-      if (error) {
-        $("msg").textContent = "Error: " + error.message;
-        console.error(error);
-        return;
-      }
+      if (error) { $("msg").textContent = "Error: " + error.message; return; }
 
       $("msg").textContent = "Created ✅";
-      // go to VIEW page (recommended flow)
       window.location.href = `./artist-view.html?id=${encodeURIComponent(data.id)}`;
     }
 
     $("btnSave").onclick = createArtist;
     $("btnCancel").onclick = () => window.location.href = "./artists.html";
     $("btnBack").onclick = () => window.location.href = "./artists.html";
-
     $("btnLogout").onclick = async () => {
       await supabase.auth.signOut();
       window.location.href = "./index.html";
