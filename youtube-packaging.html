@@ -14,46 +14,43 @@
     .wrap { max-width: 1400px; margin: 0 auto; padding: 24px; }
     .top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
     .muted { color:var(--muted); font-size: 14px; }
-    .btn { padding:10px 12px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); cursor:pointer; font-weight:800; text-decoration:none; display:inline-block;}
+    .btn { padding:10px 12px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); cursor:pointer; font-weight:800; text-decoration:none; }
     .btn.primary { background:var(--primary); border:none; }
     .btn.danger { background:var(--danger); border:none; }
     .btn.copy { background:#16315f; border:1px solid #2a3a5c; }
+
     .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-top:14px; }
     .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
     @media (max-width: 980px){ .grid2 { grid-template-columns: 1fr; } }
+
     table { width:100%; border-collapse: collapse; margin-top:10px; }
     th, td { border-bottom:1px solid #22304a; padding:10px; text-align:left; vertical-align: middle; }
     th { color:var(--muted); font-size:12px; }
-    .pill { display:inline-block; padding:4px 10px; border-radius:999px; border:1px solid #2a3a5c; background:var(--card2); color:var(--text); font-size:12px;}
-    .ok { color:var(--ok); font-weight:900; }
-    .warn { color:var(--warn); font-weight:900; }
-    label { font-size:12px; color:var(--muted); display:block; margin:10px 0 6px; }
-    input, textarea, select {
+
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    textarea {
       padding:12px; border-radius:12px; border:1px solid #2a3a5c;
       background:var(--card2); color:var(--text); width:100%;
-      box-sizing:border-box;
+      box-sizing:border-box; min-height: 260px; resize: vertical;
     }
-    textarea { min-height: 120px; resize: vertical; }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-    .help {
+    .help{
       margin-top:10px; line-height:1.5; padding:10px 12px;
-      border:1px solid #24324e; border-radius:12px; background:#0f1626;
-      color:var(--muted);
+      border:1px solid #24324e; border-radius:12px; background:#0f1626; color:var(--muted);
     }
-    .split { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
-    @media (max-width: 1100px){ .split { grid-template-columns: 1fr; } }
-    .sectionTitle { margin:0 0 6px; }
-    .tinyBtn { padding:6px 10px; border-radius:10px; font-weight:800; }
-    .tight textarea { min-height: 90px; }
+    .pill{
+      display:inline-block; padding:4px 10px; border-radius:999px;
+      border:1px solid #2a3a5c; background:var(--card2); font-size:12px;
+    }
+    input[type="checkbox"]{ width:18px; height:18px; accent-color: var(--primary); }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="top">
       <div>
-        <h1 style="margin:0;">YouTube Packaging</h1>
-        <div class="muted">Shows completed Long/Short videos that still need packaging.</div>
+        <h1 style="margin:0;">YouTube Packaging (Prompt Only)</h1>
+        <div class="muted">Pulls artist setup + song suno prompt + lyrics → generates a strict ChatGPT packaging prompt.</div>
         <div id="who" class="muted"></div>
       </div>
       <div class="row">
@@ -68,7 +65,7 @@
 
       <div class="grid2" style="margin-top:10px;">
         <div>
-          <h3 class="sectionTitle">Long Packaging Needed</h3>
+          <h3 style="margin:0 0 6px;">Long Packaging Needed</h3>
           <table>
             <thead>
               <tr>
@@ -76,7 +73,7 @@
                 <th>Artist</th>
                 <th>Album</th>
                 <th>Song</th>
-                <th style="width:130px;">Action</th>
+                <th style="width:140px;">Action</th>
               </tr>
             </thead>
             <tbody id="longBody"></tbody>
@@ -84,7 +81,7 @@
         </div>
 
         <div>
-          <h3 class="sectionTitle">Shorts Packaging Needed</h3>
+          <h3 style="margin:0 0 6px;">Shorts Packaging Needed</h3>
           <table>
             <thead>
               <tr>
@@ -92,7 +89,7 @@
                 <th>Artist</th>
                 <th>Album</th>
                 <th>Song</th>
-                <th style="width:130px;">Action</th>
+                <th style="width:140px;">Action</th>
               </tr>
             </thead>
             <tbody id="shortBody"></tbody>
@@ -101,110 +98,49 @@
       </div>
     </div>
 
-    <!-- PACKAGING FORM -->
-    <div class="card" id="formCard" style="display:none;">
+    <div class="card" id="builderCard" style="display:none;">
       <div class="row" style="justify-content:space-between;">
         <div>
-          <h2 class="sectionTitle" id="formTitle">Package</h2>
-          <div class="muted" id="formSub"></div>
+          <h2 style="margin:0;" id="builderTitle">Packaging Prompt</h2>
+          <div class="muted" id="builderSub"></div>
+          <div class="row" style="margin-top:8px;">
+            <span class="pill" id="pillLane"></span>
+            <span class="pill" id="pillPersona"></span>
+          </div>
         </div>
         <div class="row">
-          <button id="btnBuildPrompt" class="btn primary">Build ChatGPT Prompt</button>
-          <button id="btnCopyPrompt" class="btn copy">Copy Prompt</button>
-          <button id="btnSavePackaging" class="btn">Save Packaging</button>
+          <button id="btnBuild" class="btn primary">Build Prompt</button>
+          <button id="btnCopy" class="btn copy">Copy Prompt</button>
           <button id="btnMarkPackaged" class="btn">Mark Packaged ✅</button>
         </div>
       </div>
 
-      <div class="split" style="margin-top:12px;">
-        <!-- Left: editable fields -->
-        <div>
-          <div class="help">
-            <b>Paste ChatGPT results</b> into the fields below, then click <b>Save Packaging</b>.
-            <br>
-            Titles/descriptions/tags are stored for reuse & editing.
-            <br><br>
-            <b>Important:</b> Tags must be under <b>500 characters</b> (we’ll warn if over).
-          </div>
-
-          <div id="thumbBlock" style="display:none;">
-            <div class="row" style="align-items:center; margin-top:12px;">
-              <input id="thumb_use_artist" type="checkbox" style="width:20px; height:20px;" />
-              <label for="thumb_use_artist" style="margin:0;">Include artist image in thumbnail (vidIQ)</label>
-              <span class="pill" style="opacity:.7;">Long videos only</span>
-            </div>
-          </div>
-
-          <label for="out_title">YouTube Title</label>
-          <textarea id="out_title" class="mono tight"></textarea>
-
-          <label for="out_description">YouTube Description (include hashtags at end)</label>
-          <textarea id="out_description" class="mono"></textarea>
-
-          <label for="out_tags">YouTube Tags (comma separated, &lt; 500 chars)</label>
-          <textarea id="out_tags" class="mono tight" placeholder="comma,separated,tags"></textarea>
-          <div class="muted" id="tagsCount"></div>
-
-          <label for="out_pinned">Pinned Comment</label>
-          <textarea id="out_pinned" class="mono tight"></textarea>
-
-          <div id="thumbFields" style="display:none;">
-            <label for="out_thumb_text">Thumbnail Text (2–4 words)</label>
-            <textarea id="out_thumb_text" class="mono tight"></textarea>
-
-            <label for="out_thumb_vidiq">Thumbnail vidIQ Description</label>
-            <textarea id="out_thumb_vidiq" class="mono tight"></textarea>
-          </div>
-
-          <div id="tiktokFields" style="display:none;">
-            <label for="out_tiktok">TikTok Description</label>
-            <textarea id="out_tiktok" class="mono tight"></textarea>
-          </div>
-
-          <hr style="border:0; border-top:1px solid #22304a; margin:14px 0;">
-
-          <h3 style="margin:0 0 6px;">Artist Insert (auto-added in prompt)</h3>
-          <div class="muted">These fields save to the <b>artist</b> record and can be reused for every song.</div>
-
-          <label for="artist_desc">Artist Description (for YouTube “About the Artist” section)</label>
-          <textarea id="artist_desc" class="mono tight"></textarea>
-
-          <label for="artist_links">Artist Links (one per line)</label>
-          <textarea id="artist_links" class="mono tight" placeholder="https://...\nhttps://..."></textarea>
-
-          <div class="row" style="margin-top:10px;">
-            <button id="btnSaveArtist" class="btn tinyBtn">Save Artist Info</button>
-            <span class="muted" id="artistSaveStatus"></span>
-          </div>
+      <div class="help" id="thumbHelp" style="display:none;">
+        <div class="row" style="align-items:center;">
+          <input id="thumbUseArtist" type="checkbox">
+          <div><b>Include artist image in thumbnail</b> (uses artist default, you can toggle)</div>
         </div>
-
-        <!-- Right: ChatGPT prompt -->
-        <div>
-          <h3 style="margin:0 0 8px;">ChatGPT Prompt Output (Copy this into ChatGPT)</h3>
-          <textarea id="chatgpt_prompt" class="mono" placeholder="Click 'Build ChatGPT Prompt'"></textarea>
-
-          <div class="help">
-            <b>ChatGPT must return ONLY:</b>
-            <div class="mono" style="margin-top:8px;">
-              YOUTUBE_TITLE:<br>
-              ...<br><br>
-              YOUTUBE_DESCRIPTION:<br>
-              ...<br><br>
-              YOUTUBE_TAGS:<br>
-              ...<br><br>
-              PINNED_COMMENT:<br>
-              ...<br><br>
-              (Long only) THUMBNAIL_TEXT:<br>
-              ...<br><br>
-              (Long only) THUMBNAIL_VIDIQ_DESCRIPTION:<br>
-              ...<br><br>
-              (Shorts only) TIKTOK_DESCRIPTION:<br>
-              ...
-            </div>
-            <br>
-            <b>No BPM/Key line</b>. Tags must match the <b>Suno genre/mood</b>.
-          </div>
+        <div class="muted" style="margin-top:6px;">
+          Thumbnail style rules are pulled from the artist setup.
         </div>
+      </div>
+
+      <h3 style="margin:12px 0 8px;">ChatGPT Prompt Output</h3>
+      <textarea id="promptOut" class="mono" placeholder="Click Build Prompt"></textarea>
+
+      <div class="help">
+        <b>ChatGPT must return ONLY blocks:</b><br>
+        <span class="mono">
+YOUTUBE_TITLE:<br>
+YOUTUBE_DESCRIPTION:<br>
+YOUTUBE_TAGS:<br>
+PINNED_COMMENT:<br>
+(LONG only) THUMBNAIL_TEXT:<br>
+(LONG only) THUMBNAIL_VIDIQ_DESCRIPTION:<br>
+(SHORTS only) TIKTOK_DESCRIPTION:
+        </span>
+        <br><br>
+        <b>Rules:</b> No BPM/Key/Genre/Mood line. Tags must match the genre/mood inferred from the Suno prompt.
       </div>
     </div>
 
@@ -221,157 +157,181 @@
       await supabase.auth.signOut();
       window.location.href = "./index.html";
     };
-
     $("btnReload").onclick = () => load();
 
-    let albums = [];
-    let songs = [];
-    let artists = [];
+    const safe = (v) => (v === null || v === undefined) ? "" : String(v);
+
     let albumMap = new Map();
     let artistMap = new Map();
 
-    // Current selection
     let selected = {
-      mode: null, // "long" | "short"
+      mode: null,   // "long" | "short"
       song: null,
       album: null,
       artist: null
     };
 
-    function safe(v){ return (v === null || v === undefined) ? "" : String(v); }
+    function setSelectedUI(){
+      const s = selected.song || {};
+      const al = selected.album || {};
+      const ar = selected.artist || {};
 
-    function setTagsCount(){
-      const t = ($("out_tags").value || "").trim();
-      const n = t.length;
-      $("tagsCount").innerHTML = n > 500
-        ? `<span class="warn">⚠ ${n} characters (over 500)</span>`
-        : `<span class="ok">✅ ${n} characters</span>`;
+      $("builderCard").style.display = "block";
+      $("builderTitle").textContent = selected.mode === "long" ? "Long Video Packaging Prompt" : "Shorts Packaging Prompt";
+      $("builderSub").textContent = `${ar.name || "—"} • ${al.title || "—"} • ${s.title || "—"}`;
+
+      $("pillLane").textContent = `lane: ${ar.default_lane || "—"}`;
+      $("pillPersona").textContent = `persona: ${ar.default_perso || "—"}`;
+
+      if (selected.mode === "long") {
+        $("thumbHelp").style.display = "block";
+        $("thumbUseArtist").checked = !!ar.thumb_use_artist_default;
+      } else {
+        $("thumbHelp").style.display = "none";
+      }
+
+      $("promptOut").value = "";
+      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
     }
-    $("out_tags").addEventListener("input", setTagsCount);
 
-    function buildPackagingPrompt(){
+    function buildPrompt(){
       const mode = selected.mode;
       const s = selected.song || {};
       const al = selected.album || {};
       const ar = selected.artist || {};
 
-      const artistName = ar.name || "";
-      const albumTitle = al.title || "";
+      const includeArtistThumb = (mode === "long") ? $("thumbUseArtist").checked : false;
+
+      const artistAbout = (ar.youtube_about || "").trim();
+      const thumbStyleLong = (ar.thumbnail_style_long || "").trim();
+      const thumbStyleShorts = (ar.thumbnail_style_shorts || "").trim();
+
+      const links = [
+        ["YouTube", ar.youtube_url],
+        ["Spotify", ar.spotify_url],
+        ["Bandcamp", ar.bandcamp_ur],
+        ["Apple Music", ar.apple_music_],
+        ["SoundCloud", ar.soundcloud_u],
+        ["Website", ar.website_url],
+        ["Beacons", ar.beacons_url],
+        ["TikTok", ar.tiktok_url],
+        ["Facebook", ar.facebook_url]
+      ].filter(([,u]) => !!u).map(([name,u]) => `${name}: ${u}`).join("\\n");
 
       const lyrics = (s.lyrics || "").trim();
+      const suno = (s.suno_prompt || "").trim();
       const keywords = (s.keywords || "").trim();
       const scripture = (s.scripture || "").trim();
-      const suno = (s.suno_prompt || "").trim();
-
-      const includeArtistThumb = (mode === "long") ? $("thumb_use_artist").checked : false;
-
-      const artistDesc = ($("artist_desc").value || "").trim();
-      const artistLinks = ($("artist_links").value || "").trim();
 
       const strict = mode === "long" ? `
 STRICT OUTPUT (MUST MATCH EXACTLY)
-Return ONLY the blocks below. NO markdown. NO commentary.
+Return ONLY these blocks. NO markdown. NO commentary.
 
 YOUTUBE_TITLE:
-<one line>
+<one line: Emotional Hook + Song Title + Artist Name>
 
 YOUTUBE_DESCRIPTION:
-<full description including hashtags at the end>
-- Must include an "ABOUT THE ARTIST" section (use provided artist description)
-- Must include a "LINKS" section (use provided links)
-- Must include full lyrics
-- DO NOT include any "Song Details: BPM/Key/Genre/Mood" line
+<Full YouTube description>
+- Start with 2-3 short emotional lines.
+- Include full lyrics.
+- Include ABOUT THE ARTIST using the provided artist about text.
+- Include LINKS section using the provided links (only if any).
+- End with 8–15 hashtags (genre/mood matched to Suno prompt).
+- DO NOT include any “Song Details: BPM/Key/Genre/Mood” line.
 
 YOUTUBE_TAGS:
-<comma separated, UNDER 500 CHARACTERS>
-- Tags must match the genre + mood implied by the Suno prompt (country/soul/worship/etc.)
-- Include artist name, song title, album title, and relevant worship/gospel keywords
+<comma separated tags, UNDER 500 CHARACTERS>
+- Tags must match genre + mood inferred from Suno prompt.
+- Include artist name, song title, album title, and relevant genre tags (country gospel / soul gospel / worship / praise etc).
 
 PINNED_COMMENT:
-<short, engaging, prayer-friendly>
+<short, prayer-friendly, engagement-focused>
 
 THUMBNAIL_TEXT:
-<2-4 words, big + readable>
+<2–4 words, big, readable, emotional hook>
 
 THUMBNAIL_VIDIQ_DESCRIPTION:
-<one paragraph describing a high-CTR thumbnail. Mention whether artist image is included.>
-`.trim() : `
+<one paragraph describing the thumbnail. Mention whether artist image is included.>
+`.trim()
+: `
 STRICT OUTPUT (MUST MATCH EXACTLY)
-Return ONLY the blocks below. NO markdown. NO commentary.
+Return ONLY these blocks. NO markdown. NO commentary.
 
 YOUTUBE_TITLE:
-<one line>
+<one line: Emotional Hook + Song Title + Artist Name>
 
 YOUTUBE_DESCRIPTION:
-<full description including hashtags at the end>
-- Must include an "ABOUT THE ARTIST" section (use provided artist description)
-- Must include a "LINKS" section (use provided links)
-- Must include lyrics used in the short (or full lyrics if you prefer)
-- DO NOT include any "Song Details: BPM/Key/Genre/Mood" line
+<Full YouTube description for a SHORT>
+- Start with 1-2 short emotional lines.
+- Include lyrics used in the short (or full lyrics if best).
+- Include ABOUT THE ARTIST using the provided artist about text.
+- Include LINKS section using provided links (only if any).
+- End with 6–12 hashtags (genre/mood matched to Suno prompt).
+- DO NOT include any “Song Details: BPM/Key/Genre/Mood” line.
 
 YOUTUBE_TAGS:
-<comma separated, UNDER 500 CHARACTERS>
-- Tags must match the genre + mood implied by the Suno prompt (country/soul/worship/etc.)
+<comma separated tags, UNDER 500 CHARACTERS>
+- Tags must match genre + mood inferred from Suno prompt.
 
 PINNED_COMMENT:
-<short, engaging, prayer-friendly>
+<short, prayer-friendly, engagement-focused>
 
 TIKTOK_DESCRIPTION:
-<short hook + hashtags, matching genre/mood>
+<short hook + emojis + hashtags, genre/mood matched to Suno prompt>
 `.trim();
 
-      const thumbRules = mode === "long" ? `
-THUMBNAIL SETTINGS
-- Include artist image in thumbnail: ${includeArtistThumb ? "YES" : "NO"}
-- Thumbnail must be SEO-friendly and high-CTR:
-  - 1280x720
-  - high contrast, mobile readable
-  - 2-4 word text only
-  - clean layout, strong focal point
-  - avoid clutter, avoid tiny text
-  - if artist image YES: face/upper body clear, eye contact, emotional expression, worship vibe
-`.trim() : "";
+      const thumbBlock = mode === "long" ? `
+THUMBNAIL SETTINGS (LONG)
+- Include artist image: ${includeArtistThumb ? "YES" : "NO"}
+- Use this artist thumbnail style:
+${thumbStyleLong || "(No thumbnail_style_long saved. Create an SEO thumbnail plan that matches the lane/persona and genre.)"}
+`.trim() : `
+SHORTS VISUAL STYLE
+${thumbStyleShorts || "(No thumbnail_style_shorts saved. Keep text clear and punchy, vertical-friendly.)"}
+`.trim();
 
       const prompt = `
-You are packaging a finished ${mode === "long" ? "YouTube long-form music video" : "YouTube Short"} for publishing.
+You are creating a publish-ready YouTube package for a finished ${mode === "long" ? "LONG video" : "SHORT"}.
 
-ARTIST: ${artistName}
-ALBUM: ${albumTitle}
-SONG: ${s.title || ""}
+ARTIST SETUP (MUST BE USED)
+- Artist Name: ${ar.name || ""}
+- Default Lane: ${ar.default_lane || ""}
+- Default Persona: ${ar.default_perso || ""}
+- Channel Handle: ${ar.channel_hand ? ("@" + String(ar.channel_hand).replace(/^@/,"")) : "(none)"}
+- YouTube Channel Name: ${ar.youtube_chan || "(none)"}
 
-INPUTS
-- Suno style prompt (use this to infer GENRE + MOOD for tags/hashtags): ${suno || "(none)"}
+ABOUT THE ARTIST (use as-is, do not rewrite unless empty)
+${artistAbout || "(EMPTY) Write a short 2–4 sentence artist about that matches the lane/persona and genre."}
+
+LINKS (include only if any exist)
+${links || "(none)"}
+
+SONG DATA
+- Album: ${al.title || ""}
+- Song Title: ${s.title || ""}
+- Suno style prompt (USE THIS to infer GENRE + MOOD for tags/hashtags): ${suno || "(none)"}
 - Keywords: ${keywords || "(none)"}
 - Scripture: ${scripture || "(none)"}
 
-ARTIST DETAILS (must be included in description)
-ARTIST_DESCRIPTION:
-${artistDesc || "(missing: write a short 2-4 sentence artist description that matches the genre/mood)"}
-
-ARTIST_LINKS:
-${artistLinks || "(missing: if none, omit LINKS section)"}
-
-LYRICS (use in description)
-${lyrics || "(Lyrics not found. Write a short description without lyrics.)"}
+LYRICS
+${lyrics || "(Lyrics missing. Write a description without lyrics.)"}
 
 TITLE RULES
-- Must start with an emotional hook phrase.
-- Must include the song title and artist name.
-- Keep it clear and clickable (avoid keyword stuffing).
+- Must begin with an emotional hook phrase.
+- Must include Song Title and Artist Name.
+- Keep it clear and clickable (no keyword stuffing).
 
 DESCRIPTION RULES
-- Start with 2-3 short emotional lines about the song.
-- Include lyrics (full for long; for shorts either the used section or full—your choice).
-- Include ABOUT THE ARTIST section using provided text.
-- Include LINKS section if links provided.
-- End with 8-15 hashtags that match the inferred genre/mood.
+- No BPM/Key/Genre/Mood line.
+- Must fit the inferred genre/mood from Suno prompt.
+- End with hashtags that match genre/mood.
 
 TAGS RULES
-- MUST be UNDER 500 characters total.
-- Must match genre + mood implied by Suno prompt.
-- Include artist + song + album + worship/gospel + genre tags (e.g. country gospel / soul gospel etc).
+- Comma separated
+- Under 500 characters
+- Must match inferred genre/mood from Suno prompt
 
-${thumbRules}
+${thumbBlock}
 
 ${strict}
 `.trim();
@@ -379,261 +339,112 @@ ${strict}
       return prompt;
     }
 
-    function setFormMode(mode){
-      selected.mode = mode;
-
-      $("formCard").style.display = "block";
-      $("thumbBlock").style.display = (mode === "long") ? "block" : "none";
-      $("thumbFields").style.display = (mode === "long") ? "block" : "none";
-      $("tiktokFields").style.display = (mode === "short") ? "block" : "none";
-
-      $("formTitle").textContent = mode === "long" ? "Package Long Video" : "Package Shorts";
-    }
-
-    function loadSelectionIntoForm(){
-      const s = selected.song || {};
-      const al = selected.album || {};
-      const ar = selected.artist || {};
-
-      $("formSub").textContent = `${ar.name || "—"} • ${al.title || "—"} • ${s.title || "—"}`;
-
-      // Load saved packaging outputs (if any)
-      if (selected.mode === "long"){
-        $("out_title").value = safe(s.yt_long_title);
-        $("out_description").value = safe(s.yt_long_description);
-        $("out_tags").value = safe(s.yt_long_tags);
-        $("out_pinned").value = safe(s.yt_long_pinned_comment);
-        $("thumb_use_artist").checked = !!s.yt_thumbnail_use_artist;
-        $("out_thumb_text").value = safe(s.yt_thumbnail_text);
-        $("out_thumb_vidiq").value = safe(s.yt_thumbnail_vidiq_description);
-        $("out_tiktok").value = "";
-      } else {
-        $("out_title").value = safe(s.yt_short_title);
-        $("out_description").value = safe(s.yt_short_description);
-        $("out_tags").value = safe(s.yt_short_tags);
-        $("out_pinned").value = safe(s.yt_short_pinned_comment);
-        $("out_tiktok").value = safe(s.tiktok_description);
-        $("thumb_use_artist").checked = false;
-        $("out_thumb_text").value = "";
-        $("out_thumb_vidiq").value = "";
-      }
-
-      // Artist fields (editable here)
-      $("artist_desc").value = safe(ar.youtube_artist_description);
-      $("artist_links").value = safe(ar.youtube_artist_links);
-
-      $("chatgpt_prompt").value = "";
-      setTagsCount();
-    }
-
-    function attachRowHandlers(){
-      // handled per row creation
-    }
-
-    async function load(){
-      $("statusLine").textContent = "Loading…";
-
-      // 1) Approved/Producing albums (same idea as production queue)
-      const { data: a, error: e1 } = await supabase
-        .from("albums")
-        .select("id,title,artist_id,status")
-        .in("status", ["approved", "producing"]);
-
-      if (e1) { $("statusLine").textContent = "Error: " + e1.message; return; }
-      albums = a || [];
-      albumMap = new Map(albums.map(x => [x.id, x]));
-
-      if (!albums.length){
-        $("statusLine").textContent = "No approved/producing albums right now.";
-        $("longBody").innerHTML = "";
-        $("shortBody").innerHTML = "";
-        return;
-      }
-
-      const albumIds = albums.map(x => x.id);
-
-      // 2) Songs (need more fields now)
-      const { data: s, error: e2 } = await supabase
-        .from("songs")
-        .select([
-          "id,album_id,track_number,title,lyrics,keywords,scripture,suno_prompt",
-          "longform_done,short_done,long_packaged,short_packaged",
-          "yt_long_title,yt_long_description,yt_long_tags,yt_long_pinned_comment",
-          "yt_thumbnail_use_artist,yt_thumbnail_text,yt_thumbnail_vidiq_description",
-          "yt_short_title,yt_short_description,yt_short_tags,yt_short_pinned_comment,tiktok_description"
-        ].join(","))
-        .in("album_id", albumIds)
-        .order("album_id", { ascending: true })
-        .order("track_number", { ascending: true });
-
-      if (e2) { $("statusLine").textContent = "Error: " + e2.message; return; }
-      songs = s || [];
-
-      // 3) Artists
-      const artistIds = [...new Set(albums.map(x => x.artist_id).filter(Boolean))];
-      const { data: ar, error: e3 } = await supabase
-        .from("artists")
-        .select("id,name,youtube_artist_description,youtube_artist_links")
-        .in("id", artistIds);
-
-      if (e3) { $("statusLine").textContent = "Error: " + e3.message; return; }
-      artists = ar || [];
-      artistMap = new Map(artists.map(x => [x.id, x]));
-
-      // Build queues
-      const longQueue = songs.filter(x => !!x.longform_done && !x.long_packaged);
-      const shortQueue = songs.filter(x => !!x.short_done && !x.short_packaged);
-
-      // Render
-      const longBody = $("longBody");
-      const shortBody = $("shortBody");
-      longBody.innerHTML = "";
-      shortBody.innerHTML = "";
-
-      for (const x of longQueue){
-        const al = albumMap.get(x.album_id);
-        const arObj = artistMap.get(al?.artist_id);
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td><b>${x.track_number ?? ""}</b></td>
-          <td>${safe(arObj?.name || "—")}</td>
-          <td>${safe(al?.title || "—")}</td>
-          <td>${safe(x.title || "—")}</td>
-          <td><button class="btn primary" data-open>Package</button></td>
-        `;
-        tr.querySelector("[data-open]").onclick = () => {
-          selected.song = x;
-          selected.album = al;
-          selected.artist = arObj;
-          setFormMode("long");
-          loadSelectionIntoForm();
-          window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
-        };
-        longBody.appendChild(tr);
-      }
-
-      for (const x of shortQueue){
-        const al = albumMap.get(x.album_id);
-        const arObj = artistMap.get(al?.artist_id);
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td><b>${x.track_number ?? ""}</b></td>
-          <td>${safe(arObj?.name || "—")}</td>
-          <td>${safe(al?.title || "—")}</td>
-          <td>${safe(x.title || "—")}</td>
-          <td><button class="btn primary" data-open>Package</button></td>
-        `;
-        tr.querySelector("[data-open]").onclick = () => {
-          selected.song = x;
-          selected.album = al;
-          selected.artist = arObj;
-          setFormMode("short");
-          loadSelectionIntoForm();
-          window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
-        };
-        shortBody.appendChild(tr);
-      }
-
-      $("statusLine").textContent =
-        `Long queue: ${longQueue.length} • Shorts queue: ${shortQueue.length}`;
-    }
-
-    $("btnBuildPrompt").onclick = () => {
-      if (!selected.song) return alert("Select a song first.");
-      $("chatgpt_prompt").value = buildPackagingPrompt();
-    };
-
-    $("btnCopyPrompt").onclick = async () => {
-      const p = ($("chatgpt_prompt").value || "").trim();
-      if (!p) return alert("Build the prompt first.");
-      await navigator.clipboard.writeText(p);
-      $("statusLine").textContent = "Copied ChatGPT prompt ✅";
-    };
-
-    $("btnSaveArtist").onclick = async () => {
-      if (!selected.artist?.id) return alert("No artist loaded.");
-      $("artistSaveStatus").textContent = "Saving…";
-
-      const payload = {
-        youtube_artist_description: ($("artist_desc").value || "").trim() || null,
-        youtube_artist_links: ($("artist_links").value || "").trim() || null,
-      };
-
-      const { error } = await supabase
-        .from("artists")
-        .update(payload)
-        .eq("id", selected.artist.id);
-
-      if (error){
-        $("artistSaveStatus").textContent = "Error: " + error.message;
-        return;
-      }
-
-      $("artistSaveStatus").textContent = "Saved ✅";
-      // refresh local artist object
-      selected.artist.youtube_artist_description = payload.youtube_artist_description;
-      selected.artist.youtube_artist_links = payload.youtube_artist_links;
-    };
-
-    $("btnSavePackaging").onclick = async () => {
+    async function markPackaged(){
       if (!selected.song?.id) return alert("Select a song first.");
-
-      $("statusLine").textContent = "Saving packaging…";
-
-      const mode = selected.mode;
-      const id = selected.song.id;
-
-      const tags = ($("out_tags").value || "").trim();
-      if (tags.length > 500){
-        if (!confirm(`Tags are ${tags.length} chars (over 500). Save anyway?`)) return;
-      }
-
-      let payload = {};
-      if (mode === "long"){
-        payload = {
-          yt_long_title: ($("out_title").value || "").trim() || null,
-          yt_long_description: ($("out_description").value || "").trim() || null,
-          yt_long_tags: tags || null,
-          yt_long_pinned_comment: ($("out_pinned").value || "").trim() || null,
-          yt_thumbnail_use_artist: !!$("thumb_use_artist").checked,
-          yt_thumbnail_text: ($("out_thumb_text").value || "").trim() || null,
-          yt_thumbnail_vidiq_description: ($("out_thumb_vidiq").value || "").trim() || null,
-        };
-      } else {
-        payload = {
-          yt_short_title: ($("out_title").value || "").trim() || null,
-          yt_short_description: ($("out_description").value || "").trim() || null,
-          yt_short_tags: tags || null,
-          yt_short_pinned_comment: ($("out_pinned").value || "").trim() || null,
-          tiktok_description: ($("out_tiktok").value || "").trim() || null,
-        };
-      }
-
-      const { error } = await supabase.from("songs").update(payload).eq("id", id);
-      if (error){ $("statusLine").textContent = "Error: " + error.message; return; }
-
-      $("statusLine").textContent = "Packaging saved ✅";
-      await load();
-    };
-
-    $("btnMarkPackaged").onclick = async () => {
-      if (!selected.song?.id) return alert("Select a song first.");
-
-      const mode = selected.mode;
-      const id = selected.song.id;
-
-      const payload = mode === "long"
+      const payload = selected.mode === "long"
         ? { long_packaged: true }
         : { short_packaged: true };
 
-      const { error } = await supabase.from("songs").update(payload).eq("id", id);
-      if (error){ $("statusLine").textContent = "Error: " + error.message; return; }
+      $("statusLine").textContent = "Marking packaged…";
+      const { error } = await supabase.from("songs").update(payload).eq("id", selected.song.id);
+      if (error) { $("statusLine").textContent = "Error: " + error.message; return; }
 
       $("statusLine").textContent = "Marked packaged ✅";
-      $("formCard").style.display = "none";
+      $("builderCard").style.display = "none";
       selected = { mode:null, song:null, album:null, artist:null };
       await load();
+    }
+
+    $("btnBuild").onclick = () => {
+      if (!selected.song) return alert("Select a song first.");
+      $("promptOut").value = buildPrompt();
     };
+
+    $("btnCopy").onclick = async () => {
+      const p = ($("promptOut").value || "").trim();
+      if (!p) return alert("Build the prompt first.");
+      await navigator.clipboard.writeText(p);
+      $("statusLine").textContent = "Copied prompt ✅";
+    };
+
+    $("btnMarkPackaged").onclick = markPackaged;
+
+    async function load(){
+      $("statusLine").textContent = "Loading…";
+      $("longBody").innerHTML = "";
+      $("shortBody").innerHTML = "";
+
+      // albums
+      const { data: albums, error: e1 } = await supabase
+        .from("albums")
+        .select("id,title,artist_id,status")
+        .in("status", ["approved", "producing"]);
+      if (e1) { $("statusLine").textContent = "Error: " + e1.message; return; }
+
+      albumMap = new Map((albums||[]).map(a => [a.id, a]));
+      const albumIds = (albums||[]).map(a => a.id);
+      if (!albumIds.length) { $("statusLine").textContent = "No approved/producing albums."; return; }
+
+      // songs needed for queue + prompt build
+      const { data: songs, error: e2 } = await supabase
+        .from("songs")
+        .select("id,album_id,track_number,title,lyrics,keywords,scripture,suno_prompt,longform_done,short_done,long_packaged,short_packaged")
+        .in("album_id", albumIds)
+        .order("album_id", { ascending: true })
+        .order("track_number", { ascending: true });
+      if (e2) { $("statusLine").textContent = "Error: " + e2.message; return; }
+
+      // artists (pull new setup fields too)
+      const artistIds = [...new Set((albums||[]).map(a => a.artist_id).filter(Boolean))];
+      const { data: artists, error: e3 } = await supabase
+        .from("artists")
+        .select("id,name,channel_hand,youtube_chan,default_lane,default_perso,youtube_about,thumbnail_style_long,thumbnail_style_shorts,thumb_use_artist_default,spotify_url,bandcamp_ur,apple_music_,soundcloud_u,youtube_url,website_url,beacons_url,tiktok_url,facebook_url")
+        .in("id", artistIds);
+      if (e3) { $("statusLine").textContent = "Error: " + e3.message; return; }
+
+      artistMap = new Map((artists||[]).map(a => [a.id, a]));
+
+      const longQueue = (songs||[]).filter(s => !!s.longform_done && !s.long_packaged);
+      const shortQueue = (songs||[]).filter(s => !!s.short_done && !s.short_packaged);
+
+      for (const s of longQueue){
+        const al = albumMap.get(s.album_id);
+        const ar = artistMap.get(al?.artist_id);
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><b>${s.track_number ?? ""}</b></td>
+          <td>${safe(ar?.name || "—")}</td>
+          <td>${safe(al?.title || "—")}</td>
+          <td>${safe(s.title || "—")}</td>
+          <td><button class="btn primary">Build</button></td>
+        `;
+        tr.querySelector("button").onclick = () => {
+          selected = { mode:"long", song:s, album:al, artist:ar };
+          setSelectedUI();
+        };
+        $("longBody").appendChild(tr);
+      }
+
+      for (const s of shortQueue){
+        const al = albumMap.get(s.album_id);
+        const ar = artistMap.get(al?.artist_id);
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><b>${s.track_number ?? ""}</b></td>
+          <td>${safe(ar?.name || "—")}</td>
+          <td>${safe(al?.title || "—")}</td>
+          <td>${safe(s.title || "—")}</td>
+          <td><button class="btn primary">Build</button></td>
+        `;
+        tr.querySelector("button").onclick = () => {
+          selected = { mode:"short", song:s, album:al, artist:ar };
+          setSelectedUI();
+        };
+        $("shortBody").appendChild(tr);
+      }
+
+      $("statusLine").textContent = `Long queue: ${longQueue.length} • Shorts queue: ${shortQueue.length}`;
+    }
 
     await load();
   </script>
