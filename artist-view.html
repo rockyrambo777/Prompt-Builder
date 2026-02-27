@@ -8,9 +8,10 @@
     :root{
       --bg:#0b0f19; --card:#121a2a; --card2:#0f1626; --border:#23304a;
       --muted:#92a4c7; --text:#e8eefc; --primary:#2f6fed; --danger:#d14b4b;
+      --ok:#7CFFB2; --warn:#ffcc66;
     }
     body { font-family: Arial, sans-serif; background:var(--bg); color:var(--text); margin:0; }
-    .wrap { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .wrap { max-width: 1150px; margin: 0 auto; padding: 24px; }
     .top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
     .muted { color:var(--muted); font-size: 14px; }
     .btn { padding:12px 14px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); cursor:pointer; font-weight:800; text-decoration:none; display:inline-block; }
@@ -20,9 +21,7 @@
     .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-top:14px; }
     .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between; }
     .grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; margin-top:12px; }
-    @media (max-width: 900px){
-      .grid { grid-template-columns: 1fr; }
-    }
+    @media (max-width: 900px){ .grid { grid-template-columns: 1fr; } }
     .kv{
       border:1px solid #22304a; border-radius:14px; padding:12px; background:var(--card2);
     }
@@ -31,8 +30,15 @@
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
     .divider { border:0; border-top:1px solid #22304a; margin:16px 0; }
     .pill{
-      display:inline-block; padding:4px 10px; border-radius:999px;
+      display:inline-block; padding:6px 10px; border-radius:999px;
       border:1px solid #2a3a5c; background:var(--card2); font-size:12px;
+    }
+    .pill.ok { border-color:#1f6b45; }
+    .pill.warn { border-color:#6b4c1d; }
+    a { color:#9ec2ff; }
+    .codeBox {
+      border:1px solid #22304a; border-radius:14px; padding:12px;
+      background:#0f1626; white-space:pre-wrap;
     }
   </style>
 </head>
@@ -54,6 +60,7 @@
     <div class="card">
       <div class="row">
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <span class="pill" id="pillSetup">Setup: —</span>
           <span class="pill" id="pillLane">lane: —</span>
           <span class="pill" id="pillPersona">persona: —</span>
           <span class="pill" id="pillHandle">handle: —</span>
@@ -71,10 +78,21 @@
         </div>
       </div>
 
+      <div class="grid">
+        <div class="kv">
+          <div class="k">Tagline</div>
+          <div class="v" id="tagline">—</div>
+        </div>
+        <div class="kv">
+          <div class="k">Artist About</div>
+          <div class="v" id="artistAbout">—</div>
+        </div>
+      </div>
+
       <hr class="divider">
 
-      <h2 style="margin:0 0 8px;">Artist DNA (Stable)</h2>
-      <div class="muted">Used by prompt builders to keep voice + genre consistent. Album mood/style is set per album.</div>
+      <h2 style="margin:0 0 8px;">Artist DNA Preview</h2>
+      <div class="muted">This block is injected into album + production + packaging prompt builders.</div>
 
       <div class="grid">
         <div class="kv">
@@ -110,7 +128,7 @@
       </div>
 
       <div class="kv" style="margin-top:12px;">
-        <div class="k">Artist DNA Preview (auto-injected)</div>
+        <div class="k">Copy/Paste Injection Block</div>
         <div class="v mono" id="dnaPreview">—</div>
         <div style="margin-top:10px;">
           <button id="btnCopyDNA" class="btn secondary">Copy Artist DNA</button>
@@ -119,16 +137,15 @@
 
       <hr class="divider">
 
-      <h2 style="margin:0 0 8px;">YouTube Packaging Defaults</h2>
-
+      <h2 style="margin:0 0 8px;">Packaging Defaults</h2>
       <div class="grid">
         <div class="kv">
           <div class="k">Default include artist image in thumbnails (Long)</div>
           <div class="v" id="thumbDefault">—</div>
         </div>
         <div class="kv">
-          <div class="k">Artist About (auto-insert)</div>
-          <div class="v" id="about">—</div>
+          <div class="k">YouTube About (override)</div>
+          <div class="v" id="ytAbout">—</div>
         </div>
       </div>
 
@@ -136,6 +153,12 @@
         <div class="k">Thumbnail Style (Long)</div>
         <div class="v" id="thumbLong">—</div>
       </div>
+
+      <hr class="divider">
+
+      <h2 style="margin:0 0 8px;">Blueprint JSON (Advanced)</h2>
+      <div class="muted">Extra presets you don’t want as columns.</div>
+      <div class="codeBox mono" id="blueprintBox">—</div>
 
       <hr class="divider">
 
@@ -163,9 +186,34 @@
       el.className = "kv";
       el.innerHTML = `
         <div class="k">${label}</div>
-        <div class="v"><a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#9ec2ff;">${url}</a></div>
+        <div class="v"><a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a></div>
       `;
       grid.appendChild(el);
+    }
+
+    function setupPill(data){
+      const required = [
+        ["name", data.name],
+        ["main_genre", data.main_genre],
+        ["secondary_genre", data.secondary_genre],
+        ["voice_identity", data.voice_identity],
+        ["must_include", data.must_include],
+        ["never_include", data.never_include],
+        ["suno_voice_anchor", data.suno_voice_anchor],
+      ];
+      const missing = required.filter(([,v]) => !(v || "").toString().trim()).map(([k]) => k);
+      const pill = $("pillSetup");
+      if (missing.length) {
+        pill.textContent = `Setup: missing ${missing.length}`;
+        pill.classList.remove("ok");
+        pill.classList.add("warn");
+        pill.title = "Missing: " + missing.join(", ");
+      } else {
+        pill.textContent = "Setup: complete ✅";
+        pill.classList.remove("warn");
+        pill.classList.add("ok");
+        pill.title = "All required Artist DNA fields filled.";
+      }
     }
 
     async function load(){
@@ -178,9 +226,14 @@
       $("name").textContent = safe(data.name);
       $("ytChan").textContent = safe(data.youtube_chan);
 
+      $("tagline").textContent = safe(data.tagline);
+      $("artistAbout").textContent = safe(data.artist_about);
+
       $("pillLane").textContent = `lane: ${data.default_lane || "—"}`;
       $("pillPersona").textContent = `persona: ${data.default_perso ? "set" : "—"}`;
       $("pillHandle").textContent = `handle: ${data.channel_hand ? ("@" + String(data.channel_hand).replace(/^@/,"")) : "—"}`;
+
+      setupPill(data);
 
       $("mainGenre").textContent = safe(data.main_genre);
       $("secondaryGenre").textContent = safe(data.secondary_genre);
@@ -196,8 +249,8 @@
         `Voice Identity: ${data.voice_identity ? data.voice_identity : "—"}`,
         `Must Include: ${data.must_include ? data.must_include : "—"}`,
         `Never Include: ${data.never_include ? data.never_include : "—"}`,
-        `Suno Voice Anchor: ${data.suno_voice_anchor ? data.suno_voice_anchor : "—"}`
-      ].join("\n");
+        `Suno Voice Anchor: ${data.suno_voice_anchor ? data.suno_voice_anchor : "—"}`,
+      ].join("\\n");
       $("dnaPreview").textContent = dna;
 
       $("btnCopyDNA").onclick = async () => {
@@ -205,12 +258,18 @@
       };
 
       $("thumbDefault").textContent = data.thumb_use_artist_default ? "YES" : "NO";
-      $("about").textContent = data.youtube_about ? data.youtube_about : "—";
+      $("ytAbout").textContent = data.youtube_about ? data.youtube_about : "—";
       $("thumbLong").textContent = data.thumbnail_style_long ? data.thumbnail_style_long : "—";
+
+      // Blueprint display
+      try {
+        $("blueprintBox").textContent = data.blueprint ? JSON.stringify(data.blueprint, null, 2) : "{}";
+      } catch {
+        $("blueprintBox").textContent = "(invalid json in blueprint)";
+      }
 
       const linksGrid = $("linksGrid");
       linksGrid.innerHTML = "";
-
       addLink(linksGrid, "Spotify", data.spotify_url);
       addLink(linksGrid, "Bandcamp", data.bandcamp_ur);
       addLink(linksGrid, "Apple Music", data.apple_music_);
