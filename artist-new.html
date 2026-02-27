@@ -90,14 +90,11 @@
 
       <div class="checkRow">
         <input id="thumb_use_artist_default" type="checkbox">
-        <label for="thumb_use_artist_default" style="margin:0;">Default: include artist image in thumbnails (long videos)</label>
+        <label for="thumb_use_artist_default" style="margin:0;">Default: include artist image in thumbnails (Long videos)</label>
       </div>
 
       <label for="thumbnail_style_long">Default Thumbnail Style (Long Videos)</label>
       <textarea id="thumbnail_style_long" placeholder="Describe the default thumbnail look: colors, lighting, composition, text rules, SEO/CTR rules."></textarea>
-
-      <label for="thumbnail_style_shorts">Default Shorts Visual Style (Shorts)</label>
-      <textarea id="thumbnail_style_shorts" placeholder="Describe the default short visual style: vertical-friendly, text placement, vibe."></textarea>
 
       <h2 class="sectionTitle" style="margin-top:18px;">Links</h2>
       <div class="grid">
@@ -155,7 +152,6 @@
         youtube_about: ($("youtube_about").value || "").trim() || null,
         thumb_use_artist_default: !!$("thumb_use_artist_default").checked,
         thumbnail_style_long: ($("thumbnail_style_long").value || "").trim() || null,
-        thumbnail_style_shorts: ($("thumbnail_style_shorts").value || "").trim() || null,
 
         spotify_url: normalizeUrl($("spotify_url").value),
         bandcamp_ur: normalizeUrl($("bandcamp_ur").value),
