@@ -3,17 +3,18 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>SVS System – Add Artist</title>
+  <title>SVS System – New Artist</title>
   <style>
     :root{
       --bg:#0b0f19; --card:#121a2a; --card2:#0f1626; --border:#23304a;
       --muted:#92a4c7; --text:#e8eefc; --primary:#2f6fed; --danger:#d14b4b;
+      --ok:#7CFFB2; --warn:#ffcc66;
     }
     body { font-family: Arial, sans-serif; background:var(--bg); color:var(--text); margin:0; }
     .wrap { max-width: 1000px; margin: 0 auto; padding: 24px; }
-    .top { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+    .top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
     .muted { color:var(--muted); font-size: 14px; }
-    .btn { padding:12px 14px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); cursor:pointer; font-weight:700; }
+    .btn { padding:12px 14px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); cursor:pointer; font-weight:800; }
     .btn.primary { background:var(--primary); border:none; }
     .btn.secondary { background:#1c273f; border:1px solid #2a3a5c; }
     .btn.danger { background:var(--danger); border:none; }
@@ -28,19 +29,23 @@
     }
     textarea { min-height: 110px; resize: vertical; }
     .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-    .sectionTitle { margin: 0 0 10px; }
-    .hint { font-size:12px; color:var(--muted); margin-top:4px; }
-    .actions { display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
-    .checkRow { display:flex; align-items:center; gap:10px; margin:10px 0; }
-    input[type="checkbox"]{ width:18px; height:18px; accent-color: var(--primary); }
+    .hint { font-size:12px; color:var(--muted); margin-top:4px; line-height:1.4; }
+    .actions { display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; margin-top:14px; }
+    .divider { border:0; border-top:1px solid #22304a; margin:16px 0; }
+    .pill{
+      display:inline-block; padding:6px 10px; border-radius:999px;
+      border:1px solid #2a3a5c; background:var(--card2); font-size:12px;
+    }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="top">
       <div>
-        <h1 style="margin:0;">Add Artist</h1>
+        <h1 style="margin:0;">New Artist</h1>
         <div id="who" class="muted"></div>
+        <div id="statusLine" class="muted"></div>
       </div>
       <div class="row">
         <button id="btnBack" class="btn secondary">Back</button>
@@ -49,69 +54,112 @@
     </div>
 
     <div class="card">
-      <div id="msg" class="muted"></div>
+      <div class="row" style="justify-content:space-between;">
+        <div class="muted">
+          Fill the stable Artist DNA so every album/song/video/packaging prompt stays on-brand.
+        </div>
+        <div class="row">
+          <span id="completePill" class="pill">Setup: —</span>
+        </div>
+      </div>
 
-      <h2 class="sectionTitle">Profile</h2>
+      <h2 style="margin:12px 0 8px;">Profile</h2>
       <div class="grid">
         <div>
           <label for="name">Name *</label>
-          <input id="name" placeholder="e.g. Nina's Gospel Groove">
+          <input id="name" placeholder="e.g. SoulVibe Sanctuary">
         </div>
         <div>
           <label for="channel_hand">Channel Handle</label>
-          <input id="channel_hand" placeholder="e.g. @NinasGospelGroove">
-          <div class="hint">You can paste with or without @.</div>
+          <input id="channel_hand" placeholder="e.g. @SoulVibeSanctuary">
         </div>
+
         <div>
           <label for="youtube_chan">YouTube Channel Name</label>
           <input id="youtube_chan" placeholder="Display name on YouTube">
         </div>
+
         <div>
-          <label for="default_lane">Default Lane</label>
-          <select id="default_lane">
-            <option value="">(none)</option>
-            <option value="SVS">SoulVibe Sanctuary</option>
-            <option value="GGG">Gospel Groove Girls</option>
-            <option value="NGG">Nina's Gospel Groove</option>
-            <option value="GSG">Glory Shout Gospel</option>
-            <option value="SIS">Shaun in Stereo</option>
+          <label for="tagline">Tagline</label>
+          <input id="tagline" placeholder="1 line vibe (used in descriptions)">
+        </div>
+
+        <div>
+          <label for="default_lane">Default Lane (optional)</label>
+          <input id="default_lane" placeholder="e.g. Country Gospel / Soul Worship">
+        </div>
+
+        <div>
+          <label for="default_perso">Default Persona (optional)</label>
+          <input id="default_perso" placeholder="Short persona label or reference">
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <h2 style="margin:12px 0 8px;">Artist DNA (REQUIRED)</h2>
+      <div class="hint">Artist DNA = stable voice + stable genre family + instrument rules. Album mood/style is set per album.</div>
+
+      <div class="grid" style="margin-top:10px;">
+        <div>
+          <label for="main_genre">Main Genre *</label>
+          <select id="main_genre">
+            <option value="">Select…</option>
+            <option value="Gospel">Gospel</option>
           </select>
         </div>
         <div>
-          <label for="default_perso">Default Persona</label>
-          <input id="default_perso" placeholder="e.g. Persona v3 / Country Gospel / etc">
+          <label for="secondary_genre">Secondary Genre *</label>
+          <select id="secondary_genre">
+            <option value="">Select…</option>
+            <option value="Country">Country</option>
+            <option value="Soul">Soul</option>
+            <option value="Pop">Pop</option>
+            <option value="Rock">Rock</option>
+            <option value="Country Rock">Country Rock</option>
+          </select>
         </div>
       </div>
 
-      <h2 class="sectionTitle" style="margin-top:18px;">YouTube Packaging Defaults</h2>
+      <label for="voice_identity">Voice Identity *</label>
+      <textarea id="voice_identity" placeholder="Example: Female lead, warm belt tone, emotional but controlled delivery; consistent vocal identity."></textarea>
 
-      <label for="youtube_about">Artist About (auto-inserted into YouTube descriptions)</label>
-      <textarea id="youtube_about" placeholder="2–5 sentences about the artist, genre, and message."></textarea>
+      <label for="must_include">Must Include (always instruments) *</label>
+      <textarea id="must_include" placeholder="Example: Always full instrumentation: drums, bass, core instrument (guitar or piano), tasteful pads."></textarea>
 
-      <div class="checkRow">
-        <input id="thumb_use_artist_default" type="checkbox">
-        <label for="thumb_use_artist_default" style="margin:0;">Default: include artist image in thumbnails (Long videos)</label>
-      </div>
+      <label for="never_include">Never Include (banned elements) *</label>
+      <textarea id="never_include" placeholder="Example: No EDM drops, no 808s, no trap hats, no heavy autotune, no horns."></textarea>
 
-      <label for="thumbnail_style_long">Default Thumbnail Style (Long Videos)</label>
-      <textarea id="thumbnail_style_long" placeholder="Describe the default thumbnail look: colors, lighting, composition, text rules, SEO/CTR rules."></textarea>
+      <label for="suno_voice_anchor">Suno Voice Anchor (VOICE ONLY) *</label>
+      <textarea id="suno_voice_anchor" placeholder="Short anchor that keeps the same voice/personality; do NOT lock the beat here."></textarea>
 
-      <h2 class="sectionTitle" style="margin-top:18px;">Links</h2>
+      <hr class="divider">
+
+      <h2 style="margin:12px 0 8px;">Artist About (used for packaging/distribution)</h2>
+      <label for="artist_about">Artist About</label>
+      <textarea id="artist_about" placeholder="2–5 sentences about the artist. Used in YouTube description + Bandcamp about (as a base)."></textarea>
+
+      <hr class="divider">
+
+      <h2 style="margin:12px 0 8px;">Blueprint JSON (optional, advanced)</h2>
+      <div class="hint">Store everything extra here (visual rules, tag presets, distribution defaults). This avoids adding 50 columns later.</div>
+      <label for="blueprint">Blueprint (JSON)</label>
+      <textarea id="blueprint" class="mono" placeholder='Example: {"visual":{"thumbnail_long_style":"..."},"distribution":{"ditto":{"genres":["Gospel","Country"]}}}'></textarea>
+
+      <hr class="divider">
+
+      <h2 style="margin:12px 0 8px;">Links</h2>
       <div class="grid">
         <div><label for="spotify_url">Spotify</label><input id="spotify_url" placeholder="https://..."></div>
         <div><label for="bandcamp_ur">Bandcamp</label><input id="bandcamp_ur" placeholder="https://..."></div>
-        <div><label for="apple_music_">Apple Music</label><input id="apple_music_" placeholder="https://..."></div>
-        <div><label for="soundcloud_u">SoundCloud</label><input id="soundcloud_u" placeholder="https://..."></div>
         <div><label for="youtube_url">YouTube</label><input id="youtube_url" placeholder="https://..."></div>
         <div><label for="website_url">Website</label><input id="website_url" placeholder="https://..."></div>
-        <div><label for="beacons_url">Beacons</label><input id="beacons_url" placeholder="https://..."></div>
         <div><label for="tiktok_url">TikTok</label><input id="tiktok_url" placeholder="https://..."></div>
-        <div><label for="facebook_url">Facebook</label><input id="facebook_url" placeholder="https://..."></div>
       </div>
 
-      <div class="actions" style="margin-top:18px;">
+      <div class="actions">
         <button id="btnCancel" class="btn secondary">Cancel</button>
-        <button id="btnSave" class="btn primary">Create Artist</button>
+        <button id="btnCreate" class="btn primary">Create Artist</button>
       </div>
     </div>
   </div>
@@ -119,11 +167,21 @@
   <script type="module">
     import { supabase, requireSessionOrRedirect } from "./app.js";
     const $ = (id) => document.getElementById(id);
-    const TABLE = "artists";
 
     const session = await requireSessionOrRedirect();
     $("who").textContent = `Signed in: ${session.user.email}`;
 
+    $("btnLogout").onclick = async () => {
+      await supabase.auth.signOut();
+      window.location.href = "./index.html";
+    };
+    $("btnBack").onclick = () => window.location.href = "./artists.html";
+    $("btnCancel").onclick = () => window.location.href = "./artists.html";
+
+    function norm(v){
+      const s = (v ?? "").toString().trim();
+      return s ? s : null;
+    }
     function normalizeHandle(v){
       const s = (v || "").trim();
       if (!s) return null;
@@ -136,52 +194,96 @@
       return "https://" + s;
     }
 
-    async function createArtist(){
-      const name = $("name").value.trim();
-      if (!name) return alert("Name is required.");
-
-      $("msg").textContent = "Creating…";
-
-      const payload = {
-        name,
-        channel_hand: normalizeHandle($("channel_hand").value),
-        default_lane: $("default_lane").value || null,
-        youtube_chan: $("youtube_chan").value.trim() || null,
-        default_perso: $("default_perso").value.trim() || null,
-
-        youtube_about: ($("youtube_about").value || "").trim() || null,
-        thumb_use_artist_default: !!$("thumb_use_artist_default").checked,
-        thumbnail_style_long: ($("thumbnail_style_long").value || "").trim() || null,
-
-        spotify_url: normalizeUrl($("spotify_url").value),
-        bandcamp_ur: normalizeUrl($("bandcamp_ur").value),
-        apple_music_: normalizeUrl($("apple_music_").value),
-        soundcloud_u: normalizeUrl($("soundcloud_u").value),
-        youtube_url: normalizeUrl($("youtube_url").value),
-        website_url: normalizeUrl($("website_url").value),
-        beacons_url: normalizeUrl($("beacons_url").value),
-        tiktok_url: normalizeUrl($("tiktok_url").value),
-        facebook_url: normalizeUrl($("facebook_url").value),
-      };
-
-      const { data, error } = await supabase
-        .from(TABLE)
-        .insert([payload])
-        .select("id")
-        .single();
-
-      if (error) { $("msg").textContent = "Error: " + error.message; return; }
-
-      $("msg").textContent = "Created ✅";
-      window.location.href = `./artist-view.html?id=${encodeURIComponent(data.id)}`;
+    function parseBlueprint(){
+      const raw = ($("blueprint").value || "").trim();
+      if (!raw) return {};
+      try {
+        const obj = JSON.parse(raw);
+        if (obj && typeof obj === "object") return obj;
+      } catch (e) {}
+      throw new Error("Blueprint JSON is invalid. Fix JSON or leave blank.");
     }
 
-    $("btnSave").onclick = createArtist;
-    $("btnCancel").onclick = () => window.location.href = "./artists.html";
-    $("btnBack").onclick = () => window.location.href = "./artists.html";
-    $("btnLogout").onclick = async () => {
-      await supabase.auth.signOut();
-      window.location.href = "./index.html";
+    function updateCompleteness(){
+      const required = [
+        ["name", $("name").value],
+        ["main_genre", $("main_genre").value],
+        ["secondary_genre", $("secondary_genre").value],
+        ["voice_identity", $("voice_identity").value],
+        ["must_include", $("must_include").value],
+        ["never_include", $("never_include").value],
+        ["suno_voice_anchor", $("suno_voice_anchor").value],
+      ];
+      const missing = required.filter(([,v]) => !(v || "").trim()).map(([k]) => k);
+      $("completePill").textContent = missing.length ? `Setup: missing ${missing.length}` : "Setup: complete ✅";
+      $("completePill").style.borderColor = missing.length ? "#6b4c1d" : "#1f6b45";
+    }
+
+    ["name","main_genre","secondary_genre","voice_identity","must_include","never_include","suno_voice_anchor"].forEach(id => {
+      $(id).addEventListener("input", updateCompleteness);
+      $(id).addEventListener("change", updateCompleteness);
+    });
+    updateCompleteness();
+
+    $("btnCreate").onclick = async () => {
+      try {
+        $("statusLine").textContent = "Creating…";
+
+        const name = ($("name").value || "").trim();
+        if (!name) return alert("Name is required.");
+
+        const main_genre = ($("main_genre").value || "").trim();
+        const secondary_genre = ($("secondary_genre").value || "").trim();
+        const voice_identity = ($("voice_identity").value || "").trim();
+        const must_include = ($("must_include").value || "").trim();
+        const never_include = ($("never_include").value || "").trim();
+        const suno_voice_anchor = ($("suno_voice_anchor").value || "").trim();
+
+        if (!main_genre || !secondary_genre || !voice_identity || !must_include || !never_include || !suno_voice_anchor) {
+          return alert("Please fill ALL required Artist DNA fields.");
+        }
+
+        const blueprint = parseBlueprint();
+
+        const payload = {
+          name,
+          channel_hand: normalizeHandle($("channel_hand").value),
+          youtube_chan: norm($("youtube_chan").value),
+          tagline: norm($("tagline").value),
+          default_lane: norm($("default_lane").value),
+          default_perso: norm($("default_perso").value),
+
+          main_genre,
+          secondary_genre,
+          voice_identity,
+          must_include,
+          never_include,
+          suno_voice_anchor,
+
+          artist_about: norm($("artist_about").value),
+          blueprint,
+
+          spotify_url: normalizeUrl($("spotify_url").value),
+          bandcamp_ur: normalizeUrl($("bandcamp_ur").value),
+          youtube_url: normalizeUrl($("youtube_url").value),
+          website_url: normalizeUrl($("website_url").value),
+          tiktok_url: normalizeUrl($("tiktok_url").value),
+        };
+
+        const { data, error } = await supabase
+          .from("artists")
+          .insert([payload])
+          .select("id")
+          .single();
+
+        if (error) { $("statusLine").textContent = "Error: " + error.message; return; }
+
+        $("statusLine").textContent = "Created ✅";
+        window.location.href = `./artist-view.html?id=${encodeURIComponent(data.id)}`;
+      } catch (err) {
+        alert(err.message || String(err));
+        $("statusLine").textContent = "Fix issues and try again.";
+      }
     };
   </script>
 </body>
