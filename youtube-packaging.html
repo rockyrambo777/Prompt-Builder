@@ -296,6 +296,14 @@ ARTIST SETUP (MUST BE USED)
 - Channel Handle: ${ar.channel_hand ? ("@" + String(ar.channel_hand).replace(/^@/,"")) : "(none)"}
 - YouTube Channel Name: ${ar.youtube_chan || "(none)"}
 
+ARTIST DNA (STABLE — use to keep voice + genre consistent)
+- Main Genre: ${ar.main_genre || "(none)"}
+- Secondary Genre: ${ar.secondary_genre || "(none)"}
+- Voice Identity: ${ar.voice_identity || "(none)"}
+- Must Include (always instruments): ${ar.must_include || "(none)"}
+- Never Include: ${ar.never_include || "(none)"}
+- Suno Voice Anchor (voice/persona): ${ar.suno_voice_anchor || "(none)"}
+
 ABOUT THE ARTIST (use as-is, do not rewrite unless empty)
 ${artistAbout || "(EMPTY) Write a short 2–4 sentence artist about that matches the lane/persona and genre."}
 
@@ -319,7 +327,7 @@ TITLE RULES
 
 DESCRIPTION RULES
 - No BPM/Key/Genre/Mood line.
-- Must fit the inferred genre/mood from Suno prompt.
+- Must fit the inferred genre/mood from Suno prompt AND the artist main/secondary genre.
 - End with hashtags that match genre/mood.
 
 TAGS RULES
@@ -391,7 +399,7 @@ ${strict}
       const artistIds = [...new Set((albums||[]).map(a => a.artist_id).filter(Boolean))];
       const { data: artists, error: e3 } = await supabase
         .from("artists")
-        .select("id,name,channel_hand,youtube_chan,default_lane,default_perso,youtube_about,thumbnail_style_long,thumb_use_artist_default,spotify_url,bandcamp_ur,apple_music_,soundcloud_u,youtube_url,website_url,beacons_url,tiktok_url,facebook_url")
+        .select("id,name,channel_hand,youtube_chan,default_lane,default_perso,main_genre,secondary_genre,voice_identity,must_include,never_include,suno_voice_anchor,youtube_about,thumbnail_style_long,thumb_use_artist_default,spotify_url,bandcamp_ur,apple_music_,soundcloud_u,youtube_url,website_url,beacons_url,tiktok_url,facebook_url")
         .in("id", artistIds);
       if (e3) { $("statusLine").textContent = "Error: " + e3.message; return; }
 
