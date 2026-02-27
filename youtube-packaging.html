@@ -204,7 +204,6 @@ PINNED_COMMENT:<br>
 
       const artistAbout = (ar.youtube_about || "").trim();
       const thumbStyleLong = (ar.thumbnail_style_long || "").trim();
-      const thumbStyleShorts = (ar.thumbnail_style_shorts || "").trim();
 
       const links = [
         ["YouTube", ar.youtube_url],
@@ -285,10 +284,7 @@ THUMBNAIL SETTINGS (LONG)
 - Include artist image: ${includeArtistThumb ? "YES" : "NO"}
 - Use this artist thumbnail style:
 ${thumbStyleLong || "(No thumbnail_style_long saved. Create an SEO thumbnail plan that matches the lane/persona and genre.)"}
-`.trim() : `
-SHORTS VISUAL STYLE
-${thumbStyleShorts || "(No thumbnail_style_shorts saved. Keep text clear and punchy, vertical-friendly.)"}
-`.trim();
+`.trim() : ``;
 
       const prompt = `
 You are creating a publish-ready YouTube package for a finished ${mode === "long" ? "LONG video" : "SHORT"}.
@@ -374,7 +370,6 @@ ${strict}
       $("longBody").innerHTML = "";
       $("shortBody").innerHTML = "";
 
-      // albums
       const { data: albums, error: e1 } = await supabase
         .from("albums")
         .select("id,title,artist_id,status")
@@ -385,7 +380,6 @@ ${strict}
       const albumIds = (albums||[]).map(a => a.id);
       if (!albumIds.length) { $("statusLine").textContent = "No approved/producing albums."; return; }
 
-      // songs needed for queue + prompt build
       const { data: songs, error: e2 } = await supabase
         .from("songs")
         .select("id,album_id,track_number,title,lyrics,keywords,scripture,suno_prompt,longform_done,short_done,long_packaged,short_packaged")
@@ -394,11 +388,10 @@ ${strict}
         .order("track_number", { ascending: true });
       if (e2) { $("statusLine").textContent = "Error: " + e2.message; return; }
 
-      // artists (pull new setup fields too)
       const artistIds = [...new Set((albums||[]).map(a => a.artist_id).filter(Boolean))];
       const { data: artists, error: e3 } = await supabase
         .from("artists")
-        .select("id,name,channel_hand,youtube_chan,default_lane,default_perso,youtube_about,thumbnail_style_long,thumbnail_style_shorts,thumb_use_artist_default,spotify_url,bandcamp_ur,apple_music_,soundcloud_u,youtube_url,website_url,beacons_url,tiktok_url,facebook_url")
+        .select("id,name,channel_hand,youtube_chan,default_lane,default_perso,youtube_about,thumbnail_style_long,thumb_use_artist_default,spotify_url,bandcamp_ur,apple_music_,soundcloud_u,youtube_url,website_url,beacons_url,tiktok_url,facebook_url")
         .in("id", artistIds);
       if (e3) { $("statusLine").textContent = "Error: " + e3.message; return; }
 
