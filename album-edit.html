@@ -151,6 +151,7 @@
     "track_number": 1,
     "title": "Stand in His Strength",
     "suno_prompt": "…",
+    "suno_link": "https://suno.com/...",
     "lyrics": "…",
     "keywords": "faith, authority",
     "scripture": "Ephesians 6:10",
@@ -179,6 +180,7 @@
             <th class="tiny">#</th>
             <th class="mini">Title</th>
             <th class="wide">Suno Prompt</th>
+            <th class="mini">Suno 🔗</th>
             <th class="mini">Keywords</th>
             <th class="mini">Scripture</th>
             <th class="tiny">Lyrics ✅</th>
@@ -218,6 +220,12 @@
           <div>
             <label for="m_title">Title</label>
             <input id="m_title" />
+          </div>
+
+          
+          <div style="grid-column: 1 / -1;">
+            <label for="m_suno_link">Suno Link</label>
+            <input id="m_suno_link" placeholder="https://suno.com/..." />
           </div>
 
           <div style="grid-column: 1 / -1;">
@@ -341,7 +349,7 @@
       const body = $("songsBody");
       body.innerHTML = "";
       if (!songs.length){
-        body.innerHTML = "<tr><td colspan='9' class='muted'>No songs yet. Apply tracks.</td></tr>";
+        body.innerHTML = "<tr><td colspan='10' class='muted'>No songs yet. Apply tracks.</td></tr>";
         return;
       }
       songs.sort((a,b) => (a.track_number ?? 0) - (b.track_number ?? 0));
@@ -360,6 +368,7 @@
           <td class="tiny"><b>${s.track_number ?? ""}</b></td>
           <td><input data-title value="${escAttr(s.title)}"></td>
           <td><textarea data-suno class="mono" style="min-height:90px;">${safeText(s.suno_prompt || "")}</textarea></td>
+          <td><input data-suno_link value="${escAttr(s.suno_link)}" placeholder="https://suno.com/..."></td>
           <td><input data-keywords value="${escAttr(s.keywords)}" placeholder="optional"></td>
           <td><input data-scripture value="${escAttr(s.scripture)}" placeholder="optional"></td>
           <td class="checkCell"><input type="checkbox" ${lyricsOk ? "checked" : ""} disabled></td>
@@ -489,6 +498,7 @@
           track_number,
           title: safeText(x.title).trim(),
           suno_prompt: x.suno_prompt ? safeText(x.suno_prompt).trim() : null,
+          suno_link: x.suno_link ? safeText(x.suno_link).trim() : null,
           lyrics: x.lyrics ? safeText(x.lyrics) : null,
           keywords: x.keywords ? safeText(x.keywords).trim() : null,
           scripture: x.scripture ? safeText(x.scripture).trim() : null,
@@ -554,6 +564,7 @@
         track_number: t.track_number,
         title: t.title,
         suno_prompt: t.suno_prompt || null,
+        suno_link: t.suno_link || null,
         lyrics: t.lyrics || null,
         keywords: t.keywords || null,
         scripture: t.scripture || null,
@@ -588,6 +599,7 @@
 
       $("m_track").value = s.track_number ?? "";
       $("m_title").value = s.title ?? "";
+      $("m_suno_link").value = s.suno_link ?? "";
       $("m_suno").value = s.suno_prompt ?? "";
       $("m_lyrics").value = s.lyrics ?? "";
       $("m_keywords").value = s.keywords ?? "";
@@ -614,6 +626,7 @@
       const payload = {
         track_number: Number($("m_track").value || currentSong.track_number || 1),
         title: ($("m_title").value || "").trim() || null,
+        suno_link: ($("m_suno_link").value || "").trim() || null,
         suno_prompt: ($("m_suno").value || "").trim() || null,
         lyrics: ($("m_lyrics").value || "").trim() || null,
         keywords: ($("m_keywords").value || "").trim() || null,
