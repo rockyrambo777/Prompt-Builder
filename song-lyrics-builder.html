@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>SVS System – Song Edit</title>
+  <title>SVS System – Lyrics + Suno Builder</title>
   <style>:root{
   --bg:#0b0f19; --card:#121a2a; --card2:#0f1626; --border:#23304a;
   --muted:#92a4c7; --text:#e8eefc; --primary:#2f6fed; --danger:#d14b4b;
@@ -59,7 +59,7 @@ input[type="checkbox"], input[type="radio"]{ width:18px; height:18px; accent-col
   <div class="wrap">
     <div class="top">
       <div>
-        <h1 style="margin:0;">Song Edit</h1>
+        <h1 style="margin:0;">Lyrics + Suno Builder</h1>
         <div id="who" class="muted"></div>
       </div>
       <div class="row">
@@ -77,7 +77,7 @@ input[type="checkbox"], input[type="radio"]{ width:18px; height:18px; accent-col
         </div>
         <div class="row">
           <button id="btnCopyPrompt" class="btn copy">Copy Prompt</button>
-          <button id="btnBuildPrompt" class="btn primary">Build Edit Prompt</button>
+          <button id="btnBuildPrompt" class="btn primary">Build Creation Prompt</button>
         </div>
       </div>
 
@@ -89,25 +89,28 @@ input[type="checkbox"], input[type="radio"]{ width:18px; height:18px; accent-col
           <input id="title" />
           <label>Track #</label>
           <input id="track_number" type="number" min="1" step="1" />
-          <label>Suno Link (per-song)</label>
-          <input id="suno_link" placeholder="https://suno.com/..." />
-          <div class="hint">This is just a link field stored on the song.</div>
+          <label>Keywords</label>
+          <input id="keywords" placeholder="faith, authority, bold praise…" />
+          <label>Scripture</label>
+          <input id="scripture" placeholder="Ephesians 6:10…" />
         </div>
-
         <div>
-          <label>Editing Goal (what must change)</label>
-          <textarea id="goal" class="mono" placeholder="Example: Make it faster, stronger drums, add organ, tighten chorus, etc."></textarea>
+          <label>Structure</label>
+          <select id="structure">
+            <option value="standard" selected>Verse 1, Pre, Chorus, Verse 2, Pre, Chorus, Bridge, Final Chorus</option>
+            <option value="simple">Verse 1, Chorus, Verse 2, Chorus, Bridge, Final Chorus</option>
+            <option value="anthem">Verse 1, Pre, Chorus, Verse 2, Pre, Chorus, Bridge, Key Change, Final Chorus</option>
+          </select>
 
-          <div class="checkRow">
-            <label><input id="faster" type="checkbox"> Faster</label>
-            <label><input id="slower" type="checkbox"> Slower</label>
-            <label><input id="more_drums" type="checkbox"> More drums</label>
-            <label><input id="more_instruments" type="checkbox"> More instruments</label>
-            <label><input id="less_busy" type="checkbox"> Less busy / more space</label>
-          </div>
+          <label>Length target</label>
+          <select id="length">
+            <option value="3-4" selected>3–4 minutes</option>
+            <option value="2-3">2–3 minutes</option>
+            <option value="4-5">4–5 minutes</option>
+          </select>
 
-          <label>Notes (arrangement/instruments/mix)</label>
-          <textarea id="notes" class="mono" placeholder="Example: Add Hammond B3, electric guitar swells, choir lift in final chorus, etc."></textarea>
+          <label>Notes (optional)</label>
+          <textarea id="notes" class="mono" placeholder="Any album mood/style notes, instrumentation idea, etc."></textarea>
         </div>
       </div>
 
@@ -115,29 +118,30 @@ input[type="checkbox"], input[type="radio"]{ width:18px; height:18px; accent-col
 
       <div class="grid">
         <div>
-          <label>Current Suno Prompt</label>
-          <textarea id="suno_prompt" class="mono"></textarea>
-          <label>Current Lyrics</label>
-          <textarea id="lyrics" class="mono" style="min-height:260px;"></textarea>
-
-          <div class="row" style="margin-top:10px;">
-            <button id="btnSaveSong" class="btn primary">Save Song</button>
-            <button id="btnReload" class="btn">Reload</button>
-          </div>
-          <div class="hint">Paste the updated lyrics + Suno prompt from ChatGPT, then click Save.</div>
-        </div>
-
-        <div>
           <label>ChatGPT Prompt Output</label>
-          <textarea id="output" class="mono" placeholder="Click Build Edit Prompt…"></textarea>
+          <textarea id="output" class="mono" placeholder="Click Build Creation Prompt…"></textarea>
           <div class="row" style="margin-top:10px;">
             <button id="btnClearOut" class="btn">Clear</button>
             <button id="btnCopyOut" class="btn copy">Copy</button>
           </div>
+        </div>
+
+        <div>
+          <label>Paste ChatGPT Results Here</label>
+          <textarea id="working" class="mono" placeholder="Paste UPDATED_SUNO_PROMPT + LYRICS here, then paste into the fields below…"></textarea>
 
           <div class="divider"></div>
-          <h3 style="margin:0 0 10px;">Working Results (paste from ChatGPT) — NOT SAVED</h3>
-          <textarea id="working" class="mono" style="min-height:180px;"></textarea>
+          <label>New Suno Prompt (paste from ChatGPT)</label>
+          <textarea id="suno_prompt" class="mono"></textarea>
+
+          <label>New Lyrics (paste from ChatGPT)</label>
+          <textarea id="lyrics" class="mono" style="min-height:260px;"></textarea>
+
+          <div class="row" style="margin-top:10px;">
+            <button id="btnSaveSong" class="btn primary">Save to Song</button>
+            <button id="btnReload" class="btn">Reload</button>
+          </div>
+          <div class="hint">This saves the generated Suno prompt + lyrics back onto the song record.</div>
         </div>
       </div>
     </div>
@@ -207,7 +211,8 @@ input[type="checkbox"], input[type="radio"]{ width:18px; height:18px; accent-col
 
       $("title").value = safe(song.title);
       $("track_number").value = song.track_number ?? "";
-      $("suno_link").value = safe(song.suno_link);
+      $("keywords").value = safe(song.keywords);
+      $("scripture").value = safe(song.scripture);
       $("suno_prompt").value = safe(song.suno_prompt);
       $("lyrics").value = safe(song.lyrics);
 
@@ -227,49 +232,36 @@ input[type="checkbox"], input[type="radio"]{ width:18px; height:18px; accent-col
 
     function buildPrompt(){
       if (!song) return;
+
       const out = [];
-      out.push("Update this existing song's lyrics + Suno prompt based on the edit request.");
+      out.push("Write original song lyrics AND a Suno prompt for the track below.");
       out.push("");
-      out.push("Return ONLY these sections (no extra talk):");
+      out.push("Return ONLY these sections (no extra commentary):");
       out.push("UPDATED_SUNO_PROMPT:");
-      out.push("UPDATED_LYRICS:");
+      out.push("LYRICS:");
+      out.push("```");
+      out.push("(lyrics here with section headings)");
+      out.push("```");
+      out.push("");
+      out.push("Song:");
+      out.push(`- Title: ${safe($("title").value)}`);
+      out.push(`- Lead type: ${safe(song.lead_type || song.lead || "solo")}`);
+      out.push(`- Keywords: ${trimOrNone($("keywords").value)}`);
+      out.push(`- Scripture (optional): ${trimOrNone($("scripture").value)}`);
+      out.push(`- Length: ${$("length").value} minutes`);
+      out.push(`- Structure: ${$("structure").value}`);
+      out.push(`- Notes: ${trimOrNone($("notes").value)}`);
       out.push("");
       out.push("Artist DNA (must follow):");
       out.push(artistDNABlock(artist));
       out.push("");
-      out.push("Song:");
-      out.push(`- Title: ${safe($("title").value)}`);
-      out.push(`- Track #: ${safe($("track_number").value)}`);
-      out.push("");
-      out.push("Current Suno prompt:");
-      out.push("```");
-      out.push(safe($("suno_prompt").value));
-      out.push("```");
-      out.push("");
-      out.push("Current lyrics:");
-      out.push("```");
-      out.push(safe($("lyrics").value));
-      out.push("```");
-      out.push("");
-      out.push("Edit request:");
-      const flags = [];
-      if ($("faster").checked) flags.push("faster");
-      if ($("slower").checked) flags.push("slower");
-      if ($("more_drums").checked) flags.push("more drums");
-      if ($("more_instruments").checked) flags.push("more instruments");
-      if ($("less_busy").checked) flags.push("less busy / more space");
-      out.push(`- Flags: ${flags.length ? flags.join(", ") : "(none)"}`);
-      out.push(`- Goal: ${trimOrNone($("goal").value)}`);
-      out.push(`- Notes: ${trimOrNone($("notes").value)}`);
-      out.push("");
       out.push("Rules:");
-      out.push("- Keep instruments present in the updated Suno prompt.");
-      out.push("- Keep the artist voice identity consistent (use Suno voice anchor if provided).");
-      out.push("- Keep lyrics clean and worship/gospel-forward if applicable to artist.");
-      out.push("- Make the changes requested while keeping the core message.");
-      out.push("");
-      out.push("UPDATED_SUNO_PROMPT should be <= 1000 characters.");
-      out.push("UPDATED_LYRICS should include headings (Verse, Chorus, Bridge, etc.) and be singable.");
+      out.push("- Suno prompt must include instruments (never instrument-less).");
+      out.push("- Keep voice identity consistent (use Suno voice anchor if provided).");
+      out.push("- Keep genre aligned to artist main/secondary genres.");
+      out.push("- Gospel/worship content must be clean language, no profanity.");
+      out.push("- Make lyrics singable, not overly long lines.");
+      out.push("- UPDATED_SUNO_PROMPT must be <= 1000 characters.");
 
       $("output").value = out.join("\n");
       $("statusLine").textContent = "Prompt built ✅";
@@ -281,7 +273,8 @@ input[type="checkbox"], input[type="radio"]{ width:18px; height:18px; accent-col
       const payload = {
         title: $("title").value,
         track_number: $("track_number").value ? Number($("track_number").value) : null,
-        suno_link: $("suno_link").value || null,
+        keywords: $("keywords").value || null,
+        scripture: $("scripture").value || null,
         suno_prompt: $("suno_prompt").value || null,
         lyrics: $("lyrics").value || null,
         updated_at: new Date().toISOString()
