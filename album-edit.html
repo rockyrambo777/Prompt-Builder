@@ -171,7 +171,12 @@
     let artist = null;
     let songs = [];
 
-    function safeText(v){ return (v === null || v === undefined) ? "" : String(v); }
+    
+    function isGospelArtist(ar){
+      const g = ((ar?.main_genre||"") + " " + (ar?.secondary_genre||"")).toLowerCase();
+      return g.includes("gospel") || g.includes("christ");
+    }
+function safeText(v){ return (v === null || v === undefined) ? "" : String(v); }
 
     function parseTracksInput(text){
       const t = (text || "").trim();
@@ -338,7 +343,7 @@
       $("total_tracks").value = album.total_tracks || 12;
       $("notes").value = album.notes || "";
       $("prompt").value = album.chatgpt_prompt || "";
-      $("working_tracks").value = album.working_tracklist ? JSON.stringify(album.working_tracklist, null, 2) : "";
+      $("working_tracks").value = "";
 
       $("statusLine").textContent = `Album ID: ${album.id}`;
       setChips();
@@ -364,7 +369,7 @@
           title: safeText(x.title).trim(),
           suno_prompt: (x.suno_prompt ? safeText(x.suno_prompt).trim() : null),
           keywords: (x.keywords ? safeText(x.keywords).trim() : null),
-          scripture: (x.scripture ? safeText(x.scripture).trim() : null),
+          scripture: (gospelArtist && x.scripture ? safeText(x.scripture).trim() : null),
         };
       }).filter(t => t.title);
     }
