@@ -188,6 +188,13 @@
 
           <label for="edit_notes">Edit notes</label>
           <textarea id="edit_notes" class="mono" placeholder="What should change? Keep it short and clear."></textarea>
+          <div class="row" style="justify-content:flex-end; margin-top:10px; gap:10px; flex-wrap:wrap;">
+            <button id="btnBuildEditPrompt" class="btn primary">Build Song Edit Prompt</button>
+            <button id="btnCopyEditPrompt" class="btn secondary">Copy Edit Prompt</button>
+          </div>
+          <label for="edit_prompt_out" style="margin-top:10px;">Edit Prompt Output (Copy into ChatGPT)</label>
+          <textarea id="edit_prompt_out" class="mono" style="min-height:150px;" placeholder="Click Build Song Edit Prompt…"></textarea>
+
 
           <div class="hint" style="margin-top:10px;">
             Reminder: songs should always include instruments. Voice stays anchored by Artist DNA, but each song can have a different beat/arrangement.
@@ -802,6 +809,87 @@ ${buildSongContextBlock()}
       await navigator.clipboard.writeText(t);
       $("statusLine").textContent = "Output copied ✅";
     };
+
+    // Song Edit Prompt (ChatGPT)
+    const __el_btnBuildEditPrompt = $("btnBuildEditPrompt");
+    if (__el_btnBuildEditPrompt) __el_btnBuildEditPrompt.onclick = () => {
+      if (!currentSong || !currentSong.id) return alert("Select a song first.");
+
+      const dna = currentArtist || {};
+      const title = ($("title")?.value || currentSong.title || "").trim();
+      const sunoPrompt = ($("suno_prompt")?.value || currentSong.suno_prompt || "").trim();
+      const lyrics = ($("lyrics")?.value || currentSong.lyrics || "").trim();
+
+      const revisionGoal = ($("revision_goal")?.value || "").trim();
+      const tempoDir = ($("tempo_direction")?.value || "").trim();
+      const energyDir = ($("energy_direction")?.value || "").trim();
+      const instrNotes = ($("instrumentation_notes")?.value || "").trim();
+      const editNotes = ($("edit_notes")?.value || "").trim();
+
+      // Artist DNA injections (new fields)
+      const mainGenre = (dna.main_genre || "").trim();
+      const secondaryGenre = (dna.secondary_genre || "").trim();
+      const voiceIdentity = (dna.voice_identity || "").trim();
+      const mustInclude = (dna.must_include || "").trim();
+      const neverInclude = (dna.never_include || "").trim();
+      const sunoVoiceAnchor = (dna.suno_voice_anchor || "").trim();
+
+      const genreLine = [mainGenre, secondaryGenre].filter(Boolean).join(" / ") || (dna.default_lane || "SVS");
+
+      const prompt =
+`You are helping me REVISE an existing Suno song while keeping the same artist voice identity.
+
+ARTIST
+- name: ${dna.name || "(unknown)"}
+- genre: ${genreLine}
+- voice_identity: ${voiceIdentity || "(not set)"}
+- suno_voice_anchor: ${sunoVoiceAnchor || "(not set)"}
+- must_include: ${mustInclude || "(not set)"}
+- never_include: ${neverInclude || "(not set)"}
+
+CURRENT SONG
+- title: ${title || "(untitled)"}
+
+CURRENT SUNO PROMPT:
+${sunoPrompt || "(none)"}
+
+CURRENT LYRICS:
+${lyrics || "(none)"}
+
+REVISION REQUEST
+- revision_goal: ${revisionGoal || "(none)"}
+- tempo_direction: ${tempoDir || "(none)"}
+- energy_direction: ${energyDir || "(none)"}
+- instrumentation_notes: ${instrNotes || "(none)"}
+- edit_notes: ${editNotes || "(none)"}
+
+RULES
+- Keep the artist voice identity consistent (use suno_voice_anchor).
+- Songs must always include instruments.
+- Keep gospel-forward, clean language.
+- Return ONLY:
+
+UPDATED_SUNO_PROMPT:
+(updated Suno prompt here)
+
+UPDATED_LYRICS:
+```
+(full updated lyrics here)
+```
+`;
+      const out = $("edit_prompt_out");
+      if (out) out.value = prompt;
+      $("statusLine").textContent = "Edit prompt built ✅";
+    };
+
+    const __el_btnCopyEditPrompt = $("btnCopyEditPrompt");
+    if (__el_btnCopyEditPrompt) __el_btnCopyEditPrompt.onclick = async () => {
+      const t = $("edit_prompt_out")?.value || "";
+      if (!t.trim()) return alert("Nothing to copy.");
+      await navigator.clipboard.writeText(t);
+      $("statusLine").textContent = "Edit prompt copied ✅";
+    };
+
 
     const __el_btnCopyWorking = $("btnCopyWorking");
     if (__el_btnCopyWorking) __el_btnCopyWorking.onclick = async () => {
