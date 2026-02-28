@@ -274,32 +274,6 @@
             <label><input id="use_artist_image" type="checkbox" checked> Use artist reference image (Flow/Grok)</label>
           </div>
           <div class="hint">Shorts do <b>not</b> use scenes. Longform uses scenes 1–25.</div>
-          <div class="divider"></div>
-
-          <div class="row" style="justify-content:space-between; align-items:center;">
-            <div class="muted">Build a strict prompt for ChatGPT. Paste results into the Working box (not saved).</div>
-            <div class="row">
-              <button id="btnBuild" class="btn primary">Build Prompt</button>
-              <button id="btnClearOutput" class="btn">Clear</button>
-            </div>
-          </div>
-
-          <label for="output">Prompt Output (Copy this into ChatGPT)</label>
-          <textarea id="output" class="mono" style="min-height:260px;" placeholder="Click Build Prompt…"></textarea>
-
-          <div class="divider"></div>
-          <div class="row" style="justify-content:space-between; align-items:center;">
-            <div>
-              <h3 style="margin:0;">Working Results (paste from ChatGPT) — NOT SAVED</h3>
-              <div class="hint">Paste SCENE blocks / SHORT blocks here after ChatGPT responds.</div>
-            </div>
-            <div class="row">
-              <button id="btnCopyWorking" class="btn copy">Copy Working</button>
-              <button id="btnClearWorking" class="btn">Clear Working</button>
-            </div>
-          </div>
-          <textarea id="working_results" class="mono" style="min-height:220px;" placeholder="Paste results here…"></textarea>
-
 
     </div>
   </div>
@@ -314,7 +288,8 @@
     const params = new URLSearchParams(window.location.search);
     const album_id = params.get("album_id") || params.get("id");
     const song_id_param = params.get("song_id");
-if (!album_id) {
+
+    if (!album_id) {
       alert("Missing album_id");
       window.location.href = "./albums.html";
     }
@@ -371,6 +346,8 @@ if (!album_id) {
         opt.value = "";
         opt.textContent = "(No songs found)";
         sel.appendChild(opt);
+        currentSong = null;
+        $("statusLine").textContent = "No songs in this album yet.";
         return;
       }
       for (const s of songs){
@@ -449,9 +426,13 @@ if (!album_id) {
       artist = e2 ? null : ar;
 
       const { data: s, error: e3 } = await supabase.from(SONGS).select("*").eq("album_id", album_id).order("track_number", { ascending: true });
-      songs = e3 ? [] : (s || []);
-
-      $("statusLine").textContent = `Album loaded. Songs: ${songs.length}`;
+      if (e3) {
+        songs = [];
+        $("statusLine").textContent = "Songs load error: " + e3.message;
+      } else {
+        songs = s || [];
+        $("statusLine").textContent = `Album loaded. Songs: ${songs.length}`;
+      }
       setChips();
       buildSongSelect();
     }
@@ -557,7 +538,7 @@ if (!album_id) {
       return lines.join("\n");
     }
 
-    function buildLongPrompt(){
+    function buildLongPrompt_legacy(){
       const n = Number($("scene_count").value || 8);
 
       return `You are helping us create a LONG lyric video using:
@@ -590,7 +571,7 @@ ${buildSongContextBlock()}
 `;
     }
 
-    function buildShortsPrompt(){
+    function buildShortsPrompt_legacy(){
       return `We are creating SHORTS from this song.
 
 Return ONLY in this strict repeated block format (no extra commentary):
