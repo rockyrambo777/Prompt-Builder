@@ -70,8 +70,7 @@
           <h3 style="margin:0 0 8px;">Artists</h3>
           <div class="row">
             <button id="btnArtistsScroll" class="btn secondary">Manage Artists</button>
-            <button id="btnArtistsJump" class="btn secondary">Jump</button>
-            <button id="btnArtistNew" class="btn primary">Add Artist</button>
+<button id="btnArtistNew" class="btn primary">Add Artist</button>
           </div>
           <div class="hint">Artists store your “Artist DNA” so prompts don’t rely on ChatGPT memory.</div>
         </div>
@@ -257,9 +256,7 @@
       $("globalChips").appendChild(pill(shortNeed ? "warn" : "ok", "shorts needs packaging: " + shortNeed));
     }
 
-    $("btnArtistsScroll").onclick = () => window.location.href = "./artists.html";
-    $("btnArtistsJump").onclick = scrollToArtists;
-    $("btnArtistNew").onclick = () => window.location.href = "./artist-new.html";
+    $("btnArtistsScroll").onclick = () => window.location.href = "./artists.html";    $("btnArtistNew").onclick = () => window.location.href = "./artist-new.html";
     $("btnAlbums").onclick = () => window.location.href = "./albums.html";
     $("btnProduction").onclick = () => window.location.href = "./albums.html";
     $("btnPackaging").onclick = () => window.location.href = "./youtube-packaging.html";
