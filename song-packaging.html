@@ -94,8 +94,8 @@
           </label>
 
           <div style="height:10px;"></div>
-          <label for="youtube_release_date">YouTube release date</label>
-          <input id="youtube_release_date" type="date" />
+          <label for="youtube_long_published_at_input">YouTube release date</label>
+          <input id="youtube_long_published_at_input" type="date" />
           <div style="height:14px;"></div>
           <h2 style="margin:8px 0 10px;">Options</h2>
           <label class="row" style="gap:10px; align-items:center;">
@@ -201,56 +201,102 @@ const safe = (v)=> (v??"").toString();
   const isGospelArtist = isGospel(artist);
 
   const baseContext =
-    "Create YouTube packaging copy for ONE song.\n\n" +
-    "Artist: " + (artist?.name || "") + "\n" +
-    "Genre: " + (artist?.main_genre || "") + "\n" +
-    "Lane: " + (artist?.default_lane || "") + "\n\n" +
-    "Song Title: " + (song?.title || "") + "\n\n" +
-    "Suno Prompt:\n" + (song?.suno_prompt || "") + "\n\n" +
-    "Lyrics:\n" + (song?.lyrics || "") + "\n\n" +
-    "IMPORTANT:\n" +
-    "- Only call this gospel/christian if the artist genre is gospel/christian.\n" +
-    "- Do NOT include Song Details (BPM/Key/etc).\n\n";
+    "Create YouTube packaging copy for ONE song.
+
+" +
+    "Artist: " + (artist?.name || "") + "
+" +
+    "Genre: " + (artist?.main_genre || "") + "
+" +
+    "Lane: " + (artist?.default_lane || "") + "
+
+" +
+    "Song Title: " + (song?.title || "") + "
+
+" +
+    "Suno Prompt:
+" + (song?.suno_prompt || "") + "
+
+" +
+    "Lyrics:
+" + (song?.lyrics || "") + "
+
+" +
+    "IMPORTANT:
+" +
+    "- Only call this gospel/christian if the artist genre is gospel/christian.
+" +
+    "- Do NOT include Song Details (BPM/Key/etc).
+
+";
 
   let output = "";
 
   if (mode === "short") {
     output =
       baseContext +
-      "Return ONLY these sections for SHORTS:\n(Note: Shorts do not use thumbnails. Ignore any thumbnail options.)\n" +
-      "SHORTS_TITLE:\n" +
-      "SHORTS_DESCRIPTION:\n" +
-      "SHORTS_TAGS: (comma separated, under 500 chars)\n" +
-      "SHORTS_PINNED_COMMENT:\n" +
-      "TIKTOK_DESCRIPTION:\n";
+      "Return ONLY these sections for SHORTS:
+(Note: Shorts do not use thumbnails. Ignore any thumbnail options.)
+" +
+      "SHORTS_TITLE:
+" +
+      "SHORTS_DESCRIPTION:
+" +
+      "SHORTS_TAGS: (comma separated, under 500 chars)
+" +
+      "SHORTS_PINNED_COMMENT:
+" +
+      "TIKTOK_DESCRIPTION:
+";
   }
 
   else if (mode === "long") {
     output =
       baseContext +
-      "Return ONLY these sections for LONG FORM:\n" +
-      "LONG_YOUTUBE_TITLE:\n" +
-      "LONG_YOUTUBE_DESCRIPTION:\n" +
-      "LONG_YOUTUBE_TAGS: (comma separated, under 500 chars)\n" +
-      "LONG_PINNED_COMMENT:\n" +
-      "THUMBNAIL_DESCRIPTION:\n";
+      "Return ONLY these sections for LONG FORM:
+" +
+      "LONG_YOUTUBE_TITLE:
+" +
+      "LONG_YOUTUBE_DESCRIPTION:
+" +
+      "LONG_YOUTUBE_TAGS: (comma separated, under 500 chars)
+" +
+      "LONG_PINNED_COMMENT:
+" +
+      "THUMBNAIL_DESCRIPTION:
+";
   }
 
   else { // both
     output =
       baseContext +
-      "Return LONG FORM package first, then SHORTS package.\n\n" +
-      "LONG_YOUTUBE_TITLE:\n" +
-      "LONG_YOUTUBE_DESCRIPTION:\n" +
-      "LONG_YOUTUBE_TAGS:\n" +
-      "LONG_PINNED_COMMENT:\n" +
-      "THUMBNAIL_DESCRIPTION:\n\n" +
-      "---\n\n" +
-      "SHORTS_TITLE:\n" +
-      "SHORTS_DESCRIPTION:\n" +
-      "SHORTS_TAGS:\n" +
-      "SHORTS_PINNED_COMMENT:\n" +
-      "TIKTOK_DESCRIPTION:\n";
+      "Return LONG FORM package first, then SHORTS package.
+
+" +
+      "LONG_YOUTUBE_TITLE:
+" +
+      "LONG_YOUTUBE_DESCRIPTION:
+" +
+      "LONG_YOUTUBE_TAGS:
+" +
+      "LONG_PINNED_COMMENT:
+" +
+      "THUMBNAIL_DESCRIPTION:
+
+" +
+      "---
+
+" +
+      "SHORTS_TITLE:
+" +
+      "SHORTS_DESCRIPTION:
+" +
+      "SHORTS_TAGS:
+" +
+      "SHORTS_PINNED_COMMENT:
+" +
+      "TIKTOK_DESCRIPTION:
+";
   }
 
   document.getElementById("out").value = output;
@@ -317,7 +363,7 @@ const safe = (v)=> (v??"").toString();
     } catch (e) { /* ignore */ }
 
     $("shorts_packaged").checked = !!(song.short_packaged ?? song.shorts_done ?? song.short_done ?? false);
-    $("youtube_release_date").value = safe(song.youtube_release_date || "");
+    $("youtube_long_published_at_input").value = safe(song.youtube_long_published_at_input || "");
 
     $("subline").textContent = album ? `Album: ${album.title}` : "Single";
     setChips([
@@ -348,24 +394,37 @@ const safe = (v)=> (v??"").toString();
     return r;
   }
 
-  $("btnSaveMeta").onclick = async()=> {
-    if (!song) return;
-    $("status").textContent="Saving…";
-    const patch = {
-      long_packaged: $("long_packaged").checked,
-      youtube_release_date: $("youtube_release_date").value || null,
-      // shorts packaged: try common column names
-      short_packaged: $("shorts_packaged").checked,
-    };
-    const r = await updateWithFallback(song.id, patch);
-    if (r.error) {
-      $("status").textContent = "Save error: " + r.error.message;
-      return;
-    }
-    $("status").textContent="Saved ✅";
+  
+$("btnSaveMeta").onclick = async()=> {
+  if (!song) return;
+  $("status").textContent="Saving…";
+  const patch = {
+    long_packaged: !!$("long_packaged").checked,
+    short_packaged: !!$("shorts_packaged").checked,
   };
 
-  
+  // Optional: store planned long publish date into existing DB column if present
+  const d = $("youtube_long_published_at_input")?.value || "";
+  if (d) {
+    patch.youtube_long_published_at = d; // postgres will coerce 'YYYY-MM-DD'
+  } else {
+    patch.youtube_long_published_at = null;
+  }
+
+  const { error } = await supabase
+    .from(SONGS)
+    .update(patch)
+    .eq("id", song.id)
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    console.error(error);
+    $("status").textContent = "Save error: " + (error.message || JSON.stringify(error));
+    return;
+  }
+  $("status").textContent="Saved ✅";
+};
 
 // (removed duplicate btnBuild handler)
 
