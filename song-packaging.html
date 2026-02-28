@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>SVS System – YouTube Packaging</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Song Packaging</title>
   <style>
     :root{
       --bg:#0b0f19; --card:#121a2a; --card2:#0f1626; --border:#23304a;
@@ -64,215 +64,154 @@
   <div class="wrap">
     <div class="top">
       <div>
-        <h1 style="margin:0;">YouTube Packaging</h1>
-        <div id="who" class="muted"></div>
+        <h1>Song Packaging</h1>
+        <div class="muted" id="subline">Loading…</div>
       </div>
       <div class="row">
-        <button id="btnHome" class="btn secondary">Home</button>
-        <button id="btnAlbums" class="btn secondary">Albums</button>
-        <button id="btnLogout" class="btn danger">Logout</button>
+        <button class="btn" id="btnBack">← Back</button>
+        <button class="btn" id="btnAlbum">Album</button>
+        <button class="btn" id="btnHome">Home</button>
+        <button class="btn danger" id="btnLogout">Logout</button>
       </div>
     </div>
 
     <div class="card">
-      <div class="row" style="justify-content:space-between;">
-        <div>
-          <div id="statusLine" class="muted">Loading…</div>
-          <div class="chips" id="chips"></div>
-        </div>
-        <div class="row">
-          <button id="btnCopyOutput" class="btn copy">Copy Output</button>
-          <button id="btnBuild" class="btn primary">Build Prompt</button>
-        </div>
-      </div>
-
-      <div class="divider"></div>
-
-      <div class="grid">
-        <div>
-          <label for="mode">Packaging Mode</label>
-          <select id="mode">
-            <option value="long" selected>Long (needs packaging)</option>
-            <option value="shorts">Shorts (needs packaging)</option>
+      <div class="row" style="justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+        <div class="chips" id="chips"></div>
+        <div class="row" style="gap:10px; flex-wrap:wrap;">
+          <select id="mode" class="btn" style="min-width:230px;">
+            <option value="long">Longform (YouTube)</option>
+            <option value="short">Shorts (YouTube + TikTok)</option>
           </select>
-          <div class="hint">Long list = songs with <span class="mono">longform_done=true</span> and <span class="mono">long_packaged=false</span>. Shorts list = <span class="mono">short_done=true</span> and <span class="mono">short_packaged=false</span>.</div>
-        </div>
-        <div>
-          <label>Options</label>
-          <div class="checkRow">
-            <label><input id="include_artist_image" type="checkbox" checked> Include artist image (thumbnail prompt)</label>
-          </div>
-          <div class="hint">Shorts do not have thumbnails (checkbox is ignored in shorts mode).</div>
+          <label class="btn" style="display:flex; gap:10px; align-items:center; user-select:none;">
+            <input type="checkbox" id="include_artist_image" />
+            Include artist image (thumbnail prompt)
+          </label>
+          <button class="btn primary" id="btnBuild">Generate</button>
+          <button class="btn" id="btnCopy">Copy Prompt</button>
+          <button class="btn" id="btnClear">Clear</button>
         </div>
       </div>
+      <div class="muted" style="margin-top:10px;">
+        Shorts do not have thumbnails (checkbox is ignored in Shorts mode).
+      </div>
+
+      <label style="margin-top:14px;">Prompt Output (Copy this into ChatGPT)</label>
+      <textarea id="output" class="mono" placeholder="Click Generate…"></textarea>
+      <div class="muted" id="statusLine" style="margin-top:8px;"></div>
     </div>
 
-    <div class="cols">
-      <div class="card">
-        <h2 style="margin:0 0 10px;">Needs Packaging</h2>
-        <div class="hint" style="margin-bottom:10px;">Click an item to load song + artist details and generate your ChatGPT prompt.</div>
-        <div id="list" class="list"></div>
-      </div>
-
-      <div class="card">
-        <h2 style="margin:0 0 10px;">Prompt Output (copy/paste to ChatGPT)</h2>
-        <textarea id="output" class="mono" placeholder="Select a song then click Build Prompt…"></textarea>
-        <div class="row" style="margin-top:10px;">
-          <button id="btnClear" class="btn">Clear</button>
-          <button id="btnCopy" class="btn copy">Copy</button>
+    <div class="card">
+      <h3 class="sectionTitle">Song (read-only)</h3>
+      <div class="grid">
+        <div>
+          <label>Title</label>
+          <input id="title" disabled />
         </div>
-
-        <div class="divider"></div>
-
-        <h3 style="margin:0 0 10px;">Working Results (paste from ChatGPT) — NOT SAVED</h3>
-        <label for="working_results">Paste results here</label>
-        <textarea id="working_results" class="mono" style="min-height:180px;"></textarea>
-        <div class="row" style="margin-top:10px;">
-          <button id="btnCopyWorking" class="btn copy">Copy Working</button>
-          <button id="btnClearWorking" class="btn">Clear Working</button>
+        <div>
+          <label>Album</label>
+          <input id="album" disabled />
         </div>
       </div>
+      <label>Suno Prompt</label>
+      <textarea id="suno_prompt" class="mono" disabled></textarea>
+      <label>Lyrics</label>
+      <textarea id="lyrics" class="mono" disabled style="min-height:220px;"></textarea>
     </div>
   </div>
 
   <script type="module">
     import { supabase, requireSessionOrRedirect } from "./app.js";
-    const $ = (id) => document.getElementById(id);
 
-    const session = await requireSessionOrRedirect();
-    $("who").textContent = `Signed in: ${session.user.email}`;
+    const SONGS="songs", ALBUMS="albums", ARTISTS="artists";
+    const $ = (id)=>document.getElementById(id);
+    const qs = new URLSearchParams(location.search);
+    const song_id = qs.get("song_id");
+    const album_id_qs = qs.get("album_id");
 
-    const SONGS = "songs";
-    const ALBUMS = "albums";
-    const ARTISTS = "artists";
+    let song=null, album=null, artist=null;
 
-    let rows = [];              // list rows (songs)
-    let selected = null;        // selected song row
-    let selectedAlbum = null;   // album row
-    let selectedArtist = null;  // artist row
+    $("btnHome").onclick = ()=> location.href = "./home.html";
+    $("btnAlbum").onclick = ()=> {
+      const aid = album_id_qs || song?.album_id || album?.id;
+      if (aid) location.href = `./album-edit.html?id=${encodeURIComponent(aid)}`;
+      else history.back();
+    };
+    $("btnBack").onclick = ()=> history.back();
+    $("btnLogout").onclick = async ()=> {
+      try { await supabase.auth.signOut(); } catch(e){}
+      location.href = "./index.html";
+    };
 
-    function safe(v){ return (v === null || v === undefined) ? "" : String(v); }
-    function trimOrNone(v){ const t = safe(v).trim(); return t ? t : "(none)"; }
+    const safe = (v)=> (v??"").toString();
+    const trimOrNone = (v)=> {
+      const t = safe(v).trim();
+      return t ? t : "(none)";
+    };
 
     function setChips(){
       const chips = $("chips");
       chips.innerHTML = "";
-      const bits = [];
-      if (selectedArtist?.name) bits.push("artist: " + selectedArtist.name);
-      if (selectedAlbum?.title) bits.push("album: " + selectedAlbum.title);
-      if (selected?.title) bits.push("song: " + selected.title);
-      if (selected?.is_legacy_published) bits.push("legacy: YES");
-      for (const b of bits){
-        const s = document.createElement("span");
-        s.className = "chip";
-        s.textContent = b;
-        chips.appendChild(s);
+      const items = [];
+      if (artist?.name) items.push(`artist: ${artist.name}`);
+      if (album?.title) items.push(`album: ${album.title}`);
+      if (song?.title) items.push(`song: ${song.title}`);
+      if (artist?.main_genre || artist?.secondary_genre){
+        const g = [artist?.main_genre, artist?.secondary_genre].filter(Boolean).join(" / ");
+        if (g) items.push(`genre: ${g}`);
       }
-    }
-
-    function renderList(){
-      const box = $("list");
-      box.innerHTML = "";
-      if (!rows.length){
-        box.innerHTML = '<div class="item"><div class="muted">Nothing needs packaging 🎉</div></div>';
-        return;
+      for (const t of items){
+        const span = document.createElement("span");
+        span.className = "chip";
+        span.textContent = t;
+        chips.appendChild(span);
       }
-      for (const r of rows){
-        const div = document.createElement("div");
-        div.className = "item";
-        div.dataset.id = r.id;
-
-        const title = r.title || "(untitled)";
-        const legacy = r.is_legacy_published ? "legacy" : "";
-        const flags = [];
-        if (r.longform_done) flags.push("long✅");
-        if (r.long_packaged) flags.push("pack✅");
-        if (r.short_done) flags.push("short✅");
-        if (r.short_packaged) flags.push("shortpack✅");
-
-        div.innerHTML = `
-          <div class="itemTop">
-            <div class="itemTitle">${title} ${legacy ? ' <span class="pill warn">legacy</span>' : ""}</div>
-            <div class="muted">${flags.join(" ")}</div>
-          </div>
-          <div class="muted" style="margin-top:6px;">album_id: ${r.album_id}</div>
-        `;
-        div.onclick = async () => {
-          document.querySelectorAll(".item").forEach(x => x.classList.remove("active"));
-          div.classList.add("active");
-          await selectSong(r);
-        };
-        box.appendChild(div);
-      }
-    }
-
-    async function selectSong(songRow){
-      selected = songRow;
-      $("statusLine").textContent = "Loading album + artist…";
-
-      const { data: a, error: e1 } = await supabase.from(ALBUMS).select("*").eq("id", selected.album_id).single();
-      selectedAlbum = e1 ? null : a;
-
-      const artistId = selectedAlbum?.artist_id;
-      if (artistId){
-        const { data: ar, error: e2 } = await supabase.from(ARTISTS).select("*").eq("id", artistId).single();
-        selectedArtist = e2 ? null : ar;
-      } else {
-        selectedArtist = null;
-      }
-
-      setChips();
-      $("statusLine").textContent = "Ready ✅";
-    }
-
-    function artistDNABlock(ar){
-      if (!ar) return "- (No artist loaded)";
-      const lines = [];
-      const mg = safe(ar.main_genre).trim();
-      const sg = safe(ar.secondary_genre).trim();
-      if (mg || sg) lines.push(`- Genres: ${[mg, sg].filter(Boolean).join(" / ")}`);
-      if (safe(ar.voice_identity).trim()) lines.push(`- Voice Identity: ${ar.voice_identity}`);
-      if (safe(ar.suno_voice_anchor).trim()) lines.push(`- Suno Voice Anchor: ${ar.suno_voice_anchor}`);
-      if (safe(ar.must_include).trim()) lines.push(`- Must Include: ${ar.must_include}`);
-      if (safe(ar.never_include).trim()) lines.push(`- Never Include: ${ar.never_include}`);
-      if (safe(ar.default_perso).trim()) lines.push(`- Persona: ${ar.default_perso}`);
-      if (safe(ar.default_lane).trim()) lines.push(`- Lane: ${ar.default_lane}`);
-      return lines.length ? lines.join("\n") : "- (No Artist DNA set yet)";
     }
 
     function artistLinksBlock(ar){
-      if (!ar) return "(none)";
-      // keep flexible: show any link fields if present
-      const pairs = [];
-      const maybe = (key, label) => {
-        const v = safe(ar[key]).trim();
-        if (v) pairs.push(`- ${label}: ${v}`);
-      };
-      maybe("youtube_handle", "YouTube");
-      maybe("bandcamp", "Bandcamp");
-      maybe("spotify", "Spotify");
-      maybe("website", "Website");
-      maybe("instagram", "Instagram");
-      maybe("tiktok", "TikTok");
-      return pairs.length ? pairs.join("\n") : "(none)";
+      const lines = [];
+      const pairs = [
+        ["YouTube", ar?.youtube_url],
+        ["Bandcamp", ar?.bandcamp_url],
+        ["Spotify", ar?.spotify_url],
+        ["Apple Music", ar?.apple_music_url],
+        ["SoundCloud", ar?.soundcloud_url],
+        ["Website", ar?.website_url],
+      ];
+      for (const [name, url] of pairs){
+        const u = safe(url).trim();
+        if (u) lines.push(`- ${name}: ${u}`);
+      }
+      return lines.length ? lines.join("\n") : "- (none)";
     }
 
-    function buildSongBlock(){
-      const s = selected;
-      const ar = selectedArtist;
-      const a = selectedAlbum;
+    function artistDnaBlock(ar){
+      const lines = [];
+      lines.push(`- Main genre: ${trimOrNone(ar?.main_genre)}`);
+      lines.push(`- Secondary genre: ${trimOrNone(ar?.secondary_genre)}`);
+      lines.push(`- Default lane: ${trimOrNone(ar?.default_lane)}`);
+      lines.push(`- Voice identity: ${trimOrNone(ar?.voice_identity)}`);
+      lines.push(`- Suno voice anchor: ${trimOrNone(ar?.suno_voice_anchor)}`);
+      lines.push(`- Must include (instruments/vibe): ${trimOrNone(ar?.must_include)}`);
+      lines.push(`- Never include: ${trimOrNone(ar?.never_include)}`);
+      lines.push(`- Core persona: ${trimOrNone(ar?.default_perso || ar?.default_persona)}`);
+      return lines.join("\n");
+    }
 
-      const artistName = safe(ar?.name) || "(unknown artist)";
-      const channelHandle = safe(ar?.youtube_handle).trim() || "@(handle)";
-      const albumTitle = safe(a?.title).trim() || "(single)";
+    function buildPromptText(){
+      if (!song || !artist) return "";
+
+      const mode = $("mode").value;
       const includeImg = $("include_artist_image").checked;
+      const artistName = safe(artist?.name) || "(unknown artist)";
+      const channelHandle = safe(artist?.youtube_handle).trim() || "@(handle)";
+      const albumTitle = safe(album?.title).trim() || "(single)";
 
       const core = [];
       core.push(`Create YouTube packaging copy for the following.`);
-
       core.push(``);
       core.push(`Return these sections (keep it clean, no extra talk):`);
-      if ($("mode").value === "long"){
+      if (mode === "long"){
         core.push(`YOUTUBE_TITLE:`);
         core.push(`YOUTUBE_DESCRIPTION:`);
         core.push(`YOUTUBE_TAGS (comma separated, under 500 characters):`);
@@ -291,125 +230,113 @@
       core.push(`- Artist: ${artistName}`);
       core.push(`- Channel Handle: ${channelHandle}`);
       core.push(`- Album/Collection: ${albumTitle}`);
-      core.push(`- Artist About (use in description): ${trimOrNone(ar?.about)}`);
+      core.push(`- Artist About (use in description): ${trimOrNone(artist?.about)}`);
       core.push(`- Links (add in description if relevant):`);
-      core.push(`${artistLinksBlock(ar)}`);
+      core.push(artistLinksBlock(artist));
 
       core.push(``);
       core.push(`Artist DNA (must follow):`);
-      core.push(artistDNABlock(ar));
+      core.push(artistDnaBlock(artist));
 
       core.push(``);
       core.push(`Song info:`);
-      core.push(`- Title: ${safe(s?.title) || "(untitled)"}`);
-      core.push(`- Keywords: ${trimOrNone(s?.keywords)}`);
-      core.push(`- Scripture: ${trimOrNone(s?.scripture)}`);
-
+      core.push(`- Title: ${safe(song?.title)}`);
+      core.push(`- Keywords: ${trimOrNone(song?.keywords)}`);
+      // Scripture only if the artist is gospel/christian
+      const g = (safe(artist?.main_genre)+" "+safe(artist?.secondary_genre)+" "+safe(artist?.default_lane)).toLowerCase();
+      const isGospel = /(gospel|christian|worship)/i.test(g);
+      if (isGospel) core.push(`- Scripture (optional): ${trimOrNone(song?.scripture)}`);
       core.push(``);
-      core.push(`Suno prompt (use for genre/mood/tags; keep instruments present):`);
-      core.push("```");
-      core.push(safe(s?.suno_prompt));
-      core.push("```");
-
+      core.push(`Suno prompt (use genre + instruments; keep voice anchored by Suno voice anchor):`);
+      core.push(`---`);
+      core.push(safe(song?.suno_prompt));
+      core.push(`---`);
       core.push(``);
-      core.push(`Lyrics (use in description; paste clean, no role labels):`);
-      core.push("```");
-      core.push(safe(s?.lyrics));
-      core.push("```");
+      core.push(`Lyrics (paste exactly):`);
+      core.push(`---`);
+      core.push(safe(song?.lyrics));
+      core.push(`---`);
 
       core.push(``);
       core.push(`Rules:`);
-      core.push(`- Do NOT include a “Song Details: BPM/Key/Genre/Mood” line.`);
-      core.push(`- Tags MUST be genre-accurate and derived from Suno prompt + artist DNA, under 500 chars, comma separated.`);
-      core.push(`- Description must include: short intro, artist about line(s), lyrics section, and hashtags.`);
-      core.push(`- Pinned comment should be short, emoji-friendly, invite prayer requests and engagement.`);
-      if ($("mode").value === "long"){
-        core.push(`- Thumbnail prompt must be click-worthy, high-contrast, mobile readable, no clutter.`);
-        core.push(`- Include artist image: ${includeImg ? "YES (assume we will tick reference image in vidIQ)" : "NO"}.`);
+      core.push(`- Do NOT include a "Song Details: BPM/Key/Genre/Mood" line.`);
+      if (mode === "long"){
+        core.push(`- Title must follow your format: [Emotional Hook] | [Song Title] | Soul Music | [Artist].`);
+        core.push(`- Description must include: short intro, artist about, lyrics section, hashtags (8–15).`);
+        core.push(`- Tags must match the Suno prompt genre + instrumentation and stay under 500 characters.`);
+        if (includeImg){
+          core.push(`- Thumbnail prompt: include the artist image as reference.`);
+        } else {
+          core.push(`- Thumbnail prompt: do NOT assume artist image is available.`);
+        }
       } else {
-        core.push(`- Shorts have no thumbnails.`);
-        core.push(`- TikTok description should be short + include a few relevant hashtags.`);
+        core.push(`- Shorts: no thumbnail prompt; focus on short SEO title + short description + tags + TikTok description.`);
+        core.push(`- Tags must match the Suno prompt genre + vibe and stay under 500 characters.`);
       }
 
       return core.join("\n");
     }
 
-    function buildPrompt(){
-      if (!selected){
-        alert("Select a song first.");
-        return;
-      }
-      $("output").value = buildSongBlock();
-      $("statusLine").textContent = "Prompt built ✅";
+    function toast(msg, ok=true){
+      $("statusLine").textContent = msg;
     }
 
-    async function loadList(){
-      $("statusLine").textContent = "Loading songs that need packaging…";
-      selected = null; selectedAlbum = null; selectedArtist = null;
-      $("output").value = "";
-      setChips();
-
-      const mode = $("mode").value;
-
-      // We avoid .select("*,albums(*),artists(*)") to keep schema flexible and simple.
-      let query = supabase.from(SONGS).select("*");
-      if (mode === "long"){
-        query = query.eq("longform_done", true).eq("long_packaged", false);
-      } else {
-        query = query.eq("short_done", true).eq("short_packaged", false);
-      }
-      query = query.order("updated_at", { ascending: false });
-
-      const { data, error } = await query;
-      if (error){
-        $("statusLine").textContent = "Error: " + error.message;
-        rows = [];
-        renderList();
-        return;
-      }
-      rows = data || [];
-      $("statusLine").textContent = `Found ${rows.length} song(s).`;
-      renderList();
-
-      // Auto-select first
-      if (rows.length){
-        // mark first as active
-        setTimeout(async () => {
-          const first = document.querySelector(".item");
-          if (first) first.classList.add("active");
-          await selectSong(rows[0]);
-        }, 0);
-      }
+    function build(){
+      if (!song) return alert("Missing song_id in URL.");
+      $("output").value = buildPromptText();
+      toast("Prompt built ✅");
     }
 
-    $("mode").onchange = loadList;
-    $("btnBuild").onclick = buildPrompt;
-
-    $("btnClear").onclick = () => $("output").value = "";
-    $("btnCopy").onclick = async () => {
+    async function copyOut(){
       const t = $("output").value || "";
       if (!t.trim()) return alert("Nothing to copy.");
       await navigator.clipboard.writeText(t);
-      $("statusLine").textContent = "Output copied ✅";
-    };
-    $("btnCopyOutput").onclick = $("btnCopy").onclick;
+      toast("Copied ✅");
+    }
 
-    $("btnCopyWorking").onclick = async () => {
-      const t = $("working_results").value || "";
-      if (!t.trim()) return alert("Working box is empty.");
-      await navigator.clipboard.writeText(t);
-      $("statusLine").textContent = "Working copied ✅";
-    };
-    $("btnClearWorking").onclick = () => $("working_results").value = "";
+    async function loadData(){
+      await requireSessionOrRedirect();
+      if (!song_id){
+        $("subline").textContent = "Missing song_id in URL.";
+        return;
+      }
+      $("subline").textContent = "Loading song…";
 
-    $("btnHome").onclick = () => window.location.href = "./home.html";
-    $("btnAlbums").onclick = () => window.location.href = "./albums.html";
-    $("btnLogout").onclick = async () => {
-      await supabase.auth.signOut();
-      window.location.href = "./index.html";
-    };
+      const { data: s, error: se } = await supabase.from(SONGS).select("*").eq("id", song_id).single();
+      if (se) {
+        $("subline").textContent = "Error loading song: " + se.message;
+        return;
+      }
+      song = s;
 
-    await loadList();
+      const albumId = album_id_qs || song.album_id;
+      if (albumId){
+        const { data: a, error: ae } = await supabase.from(ALBUMS).select("*").eq("id", albumId).single();
+        if (!ae) album = a;
+      }
+      const artistId = album?.artist_id || song.artist_id;
+      if (artistId){
+        const { data: ar, error: are } = await supabase.from(ARTISTS).select("*").eq("id", artistId).single();
+        if (!are) artist = ar;
+      }
+
+      $("title").value = safe(song?.title);
+      $("album").value = safe(album?.title);
+      $("suno_prompt").value = safe(song?.suno_prompt);
+      $("lyrics").value = safe(song?.lyrics);
+
+      setChips();
+      $("subline").textContent = `Loaded: ${safe(song?.title)}`;
+      toast("Ready.");
+    }
+
+    $("btnBuild").onclick = build;
+    $("btnCopy").onclick = copyOut;
+    $("btnClear").onclick = ()=> { $("output").value=""; toast("Cleared."); };
+    $("mode").onchange = ()=> toast("Mode changed — click Generate.");
+    $("include_artist_image").onchange = ()=> toast("Option updated — click Generate.");
+
+    loadData();
   </script>
 </body>
 </html>
