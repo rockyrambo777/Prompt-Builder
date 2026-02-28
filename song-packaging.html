@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Song Packaging</title>
+  <style>
+    :root{
+      --bg:#0b0f19; --card:#121a2a; --card2:#0f1626; --border:#23304a;
+      --muted:#92a4c7; --text:#e8eefc; --primary:#2f6fed; --danger:#d14b4b;
+      --chip:#1c273f;
+    }
+    body { font-family: Arial, sans-serif; background:var(--bg); color:var(--text); margin:0; }
+    .wrap { max-width: 1300px; margin: 0 auto; padding: 24px; }
+    .top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+    .muted { color:var(--muted); font-size: 14px; }
+    .btn { padding:10px 12px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); cursor:pointer; font-weight:800; }
+    .btn.primary { background:var(--primary); border:none; }
+    .btn.secondary { background:#1c273f; border:1px solid #2a3a5c; }
+    .btn.danger { background:var(--danger); border:none; }
+    .btn.copy { background:#16315f; border:1px solid #2a3a5c; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-top:14px; }
+    .grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; }
+    @media (max-width: 980px){ .grid { grid-template-columns: 1fr; } }
+    label { font-size:12px; color:var(--muted); display:block; margin:8px 0 6px; }
+    input, select, textarea {
+      padding:12px; border-radius:12px; border:1px solid #2a3a5c;
+      background:var(--card2); color:var(--text); width:100%;
+      box-sizing:border-box;
+    }
+    textarea { min-height: 140px; resize: vertical; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .chips { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    .chip { font-size:12px; padding:6px 10px; border-radius:999px; border:1px solid #2a3a5c; background:var(--chip); color:var(--text); }
+    table { width:100%; border-collapse: collapse; margin-top:10px; }
+    th, td { border-bottom:1px solid #22304a; padding:10px; text-align:left; vertical-align: top; }
+    th { color:var(--muted); font-size:12px; }
+    .tiny { width: 70px; }
+    .mini { width: 200px; }
+    .wide { width: 420px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .sectionTitle { margin: 0 0 10px; }
+    .hint { font-size:12px; color:var(--muted); margin-top:6px; line-height:1.4; }
+
+    .checkCell { text-align:center; }
+    input[type="checkbox"]{ width:18px; height:18px; accent-color: var(--primary); }
+
+    .linkIcon {
+      font-size:18px; cursor:pointer; user-select:none;
+      padding: 6px 10px; border-radius:10px; border:1px solid #2a3a5c; background:#0f1626;
+      display:inline-flex; align-items:center; justify-content:center;
+    }
+    .linkIcon[aria-disabled="true"]{ opacity:0.35; cursor:not-allowed; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1>Song Packaging</h1>
+        <div class="muted" id="subline">Loading…</div>
+      </div>
+      <div class="row">
+        <button class="btn" id="btnBack">← Back</button>
+        <button class="btn" id="btnAlbum">Album</button>
+        <button class="btn" id="btnHome">Home</button>
+        <button class="btn danger" id="btnLogout">Logout</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+        <div class="row" id="chips" style="gap:8px; flex-wrap:wrap;"></div>
+        <div class="row" style="gap:10px; flex-wrap:wrap;">
+          <button class="btn" id="btnCopy">Copy Prompt</button>
+          <button class="btn primary" id="btnBuild">Build Prompt</button>
+          <button class="btn" id="btnSaveMeta">Save</button>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="grid2">
+        <div>
+          <h2 style="margin:0 0 10px;">Status</h2>
+          <label class="row" style="gap:10px; align-items:center;">
+            <input type="checkbox" id="long_packaged">
+            <span>Long packaged ✅</span>
+          </label>
+
+          <div style="height:10px;"></div>
+          <label for="youtube_release_date">YouTube release date</label>
+          <input id="youtube_release_date" type="date" />
+
+          <div class="muted" style="margin-top:10px;">
+            Tip: this page generates prompts only, but the checkbox/date will save to the database for tracking.
+          </div>
+        </div>
+
+        <div>
+          <h2 style="margin:0 0 10px;">Prompt Output (paste into ChatGPT)</h2>
+          <textarea id="out" class="mono" placeholder="Click Build Prompt…"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 style="margin:0 0 10px;">Song Info</h2>
+      <div class="grid2">
+        <div>
+          <label>Title</label>
+          <input id="title" disabled>
+        </div>
+        <div>
+          <label>Artist</label>
+          <input id="artist" disabled>
+        </div>
+      </div>
+
+      <div style="height:10px;"></div>
+      <label>Suno Prompt</label>
+      <textarea id="suno_prompt" class="mono" disabled style="min-height:140px;"></textarea>
+
+      <div style="height:10px;"></div>
+      <label>Lyrics</label>
+      <textarea id="lyrics" class="mono" disabled style="min-height:220px;"></textarea>
+    </div>
+
+    <div class="muted" id="status" style="padding:10px 2px;"></div>
+  </div>
+
+<script type="module">
+  import { supabase, requireSessionOrRedirect } from "./app.js";
+
+  const SONGS="songs", ALBUMS="albums", ARTISTS="artists";
+
+  const $ = (id)=>document.getElementById(id);
+  const qs = new URLSearchParams(location.search);
+  const song_id = qs.get("song_id");
+  const album_id = qs.get("album_id");
+
+  const safe = (v)=> (v??"").toString();
+  const isGospel = (artist)=> {
+    const g = (artist?.main_genre || "") + " " + (artist?.secondary_genre || "") + " " + (artist?.default_lane || "");
+    return /gospel|christian|worship/i.test(g);
+  };
+
+  function setChips(items){
+    const chips = $("chips");
+    chips.innerHTML="";
+    for (const t of items){
+      const span=document.createElement("span");
+      span.className="pill";
+      span.textContent=t;
+      chips.appendChild(span);
+    }
+  }
+
+  $("btnBack").onclick = ()=> {
+    if (document.referrer) window.history.back();
+    else window.location.href="./home.html";
+  };
+  $("btnHome").onclick = ()=> window.location.href="./home.html";
+  $("btnAlbum").onclick = ()=> {
+    if (!album_id) return alert("Missing album_id");
+    window.location.href = `./album-edit.html?id=${encodeURIComponent(album_id)}`;
+  };
+
+  $("btnLogout").onclick = async()=> {
+    await supabase.auth.signOut();
+    window.location.href="./index.html";
+  };
+
+  $("btnCopy").onclick = async()=> {
+    await navigator.clipboard.writeText($("out").value || "");
+    $("status").textContent="Copied ✅";
+  };
+
+  let song=null, album=null, artist=null;
+
+  async function loadAll(){
+    await requireSessionOrRedirect();
+    if (!song_id) {
+      $("subline").textContent="Missing song_id";
+      return;
+    }
+
+    // song
+    let res = await supabase.from(SONGS).select("*").eq("id", song_id).single();
+    if (res.error) throw res.error;
+    song = res.data;
+
+    // album
+    const albId = album_id || song.album_id;
+    if (albId){
+      let ar = await supabase.from(ALBUMS).select("*").eq("id", albId).single();
+      if (!ar.error) album = ar.data;
+    }
+
+    // artist
+    const artId = (album?.artist_id) || song.artist_id;
+    if (artId){
+      let rr = await supabase.from(ARTISTS).select("*").eq("id", artId).single();
+      if (!rr.error) artist = rr.data;
+    }
+
+    $("title").value = safe(song.title);
+    $("artist").value = safe(artist?.name || "");
+    $("suno_prompt").value = safe(song.suno_prompt || "");
+    $("lyrics").value = safe(song.lyrics || "");
+
+    $("long_packaged").checked = !!song.long_packaged;
+    $("youtube_release_date").value = safe(song.youtube_release_date || "");
+
+    $("subline").textContent = album ? `Album: ${album.title}` : "Single";
+    setChips([
+      `lane: ${safe(artist?.default_lane||"—")}`,
+      `genre: ${safe(artist?.main_genre||"—")} / ${safe(artist?.secondary_genre||"")}`,
+      `voice: ${safe(artist?.voice_identity||"—")}`,
+    ]);
+  }
+
+  // Update with fallback (drops missing columns if your DB doesn't have them yet)
+  async function updateWithFallback(id, patch){
+    // try once
+    let r = await supabase.from(SONGS).update(patch).eq("id", id);
+    if (!r.error) return r;
+    const msg = r.error.message || "";
+    // If missing column error, remove that key and retry
+    // Supabase/Postgres often: "column \"xyz\" of relation \"songs\" does not exist"
+    const m = msg.match(/column \"([^\"]+)\"/);
+    if (m) {
+      const bad = m[1];
+      const p2 = {...patch};
+      delete p2[bad];
+      if (Object.keys(p2).length===0) return r;
+      return await supabase.from(SONGS).update(p2).eq("id", id);
+    }
+    return r;
+  }
+
+  $("btnSaveMeta").onclick = async()=> {
+    if (!song) return;
+    $("status").textContent="Saving…";
+    const patch = {
+      long_packaged: $("long_packaged").checked,
+      youtube_release_date: $("youtube_release_date").value || null,
+    };
+    const r = await updateWithFallback(song.id, patch);
+    if (r.error) {
+      $("status").textContent = "Save error: " + r.error.message;
+      return;
+    }
+    $("status").textContent="Saved ✅";
+  };
+
+  $("btnBuild").onclick = ()=> {
+    if (!song) return;
+    const g = isGospel(artist);
+    const lane = safe(artist?.default_lane);
+    const persona = safe(artist?.default_persona || artist?.default_perso || "");
+    const voiceAnchor = safe(artist?.suno_voice_anchor || "");
+    const mustInclude = safe(artist?.must_include || "");
+    const neverInclude = safe(artist?.never_include || "");
+    const voiceId = safe(artist?.voice_identity || "");
+    const mainGenre = safe(artist?.main_genre || "");
+    const secondaryGenre = safe(artist?.secondary_genre || "");
+    const about = safe(artist?.about || "");
+    const links = [
+      artist?.youtube_url ? `YouTube: ${artist.youtube_url}` : "",
+      artist?.bandcamp_url ? `Bandcamp: ${artist.bandcamp_url}` : "",
+      artist?.spotify_url ? `Spotify: ${artist.spotify_url}` : "",
+      artist?.website_url ? `Website: ${artist.website_url}` : "",
+    ].filter(Boolean).join("\n");
+
+    const prompt = `Create YouTube packaging copy for ONE song.
+
+Return these sections (clean, no extra talk):
+YOUTUBE_TITLE:
+YOUTUBE_DESCRIPTION:
+YOUTUBE_TAGS: (comma separated, UNDER 500 chars)
+PINNED_COMMENT:
+THUMBNAIL_DESCRIPTION: (for vidIQ / designer)
+PLAYLIST_SUGGESTION:
+
+Context:
+- Artist: ${safe(artist?.name)}
+- Main genre: ${mainGenre}
+- Secondary genre: ${secondaryGenre}
+- Lane: ${lane}
+- Voice identity: ${voiceId}
+- Suno voice anchor (keep voice consistent): ${voiceAnchor || "(none)"}
+- Must include (instruments / non-negotiables): ${mustInclude || "(none)"}
+- Never include: ${neverInclude || "(none)"}
+
+Artist about (use in description if provided):
+${about || "(none)"}
+
+Links (use if relevant):
+${links || "(none)"}
+
+Song:
+- Title: ${safe(song.title)}
+- Suno prompt:
+${safe(song.suno_prompt)}
+
+Lyrics:
+${safe(song.lyrics)}
+
+Rules:
+- Follow the artist genre & lane (ONLY call it gospel/christian if the artist genre is gospel/christian).
+- Do NOT include: **Song Details:** BPM • Key • Genre • Mood.
+- Description should be emoji-friendly, story-first, then lyrics in a code block.
+- Tags must match genre + vibe of this specific song.
+- Thumbnail description: bold, clear, readable, eye-catching, SEO-friendly, consistent with artist default thumbnail vibe.
+- Playlist suggestion: if artist uses mood playlists, suggest the best mood playlist; otherwise suggest the album playlist.`;
+
+    $("out").value = prompt;
+    $("status").textContent="Prompt built ✅";
+  };
+
+  loadAll().catch(e=>{
+    console.error(e);
+    $("status").textContent = "Load error: " + (e.message || e);
+  });
+</script>
+</body>
+</html>
