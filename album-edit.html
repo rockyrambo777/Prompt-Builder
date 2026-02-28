@@ -856,8 +856,6 @@
       }
       return { ok:false, error:"Insert failed after fallbacks." };
     }
-      return { ok:false, error:"Insert failed after fallbacks." };
-    }
 
     async function doImportOne(payload){
       const ins = await __insertOneWithFallback(payload);
