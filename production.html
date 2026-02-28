@@ -312,10 +312,9 @@
     $("who").textContent = `Signed in: ${session.user.email}`;
 
     const params = new URLSearchParams(window.location.search);
-    const album_id = params.get("album_id");
+    const album_id = params.get("album_id") || params.get("id");
     const song_id_param = params.get("song_id");
-
-    if (!album_id) {
+if (!album_id) {
       alert("Missing album_id");
       window.location.href = "./albums.html";
     }
@@ -367,6 +366,13 @@
     function buildSongSelect(){
       const sel = $("songSelect");
       sel.innerHTML = "";
+      if (!songs.length) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "(No songs found)";
+        sel.appendChild(opt);
+        return;
+      }
       for (const s of songs){
         const opt = document.createElement("option");
         opt.value = s.id;
