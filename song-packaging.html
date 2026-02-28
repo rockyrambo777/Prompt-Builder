@@ -203,8 +203,7 @@
   if (mode === "short") {
     output =
       baseContext +
-      "Return ONLY these sections for SHORTS:
-(Note: Shorts do not use thumbnails. Ignore any thumbnail options.)\n" +
+      "Return ONLY these sections for SHORTS:\n(Note: Shorts do not use thumbnails. Ignore any thumbnail options.)\n" +
       "SHORTS_TITLE:\n" +
       "SHORTS_DESCRIPTION:\n" +
       "SHORTS_TAGS: (comma separated, under 500 chars)\n" +
@@ -351,108 +350,11 @@
     $("status").textContent="Saved ✅";
   };
 
-  $("btnBuild").onclick = () => {
-    if (!song) return;
+  
 
-    const includeArtist = !!$("include_artist_image")?.checked;
-    const mode = ($("package_mode")?.value || "shorts").toLowerCase();
+// (removed duplicate btnBuild handler)
 
-    const g = isGospel(artist);
-    const lane = safe(artist?.default_lane);
-    const persona = safe(artist?.default_persona || artist?.default_perso || "");
-    const voiceAnchor = safe(artist?.suno_voice_anchor || "");
-    const mustInclude = safe(artist?.must_include || "");
-    const neverInclude = safe(artist?.never_include || "");
-    const voiceId = safe(artist?.voice_identity || "");
-    const mainGenre = safe(artist?.main_genre || "");
-    const secondaryGenre = safe(artist?.secondary_genre || "");
-    const about = safe(artist?.about || "");
-    const links = [
-      artist?.youtube_url ? `YouTube: ${artist.youtube_url}` : "",
-      artist?.bandcamp_url ? `Bandcamp: ${artist.bandcamp_url}` : "",
-      artist?.spotify_url ? `Spotify: ${artist.spotify_url}` : "",
-      artist?.website_url ? `Website: ${artist.website_url}` : "",
-    ].filter(Boolean).join("\n");
 
-    const baseContext = `Context:
-- Artist: ${safe(artist?.name)}
-- Main genre: ${mainGenre}
-- Secondary genre: ${secondaryGenre}
-- Lane: ${lane}
-- Voice identity: ${voiceId}
-- Suno voice anchor (keep voice consistent): ${voiceAnchor || "(none)"}
-- Must include (instruments / non-negotiables): ${mustInclude || "(none)"}
-- Never include: ${neverInclude || "(none)"}
-
-Artist about (use in description if provided):
-${about || "(none)"}
-
-Thumbnail option (Long only):
-- Include artist image: ${includeArtist ? 'YES' : 'NO'}
-
-Links (use if relevant):
-${links || "(none)"}
-
-Song:
-- Title: ${safe(song.title)}
-- Suno prompt:
-${safe(song.suno_prompt)}
-
-Lyrics:
-${safe(song.lyrics)}
-
-Global rules:
-- Follow the artist genre & lane (ONLY call it gospel/christian if the artist genre is gospel/christian).
-- Do NOT include: **Song Details:** BPM • Key • Genre • Mood.
-- Tags must match genre + vibe of this specific song.`;
-
-    const longPrompt = `Create YouTube packaging copy for ONE LONG-FORM video.
-
-Return these sections (clean, no extra talk):
-LONG_YOUTUBE_TITLE:
-LONG_YOUTUBE_DESCRIPTION:
-LONG_YOUTUBE_TAGS: (comma separated, UNDER 500 chars)
-LONG_PINNED_COMMENT:
-THUMBNAIL_DESCRIPTION: (for vidIQ / designer)
-PLAYLIST_SUGGESTION:
-
-${baseContext}
-
-Long-form rules:
-- Description should be emoji-friendly, story-first, then lyrics in a code block.
-- THUMBNAIL_DESCRIPTION is required (eye-catching, readable, SEO-friendly, matches artist vibe).`;
-
-    const shortsPrompt = `Create short-form packaging copy for ONE song (YouTube Shorts + TikTok). Shorts ONLY.
-
-Return these sections (clean, no extra talk):
-SHORTS_TITLE:
-SHORTS_DESCRIPTION:
-SHORTS_TAGS: (comma separated, UNDER 500 chars)
-SHORTS_PINNED_COMMENT:
-TIKTOK_DESCRIPTION:
-PLAYLIST_SUGGESTION:
-
-${baseContext}
-
-Short-form rules:
-- Keep it hooky and concise (first line must grab attention).
-- NO thumbnail instructions here.
-- Shorts description can be shorter than long-form; include a clear CTA.`;
-
-    if (mode === "long") {
-      $("out").value = longPrompt;
-    } else if (mode === "both") {
-      $("out").value = longPrompt + "
-
----
-
-" + shortsPrompt;
-    } else {
-      // default: shorts only
-      $("out").value = shortsPrompt;
-    }
-    $("status").textContent = "Prompt built ✅";
-  };
 
   loadAll().catch(e=>{
     console.error(e);
