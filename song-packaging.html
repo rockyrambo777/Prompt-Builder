@@ -234,6 +234,7 @@ PLAYLIST_RECOMMENDATION:`);
       core.push(`- Artist About (use in description): ${trimOrNone(artist?.about)}`);
       core.push(`- Links (add in description if relevant):`);
       core.push(artistLinksBlock(artist));
+      core.push(`- Default playlists (if any): ${currentArtistPlaylistsText || "None"}`);
 
       core.push(``);
       core.push(`Artist DNA (must follow):`);
@@ -319,8 +320,21 @@ PLAYLIST_RECOMMENDATION:`);
       }
       const artistId = album?.artist_id || song.artist_id;
       if (artistId){
-        const { data: ar, error: are } = await supabase.from(ARTISTS).select("*").eq("id", artistId).single();
-        if (!are) artist = ar;
+        const { data: ar, error: arErr } = await supabase.from(ARTISTS).select("*").eq("id", artistId).single();
+        if (!arErr) artist = ar;
+
+        // load artist default playlists (multi)
+        currentArtistPlaylistsText = "None";
+        if (!arErr && artist?.default_playlist_enabled){
+          const { data: pls, error: pe } = await supabase
+            .from("artist_playlists")
+            .select("title,description,sort_order")
+            .eq("artist_id", artistId)
+            .order("sort_order", { ascending: true });
+          if (!pe && pls && pls.length){
+            currentArtistPlaylistsText = pls.map(p => p.description ? `${p.title} — ${p.description}` : `${p.title}`).join(" | ");
+          }
+        }
       }
 
       $("title").value = safe(song?.title);
