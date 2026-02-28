@@ -149,7 +149,8 @@
     let rows = [];              // list rows (songs)
     let selected = null;        // selected song row
     let selectedAlbum = null;   // album row
-    let selectedArtist = null;  // artist row
+    let selectedArtist = null;
+    let selectedArtistPlaylistsText = "None";  // artist row
 
     function safe(v){ return (v === null || v === undefined) ? "" : String(v); }
     function trimOrNone(v){ const t = safe(v).trim(); return t ? t : "(none)"; }
@@ -217,6 +218,20 @@
       if (artistId){
         const { data: ar, error: e2 } = await supabase.from(ARTISTS).select("*").eq("id", artistId).single();
         selectedArtist = e2 ? null : ar;
+
+        // load artist default playlists (multi)
+        let plsText = "None";
+        if (!e2 && ar?.default_playlist_enabled){
+          const { data: pls, error: pe } = await supabase
+            .from("artist_playlists")
+            .select("title,description,sort_order")
+            .eq("artist_id", artistId)
+            .order("sort_order", { ascending: true });
+          if (!pe && pls && pls.length){
+            plsText = pls.map(p => p.description ? `${p.title} — ${p.description}` : `${p.title}`).join(" | ");
+          }
+        }
+        selectedArtistPlaylistsText = plsText;
       } else {
         selectedArtist = null;
       }
@@ -268,6 +283,7 @@
       const includeImg = $("include_artist_image").checked;
 
       const core = [];
+      const defaultPlaylistsText = selectedArtistPlaylistsText || "None";
       core.push(`Create YouTube packaging copy for the following.`);
 
       core.push(``);
@@ -290,8 +306,7 @@ PLAYLIST_RECOMMENDATION:`);
       core.push(``);
       core.push(`Artist info:
 - Default playlist enabled: ${artist?.default_playlist_enabled ? 'YES' : 'NO'}
-- Default playlist title: ${safe(artist?.default_playlist_title)}
-- Default playlist description: ${safe(artist?.default_playlist_description)}
+- Default playlists: ${defaultPlaylistsText}
 
 Artist info:`);
       core.push(`- Artist: ${artistName}`);
