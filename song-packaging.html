@@ -96,6 +96,16 @@
           <div style="height:10px;"></div>
           <label for="youtube_release_date">YouTube release date</label>
           <input id="youtube_release_date" type="date" />
+          <div style="height:14px;"></div>
+          <h2 style="margin:8px 0 10px;">Options</h2>
+          <label class="row" style="gap:10px; align-items:center;">
+            <input type="checkbox" id="include_artist_image">
+            <span>Include artist image (thumbnail prompt)</span>
+          </label>
+          <div class="muted" style="margin-top:6px;">
+            Shorts do not have thumbnails (checkbox is ignored in Shorts mode).
+          </div>
+
 
           <div style="height:10px;"></div>
           <label class="row" style="gap:10px; align-items:center;">
@@ -171,6 +181,8 @@
   $("btnBuild").onclick = () => {
   if (!song) return;
 
+    const includeArtist = !!$("include_artist_image")?.checked;
+
   const mode = document.getElementById("package_mode").value;
   const isGospelArtist = isGospel(artist);
 
@@ -191,7 +203,8 @@
   if (mode === "short") {
     output =
       baseContext +
-      "Return ONLY these sections for SHORTS:\n" +
+      "Return ONLY these sections for SHORTS:
+(Note: Shorts do not use thumbnails. Ignore any thumbnail options.)\n" +
       "SHORTS_TITLE:\n" +
       "SHORTS_DESCRIPTION:\n" +
       "SHORTS_TAGS: (comma separated, under 500 chars)\n" +
@@ -275,6 +288,21 @@
     $("lyrics").value = safe(song.lyrics || "");
 
     $("long_packaged").checked = !!song.long_packaged;
+    // Options: include artist image in thumbnail prompt (remember per artist)
+    try {
+      const key = `pkg_include_artist_image:${encodeURIComponent(artist?.id || "")}`;
+      const saved = localStorage.getItem(key);
+      if (saved !== null) {
+        $("include_artist_image").checked = saved === "1";
+      } else {
+        // default off
+        $("include_artist_image").checked = false;
+      }
+      $("include_artist_image").onchange = () => {
+        localStorage.setItem(key, $("include_artist_image").checked ? "1" : "0");
+      };
+    } catch (e) { /* ignore */ }
+
     $("shorts_packaged").checked = !!(song.shorts_packaged ?? song.short_packaged ?? false);
     $("youtube_release_date").value = safe(song.youtube_release_date || "");
 
@@ -325,6 +353,8 @@
 
   $("btnBuild").onclick = () => {
     if (!song) return;
+
+    const includeArtist = !!$("include_artist_image")?.checked;
     const mode = ($("package_mode")?.value || "shorts").toLowerCase();
 
     const g = isGospel(artist);
@@ -356,6 +386,9 @@
 
 Artist about (use in description if provided):
 ${about || "(none)"}
+
+Thumbnail option (Long only):
+- Include artist image: ${includeArtist ? 'YES' : 'NO'}
 
 Links (use if relevant):
 ${links || "(none)"}
@@ -409,7 +442,11 @@ Short-form rules:
     if (mode === "long") {
       $("out").value = longPrompt;
     } else if (mode === "both") {
-      $("out").value = longPrompt + "\n\n---\n\n" + shortsPrompt;
+      $("out").value = longPrompt + "
+
+---
+
+" + shortsPrompt;
     } else {
       // default: shorts only
       $("out").value = shortsPrompt;
