@@ -8,144 +8,131 @@
     :root{
       --bg:#0b0f19; --card:#121a2a; --card2:#0f1626; --border:#23304a;
       --muted:#92a4c7; --text:#e8eefc; --primary:#2f6fed; --danger:#d14b4b;
-      --ok:#7CFFB2; --warn:#ffcc66;
+      --chip:#1c273f; --ok:#7CFFB2; --warn:#ffcc66;
     }
     body { font-family: Arial, sans-serif; background:var(--bg); color:var(--text); margin:0; }
     .wrap { max-width: 1400px; margin: 0 auto; padding: 24px; }
     .top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
     .muted { color:var(--muted); font-size: 14px; }
-    .btn { padding:10px 12px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); cursor:pointer; font-weight:800; text-decoration:none; }
+    .btn { padding:10px 12px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); cursor:pointer; font-weight:800; }
     .btn.primary { background:var(--primary); border:none; }
+    .btn.secondary { background:#1c273f; border:1px solid #2a3a5c; }
     .btn.danger { background:var(--danger); border:none; }
     .btn.copy { background:#16315f; border:1px solid #2a3a5c; }
-
+    .btn.small { padding:8px 10px; font-size:12px; border-radius:10px; }
     .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-top:14px; }
-    .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
-    @media (max-width: 980px){ .grid2 { grid-template-columns: 1fr; } }
-
-    table { width:100%; border-collapse: collapse; margin-top:10px; }
-    th, td { border-bottom:1px solid #22304a; padding:10px; text-align:left; vertical-align: middle; }
-    th { color:var(--muted); font-size:12px; }
-
-    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-    textarea {
+    .grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; }
+    @media (max-width: 980px){ .grid { grid-template-columns: 1fr; } }
+    label { font-size:12px; color:var(--muted); display:block; margin:8px 0 6px; }
+    input, select, textarea {
       padding:12px; border-radius:12px; border:1px solid #2a3a5c;
       background:var(--card2); color:var(--text); width:100%;
-      box-sizing:border-box; min-height: 260px; resize: vertical;
+      box-sizing:border-box;
     }
-    .help{
-      margin-top:10px; line-height:1.5; padding:10px 12px;
-      border:1px solid #24324e; border-radius:12px; background:#0f1626; color:var(--muted);
-    }
+    textarea { min-height: 160px; resize: vertical; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .chips { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    .chip { font-size:12px; padding:6px 10px; border-radius:999px; border:1px solid #2a3a5c; background:var(--chip); color:var(--text); }
     .pill{
       display:inline-block; padding:4px 10px; border-radius:999px;
       border:1px solid #2a3a5c; background:var(--card2); font-size:12px;
     }
+    .pill.ok{ border-color:#1f6b45; }
+    .pill.warn{ border-color:#6b4c1d; }
+
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .hint { font-size:12px; color:var(--muted); margin-top:6px; line-height:1.4; }
+    .divider{ height:1px; background:#22304a; margin:14px 0; }
+
+    .cols{ display:grid; grid-template-columns: 0.9fr 1.1fr; gap:14px; align-items:start; }
+    @media (max-width: 1100px){ .cols{ grid-template-columns: 1fr; } }
+
+    .checkRow{ display:flex; gap:14px; flex-wrap:wrap; align-items:center; margin-top:10px; }
+    .checkRow label{ margin:0; display:flex; gap:8px; align-items:center; color:var(--text); font-size:13px; }
     input[type="checkbox"]{ width:18px; height:18px; accent-color: var(--primary); }
+
+    .list{ max-height: 320px; overflow:auto; border:1px solid #2a3a5c; border-radius:14px; background:var(--card2); }
+    .item{ padding:12px; border-bottom:1px solid #22304a; cursor:pointer; }
+    .item:last-child{ border-bottom:none; }
+    .item:hover{ background:#111b2f; }
+    .item.active{ background:#142042; }
+    .itemTop{ display:flex; justify-content:space-between; gap:10px; align-items:center; }
+    .itemTitle{ font-weight:900; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="top">
       <div>
-        <h1 style="margin:0;">YouTube Packaging (Prompt Only)</h1>
-        <div class="muted">Pulls artist setup + song suno prompt + lyrics → generates a strict ChatGPT packaging prompt.</div>
+        <h1 style="margin:0;">YouTube Packaging</h1>
         <div id="who" class="muted"></div>
       </div>
       <div class="row">
-        <a class="btn" href="./home.html">Home</a>
-        <button id="btnReload" class="btn">Reload</button>
+        <button id="btnHome" class="btn secondary">Home</button>
+        <button id="btnAlbums" class="btn secondary">Albums</button>
         <button id="btnLogout" class="btn danger">Logout</button>
       </div>
     </div>
 
     <div class="card">
-      <div id="statusLine" class="muted">Loading…</div>
-
-      <div class="grid2" style="margin-top:10px;">
-        <div>
-          <h3 style="margin:0 0 6px;">Long Packaging Needed</h3>
-          <table>
-            <thead>
-              <tr>
-                <th style="width:70px;">#</th>
-                <th>Artist</th>
-                <th>Album</th>
-                <th>Song</th>
-                <th style="width:140px;">Action</th>
-              </tr>
-            </thead>
-            <tbody id="longBody"></tbody>
-          </table>
-        </div>
-
-        <div>
-          <h3 style="margin:0 0 6px;">Shorts Packaging Needed</h3>
-          <table>
-            <thead>
-              <tr>
-                <th style="width:70px;">#</th>
-                <th>Artist</th>
-                <th>Album</th>
-                <th>Song</th>
-                <th style="width:140px;">Action</th>
-              </tr>
-            </thead>
-            <tbody id="shortBody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <div class="card" id="builderCard" style="display:none;">
       <div class="row" style="justify-content:space-between;">
         <div>
-          <h2 style="margin:0;" id="builderTitle">Packaging Prompt</h2>
-          <div class="muted" id="builderSub"></div>
-          <div class="row" style="margin-top:8px;">
-            <span class="pill" id="pillLane"></span>
-            <span class="pill" id="pillPersona"></span>
-            <span class="pill" id="pillGenre"></span>
-          </div>
+          <div id="statusLine" class="muted">Loading…</div>
+          <div class="chips" id="chips"></div>
         </div>
         <div class="row">
+          <button id="btnCopyOutput" class="btn copy">Copy Output</button>
           <button id="btnBuild" class="btn primary">Build Prompt</button>
-          <button id="btnCopy" class="btn copy">Copy Prompt</button>
-          <button id="btnMarkPackaged" class="btn">Mark Packaged ✅</button>
         </div>
       </div>
 
-      <!-- LONG only -->
-      <div class="help" id="thumbHelp" style="display:none;">
-        <div class="row" style="align-items:center;">
-          <input id="thumbUseArtist" type="checkbox">
-          <div><b>Include artist image in thumbnail</b> (uses artist default, you can toggle)</div>
-        </div>
-        <div class="muted" style="margin-top:6px;">
-          Thumbnail style rules are pulled from the artist setup (or blueprint fallback).
-        </div>
-      </div>
+      <div class="divider"></div>
 
-      <h3 style="margin:12px 0 8px;">ChatGPT Prompt Output</h3>
-      <textarea id="promptOut" class="mono" placeholder="Click Build Prompt"></textarea>
-
-      <div class="help">
-        <b>ChatGPT must return ONLY blocks:</b><br>
-        <span class="mono">
-YOUTUBE_TITLE:
-YOUTUBE_DESCRIPTION:
-YOUTUBE_TAGS:
-PINNED_COMMENT:
-(LONG only) THUMBNAIL_TEXT:
-(LONG only) THUMBNAIL_VIDIQ_DESCRIPTION:
-(SHORTS only) TIKTOK_DESCRIPTION:
-        </span>
-        <br><br>
-        <b>Rules:</b> No BPM/Key/Genre/Mood line. Tags must match the genre/mood inferred from the Suno prompt.
+      <div class="grid">
+        <div>
+          <label for="mode">Packaging Mode</label>
+          <select id="mode">
+            <option value="long" selected>Long (needs packaging)</option>
+            <option value="shorts">Shorts (needs packaging)</option>
+          </select>
+          <div class="hint">Long list = songs with <span class="mono">longform_done=true</span> and <span class="mono">long_packaged=false</span>. Shorts list = <span class="mono">short_done=true</span> and <span class="mono">short_packaged=false</span>.</div>
+        </div>
+        <div>
+          <label>Options</label>
+          <div class="checkRow">
+            <label><input id="include_artist_image" type="checkbox" checked> Include artist image (thumbnail prompt)</label>
+          </div>
+          <div class="hint">Shorts do not have thumbnails (checkbox is ignored in shorts mode).</div>
+        </div>
       </div>
     </div>
 
+    <div class="cols">
+      <div class="card">
+        <h2 style="margin:0 0 10px;">Needs Packaging</h2>
+        <div class="hint" style="margin-bottom:10px;">Click an item to load song + artist details and generate your ChatGPT prompt.</div>
+        <div id="list" class="list"></div>
+      </div>
+
+      <div class="card">
+        <h2 style="margin:0 0 10px;">Prompt Output (copy/paste to ChatGPT)</h2>
+        <textarea id="output" class="mono" placeholder="Select a song then click Build Prompt…"></textarea>
+        <div class="row" style="margin-top:10px;">
+          <button id="btnClear" class="btn">Clear</button>
+          <button id="btnCopy" class="btn copy">Copy</button>
+        </div>
+
+        <div class="divider"></div>
+
+        <h3 style="margin:0 0 10px;">Working Results (paste from ChatGPT) — NOT SAVED</h3>
+        <label for="working_results">Paste results here</label>
+        <textarea id="working_results" class="mono" style="min-height:180px;"></textarea>
+        <div class="row" style="margin-top:10px;">
+          <button id="btnCopyWorking" class="btn copy">Copy Working</button>
+          <button id="btnClearWorking" class="btn">Clear Working</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script type="module">
@@ -155,331 +142,274 @@ PINNED_COMMENT:
     const session = await requireSessionOrRedirect();
     $("who").textContent = `Signed in: ${session.user.email}`;
 
+    const SONGS = "songs";
+    const ALBUMS = "albums";
+    const ARTISTS = "artists";
+
+    let rows = [];              // list rows (songs)
+    let selected = null;        // selected song row
+    let selectedAlbum = null;   // album row
+    let selectedArtist = null;  // artist row
+
+    function safe(v){ return (v === null || v === undefined) ? "" : String(v); }
+    function trimOrNone(v){ const t = safe(v).trim(); return t ? t : "(none)"; }
+
+    function setChips(){
+      const chips = $("chips");
+      chips.innerHTML = "";
+      const bits = [];
+      if (selectedArtist?.name) bits.push("artist: " + selectedArtist.name);
+      if (selectedAlbum?.title) bits.push("album: " + selectedAlbum.title);
+      if (selected?.title) bits.push("song: " + selected.title);
+      if (selected?.is_legacy_published) bits.push("legacy: YES");
+      for (const b of bits){
+        const s = document.createElement("span");
+        s.className = "chip";
+        s.textContent = b;
+        chips.appendChild(s);
+      }
+    }
+
+    function renderList(){
+      const box = $("list");
+      box.innerHTML = "";
+      if (!rows.length){
+        box.innerHTML = '<div class="item"><div class="muted">Nothing needs packaging 🎉</div></div>';
+        return;
+      }
+      for (const r of rows){
+        const div = document.createElement("div");
+        div.className = "item";
+        div.dataset.id = r.id;
+
+        const title = r.title || "(untitled)";
+        const legacy = r.is_legacy_published ? "legacy" : "";
+        const flags = [];
+        if (r.longform_done) flags.push("long✅");
+        if (r.long_packaged) flags.push("pack✅");
+        if (r.short_done) flags.push("short✅");
+        if (r.short_packaged) flags.push("shortpack✅");
+
+        div.innerHTML = `
+          <div class="itemTop">
+            <div class="itemTitle">${title} ${legacy ? ' <span class="pill warn">legacy</span>' : ""}</div>
+            <div class="muted">${flags.join(" ")}</div>
+          </div>
+          <div class="muted" style="margin-top:6px;">album_id: ${r.album_id}</div>
+        `;
+        div.onclick = async () => {
+          document.querySelectorAll(".item").forEach(x => x.classList.remove("active"));
+          div.classList.add("active");
+          await selectSong(r);
+        };
+        box.appendChild(div);
+      }
+    }
+
+    async function selectSong(songRow){
+      selected = songRow;
+      $("statusLine").textContent = "Loading album + artist…";
+
+      const { data: a, error: e1 } = await supabase.from(ALBUMS).select("*").eq("id", selected.album_id).single();
+      selectedAlbum = e1 ? null : a;
+
+      const artistId = selectedAlbum?.artist_id;
+      if (artistId){
+        const { data: ar, error: e2 } = await supabase.from(ARTISTS).select("*").eq("id", artistId).single();
+        selectedArtist = e2 ? null : ar;
+      } else {
+        selectedArtist = null;
+      }
+
+      setChips();
+      $("statusLine").textContent = "Ready ✅";
+    }
+
+    function artistDNABlock(ar){
+      if (!ar) return "- (No artist loaded)";
+      const lines = [];
+      const mg = safe(ar.main_genre).trim();
+      const sg = safe(ar.secondary_genre).trim();
+      if (mg || sg) lines.push(`- Genres: ${[mg, sg].filter(Boolean).join(" / ")}`);
+      if (safe(ar.voice_identity).trim()) lines.push(`- Voice Identity: ${ar.voice_identity}`);
+      if (safe(ar.suno_voice_anchor).trim()) lines.push(`- Suno Voice Anchor: ${ar.suno_voice_anchor}`);
+      if (safe(ar.must_include).trim()) lines.push(`- Must Include: ${ar.must_include}`);
+      if (safe(ar.never_include).trim()) lines.push(`- Never Include: ${ar.never_include}`);
+      if (safe(ar.default_perso).trim()) lines.push(`- Persona: ${ar.default_perso}`);
+      if (safe(ar.default_lane).trim()) lines.push(`- Lane: ${ar.default_lane}`);
+      return lines.length ? lines.join("\n") : "- (No Artist DNA set yet)";
+    }
+
+    function artistLinksBlock(ar){
+      if (!ar) return "(none)";
+      // keep flexible: show any link fields if present
+      const pairs = [];
+      const maybe = (key, label) => {
+        const v = safe(ar[key]).trim();
+        if (v) pairs.push(`- ${label}: ${v}`);
+      };
+      maybe("youtube_handle", "YouTube");
+      maybe("bandcamp", "Bandcamp");
+      maybe("spotify", "Spotify");
+      maybe("website", "Website");
+      maybe("instagram", "Instagram");
+      maybe("tiktok", "TikTok");
+      return pairs.length ? pairs.join("\n") : "(none)";
+    }
+
+    function buildSongBlock(){
+      const s = selected;
+      const ar = selectedArtist;
+      const a = selectedAlbum;
+
+      const artistName = safe(ar?.name) || "(unknown artist)";
+      const channelHandle = safe(ar?.youtube_handle).trim() || "@(handle)";
+      const albumTitle = safe(a?.title).trim() || "(single)";
+      const includeImg = $("include_artist_image").checked;
+
+      const core = [];
+      core.push(`Create YouTube packaging copy for the following.`);
+
+      core.push(``);
+      core.push(`Return these sections (keep it clean, no extra talk):`);
+      if ($("mode").value === "long"){
+        core.push(`YOUTUBE_TITLE:`);
+        core.push(`YOUTUBE_DESCRIPTION:`);
+        core.push(`YOUTUBE_TAGS (comma separated, under 500 characters):`);
+        core.push(`PINNED_COMMENT:`);
+        core.push(`THUMBNAIL_PROMPT (1280x720, SEO-friendly, readable):`);
+      } else {
+        core.push(`YOUTUBE_SHORT_TITLE:`);
+        core.push(`YOUTUBE_SHORT_DESCRIPTION:`);
+        core.push(`YOUTUBE_SHORT_TAGS (comma separated, under 500 characters):`);
+        core.push(`PINNED_COMMENT:`);
+        core.push(`TIKTOK_DESCRIPTION (short, hashtag-ready):`);
+      }
+
+      core.push(``);
+      core.push(`Artist info:`);
+      core.push(`- Artist: ${artistName}`);
+      core.push(`- Channel Handle: ${channelHandle}`);
+      core.push(`- Album/Collection: ${albumTitle}`);
+      core.push(`- Artist About (use in description): ${trimOrNone(ar?.about)}`);
+      core.push(`- Links (add in description if relevant):`);
+      core.push(`${artistLinksBlock(ar)}`);
+
+      core.push(``);
+      core.push(`Artist DNA (must follow):`);
+      core.push(artistDNABlock(ar));
+
+      core.push(``);
+      core.push(`Song info:`);
+      core.push(`- Title: ${safe(s?.title) || "(untitled)"}`);
+      core.push(`- Keywords: ${trimOrNone(s?.keywords)}`);
+      core.push(`- Scripture: ${trimOrNone(s?.scripture)}`);
+
+      core.push(``);
+      core.push(`Suno prompt (use for genre/mood/tags; keep instruments present):`);
+      core.push("```");
+      core.push(safe(s?.suno_prompt));
+      core.push("```");
+
+      core.push(``);
+      core.push(`Lyrics (use in description; paste clean, no role labels):`);
+      core.push("```");
+      core.push(safe(s?.lyrics));
+      core.push("```");
+
+      core.push(``);
+      core.push(`Rules:`);
+      core.push(`- Do NOT include a “Song Details: BPM/Key/Genre/Mood” line.`);
+      core.push(`- Tags MUST be genre-accurate and derived from Suno prompt + artist DNA, under 500 chars, comma separated.`);
+      core.push(`- Description must include: short intro, artist about line(s), lyrics section, and hashtags.`);
+      core.push(`- Pinned comment should be short, emoji-friendly, invite prayer requests and engagement.`);
+      if ($("mode").value === "long"){
+        core.push(`- Thumbnail prompt must be click-worthy, high-contrast, mobile readable, no clutter.`);
+        core.push(`- Include artist image: ${includeImg ? "YES (assume we will tick reference image in vidIQ)" : "NO"}.`);
+      } else {
+        core.push(`- Shorts have no thumbnails.`);
+        core.push(`- TikTok description should be short + include a few relevant hashtags.`);
+      }
+
+      return core.join("\n");
+    }
+
+    function buildPrompt(){
+      if (!selected){
+        alert("Select a song first.");
+        return;
+      }
+      $("output").value = buildSongBlock();
+      $("statusLine").textContent = "Prompt built ✅";
+    }
+
+    async function loadList(){
+      $("statusLine").textContent = "Loading songs that need packaging…";
+      selected = null; selectedAlbum = null; selectedArtist = null;
+      $("output").value = "";
+      setChips();
+
+      const mode = $("mode").value;
+
+      // We avoid .select("*,albums(*),artists(*)") to keep schema flexible and simple.
+      let query = supabase.from(SONGS).select("*");
+      if (mode === "long"){
+        query = query.eq("longform_done", true).eq("long_packaged", false);
+      } else {
+        query = query.eq("short_done", true).eq("short_packaged", false);
+      }
+      query = query.order("updated_at", { ascending: false });
+
+      const { data, error } = await query;
+      if (error){
+        $("statusLine").textContent = "Error: " + error.message;
+        rows = [];
+        renderList();
+        return;
+      }
+      rows = data || [];
+      $("statusLine").textContent = `Found ${rows.length} song(s).`;
+      renderList();
+
+      // Auto-select first
+      if (rows.length){
+        // mark first as active
+        setTimeout(async () => {
+          const first = document.querySelector(".item");
+          if (first) first.classList.add("active");
+          await selectSong(rows[0]);
+        }, 0);
+      }
+    }
+
+    $("mode").onchange = loadList;
+    $("btnBuild").onclick = buildPrompt;
+
+    $("btnClear").onclick = () => $("output").value = "";
+    $("btnCopy").onclick = async () => {
+      const t = $("output").value || "";
+      if (!t.trim()) return alert("Nothing to copy.");
+      await navigator.clipboard.writeText(t);
+      $("statusLine").textContent = "Output copied ✅";
+    };
+    $("btnCopyOutput").onclick = $("btnCopy").onclick;
+
+    $("btnCopyWorking").onclick = async () => {
+      const t = $("working_results").value || "";
+      if (!t.trim()) return alert("Working box is empty.");
+      await navigator.clipboard.writeText(t);
+      $("statusLine").textContent = "Working copied ✅";
+    };
+    $("btnClearWorking").onclick = () => $("working_results").value = "";
+
+    $("btnHome").onclick = () => window.location.href = "./home.html";
+    $("btnAlbums").onclick = () => window.location.href = "./albums.html";
     $("btnLogout").onclick = async () => {
       await supabase.auth.signOut();
       window.location.href = "./index.html";
     };
-    $("btnReload").onclick = () => load();
 
-    const safe = (v) => (v === null || v === undefined) ? "" : String(v);
-
-    let albumMap = new Map();
-    let artistMap = new Map();
-
-    let selected = {
-      mode: null,   // "long" | "short"
-      song: null,
-      album: null,
-      artist: null
-    };
-
-    function getBlueprint(ar){
-      const bp = ar?.blueprint;
-      if (!bp) return {};
-      if (typeof bp === "object") return bp; // already json
-      try { return JSON.parse(bp); } catch { return {}; }
-    }
-
-    function setSelectedUI(){
-      const s = selected.song || {};
-      const al = selected.album || {};
-      const ar = selected.artist || {};
-      const mainG = ar.main_genre || "—";
-      const secG = ar.secondary_genre || "—";
-
-      $("builderCard").style.display = "block";
-      $("builderTitle").textContent = selected.mode === "long" ? "Long Video Packaging Prompt" : "Shorts Packaging Prompt";
-      $("builderSub").textContent = `${ar.name || "—"} • ${al.title || "—"} • ${s.title || "—"}`;
-
-      $("pillLane").textContent = `lane: ${ar.default_lane || "—"}`;
-      $("pillPersona").textContent = `persona: ${ar.default_perso || "—"}`;
-      $("pillGenre").textContent = `genre: ${mainG} / ${secG}`;
-
-      if (selected.mode === "long") {
-        $("thumbHelp").style.display = "block";
-        $("thumbUseArtist").checked = !!ar.thumb_use_artist_default;
-      } else {
-        $("thumbHelp").style.display = "none";
-      }
-
-      $("promptOut").value = "";
-      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
-    }
-
-    function buildPrompt(){
-      const mode = selected.mode;
-      const s = selected.song || {};
-      const al = selected.album || {};
-      const ar = selected.artist || {};
-      const bp = getBlueprint(ar);
-
-      const includeArtistThumb = (mode === "long") ? $("thumbUseArtist").checked : false;
-
-      // Prefer YouTube About override, else artist_about, else fallback instruction
-      const artistAbout =
-        (ar.youtube_about || "").trim() ||
-        (ar.artist_about || "").trim();
-
-      const tagline = (ar.tagline || "").trim();
-
-      // Thumbnail style: column first, then blueprint fallback
-      const thumbStyleLong =
-        (ar.thumbnail_style_long || "").trim() ||
-        (bp?.visual?.thumbnail_long_style || "").trim();
-
-      const links = [
-        ["YouTube", ar.youtube_url],
-        ["Spotify", ar.spotify_url],
-        ["Bandcamp", ar.bandcamp_ur],
-        ["Apple Music", ar.apple_music_],
-        ["SoundCloud", ar.soundcloud_u],
-        ["Website", ar.website_url],
-        ["Beacons", ar.beacons_url],
-        ["TikTok", ar.tiktok_url],
-        ["Facebook", ar.facebook_url]
-      ].filter(([,u]) => !!u).map(([name,u]) => `${name}: ${u}`).join("\\n");
-
-      const lyrics = (s.lyrics || "").trim();
-      const suno = (s.suno_prompt || "").trim();
-      const keywords = (s.keywords || "").trim();
-      const scripture = (s.scripture || "").trim();
-
-      const strict = mode === "long" ? `
-STRICT OUTPUT (MUST MATCH EXACTLY)
-Return ONLY these blocks. NO markdown. NO commentary.
-
-YOUTUBE_TITLE:
-<one line: Emotional Hook + Song Title + Artist Name>
-
-YOUTUBE_DESCRIPTION:
-<Full YouTube description>
-- Start with 2-3 short emotional lines.
-- Include full lyrics.
-- Include ABOUT THE ARTIST using the provided artist about text.
-- Include LINKS section using the provided links (only if any).
-- End with 8–15 hashtags (genre/mood matched to Suno prompt).
-- DO NOT include any “Song Details: BPM/Key/Genre/Mood” line.
-
-YOUTUBE_TAGS:
-<comma separated tags, UNDER 500 CHARACTERS>
-- Tags must match genre + mood inferred from Suno prompt.
-- Include artist name, song title, album title, and relevant genre tags (country gospel / soul gospel / worship / praise etc).
-
-PINNED_COMMENT:
-<short, prayer-friendly, engagement-focused>
-
-THUMBNAIL_TEXT:
-<2–4 words, big, readable, emotional hook>
-
-THUMBNAIL_VIDIQ_DESCRIPTION:
-<one paragraph describing the thumbnail. Mention whether artist image is included.>
-`.trim()
-: `
-STRICT OUTPUT (MUST MATCH EXACTLY)
-Return ONLY these blocks. NO markdown. NO commentary.
-
-YOUTUBE_TITLE:
-<one line: Emotional Hook + Song Title + Artist Name>
-
-YOUTUBE_DESCRIPTION:
-<Full YouTube description for a SHORT>
-- Start with 1-2 short emotional lines.
-- Include lyrics used in the short (or full lyrics if best).
-- Include ABOUT THE ARTIST using the provided artist about text.
-- Include LINKS section using provided links (only if any).
-- End with 6–12 hashtags (genre/mood matched to Suno prompt).
-- DO NOT include any “Song Details: BPM/Key/Genre/Mood” line.
-
-YOUTUBE_TAGS:
-<comma separated tags, UNDER 500 CHARACTERS>
-- Tags must match genre + mood inferred from Suno prompt.
-
-PINNED_COMMENT:
-<short, prayer-friendly, engagement-focused>
-
-TIKTOK_DESCRIPTION:
-<short hook + emojis + hashtags, genre/mood matched to Suno prompt>
-`.trim();
-
-      const thumbBlock = mode === "long" ? `
-THUMBNAIL SETTINGS (LONG)
-- Include artist image: ${includeArtistThumb ? "YES" : "NO"}
-- Use this artist thumbnail style (or create one if empty):
-${thumbStyleLong || "(EMPTY) Create an SEO thumbnail plan that matches the artist genre + voice identity. Must be clear, high contrast, readable on mobile, and eye-catching.)"}
-`.trim() : ``;
-
-      const dnaBlock = `
-ARTIST DNA (MUST BE FOLLOWED)
-- Main Genre: ${ar.main_genre || "(missing)"}
-- Secondary Genre: ${ar.secondary_genre || "(missing)"}
-- Voice Identity: ${ar.voice_identity || "(missing)"}
-- Must Include: ${ar.must_include || "(missing)"}
-- Never Include: ${ar.never_include || "(missing)"}
-- Suno Voice Anchor (voice only): ${ar.suno_voice_anchor || "(missing)"}
-`.trim();
-
-      const prompt = `
-You are creating a publish-ready YouTube package for a finished ${mode === "long" ? "LONG video" : "SHORT"}.
-
-ARTIST SETUP (MUST BE USED)
-- Artist Name: ${ar.name || ""}
-- Tagline: ${tagline || "(none)"}
-- Default Lane: ${ar.default_lane || ""}
-- Default Persona: ${ar.default_perso || ""}
-- Channel Handle: ${ar.channel_hand ? ("@" + String(ar.channel_hand).replace(/^@/,"")) : "(none)"}
-- YouTube Channel Name: ${ar.youtube_chan || "(none)"}
-
-${dnaBlock}
-
-ABOUT THE ARTIST (use as-is, do not rewrite unless empty)
-${artistAbout || "(EMPTY) Write a short 2–4 sentence artist about that matches the Artist DNA and genre."}
-
-LINKS (include only if any exist)
-${links || "(none)"}
-
-SONG DATA
-- Album: ${al.title || ""}
-- Song Title: ${s.title || ""}
-- Suno style prompt (USE THIS to infer GENRE + MOOD for tags/hashtags): ${suno || "(none)"}
-- Keywords: ${keywords || "(none)"}
-- Scripture: ${scripture || "(none)"}
-
-LYRICS
-${lyrics || "(Lyrics missing. Write a description without lyrics.)"}
-
-TITLE RULES
-- Must begin with an emotional hook phrase.
-- Must include Song Title and Artist Name.
-- Keep it clear and clickable (no keyword stuffing).
-
-DESCRIPTION RULES
-- No BPM/Key/Genre/Mood line.
-- Must fit the inferred genre/mood from Suno prompt.
-- End with hashtags that match genre/mood.
-
-TAGS RULES
-- Comma separated
-- Under 500 characters
-- Must match inferred genre/mood from Suno prompt
-
-${thumbBlock}
-
-${strict}
-`.trim();
-
-      return prompt;
-    }
-
-    async function markPackaged(){
-      if (!selected.song?.id) return alert("Select a song first.");
-      const payload = selected.mode === "long"
-        ? { long_packaged: true }
-        : { short_packaged: true };
-
-      $("statusLine").textContent = "Marking packaged…";
-      const { error } = await supabase.from("songs").update(payload).eq("id", selected.song.id);
-      if (error) { $("statusLine").textContent = "Error: " + error.message; return; }
-
-      $("statusLine").textContent = "Marked packaged ✅";
-      $("builderCard").style.display = "none";
-      selected = { mode:null, song:null, album:null, artist:null };
-      await load();
-    }
-
-    $("btnBuild").onclick = () => {
-      if (!selected.song) return alert("Select a song first.");
-      $("promptOut").value = buildPrompt();
-    };
-
-    $("btnCopy").onclick = async () => {
-      const p = ($("promptOut").value || "").trim();
-      if (!p) return alert("Build the prompt first.");
-      await navigator.clipboard.writeText(p);
-      $("statusLine").textContent = "Copied prompt ✅";
-    };
-
-    $("btnMarkPackaged").onclick = markPackaged;
-
-    async function load(){
-      $("statusLine").textContent = "Loading…";
-      $("longBody").innerHTML = "";
-      $("shortBody").innerHTML = "";
-
-      const { data: albums, error: e1 } = await supabase
-        .from("albums")
-        .select("id,title,artist_id,status")
-        .in("status", ["approved", "producing"]);
-      if (e1) { $("statusLine").textContent = "Error: " + e1.message; return; }
-
-      albumMap = new Map((albums||[]).map(a => [a.id, a]));
-      const albumIds = (albums||[]).map(a => a.id);
-      if (!albumIds.length) { $("statusLine").textContent = "No approved/producing albums."; return; }
-
-      const { data: songs, error: e2 } = await supabase
-        .from("songs")
-        .select("id,album_id,track_number,title,lyrics,keywords,scripture,suno_prompt,longform_done,short_done,long_packaged,short_packaged")
-        .in("album_id", albumIds)
-        .order("album_id", { ascending: true })
-        .order("track_number", { ascending: true });
-      if (e2) { $("statusLine").textContent = "Error: " + e2.message; return; }
-
-      const artistIds = [...new Set((albums||[]).map(a => a.artist_id).filter(Boolean))];
-      const { data: artists, error: e3 } = await supabase
-        .from("artists")
-        .select([
-          "id,name,tagline,artist_about,channel_hand,youtube_chan,default_lane,default_perso,youtube_about",
-          "main_genre,secondary_genre,voice_identity,must_include,never_include,suno_voice_anchor",
-          "thumbnail_style_long,thumb_use_artist_default,blueprint",
-          "spotify_url,bandcamp_ur,apple_music_,soundcloud_u,youtube_url,website_url,beacons_url,tiktok_url,facebook_url"
-        ].join(","))
-        .in("id", artistIds);
-      if (e3) { $("statusLine").textContent = "Error: " + e3.message; return; }
-
-      artistMap = new Map((artists||[]).map(a => [a.id, a]));
-
-      const longQueue = (songs||[]).filter(s => !!s.longform_done && !s.long_packaged);
-      const shortQueue = (songs||[]).filter(s => !!s.short_done && !s.short_packaged);
-
-      for (const s of longQueue){
-        const al = albumMap.get(s.album_id);
-        const ar = artistMap.get(al?.artist_id);
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td><b>${s.track_number ?? ""}</b></td>
-          <td>${safe(ar?.name || "—")}</td>
-          <td>${safe(al?.title || "—")}</td>
-          <td>${safe(s.title || "—")}</td>
-          <td><button class="btn primary">Build</button></td>
-        `;
-        tr.querySelector("button").onclick = () => {
-          selected = { mode:"long", song:s, album:al, artist:ar };
-          setSelectedUI();
-        };
-        $("longBody").appendChild(tr);
-      }
-
-      for (const s of shortQueue){
-        const al = albumMap.get(s.album_id);
-        const ar = artistMap.get(al?.artist_id);
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td><b>${s.track_number ?? ""}</b></td>
-          <td>${safe(ar?.name || "—")}</td>
-          <td>${safe(al?.title || "—")}</td>
-          <td>${safe(s.title || "—")}</td>
-          <td><button class="btn primary">Build</button></td>
-        `;
-        tr.querySelector("button").onclick = () => {
-          selected = { mode:"short", song:s, album:al, artist:ar };
-          setSelectedUI();
-        };
-        $("shortBody").appendChild(tr);
-      }
-
-      $("statusLine").textContent = `Long queue: ${longQueue.length} • Shorts queue: ${shortQueue.length}`;
-    }
-
-    await load();
+    await loadList();
   </script>
 </body>
 </html>
