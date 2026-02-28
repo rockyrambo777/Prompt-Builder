@@ -98,130 +98,8 @@
 
     <div class="cols">
       <div>
-        <div class="card">
-          <h2 style="margin:0 0 10px;">Song Editor</h2>
+        
 
-          <div class="row" style="justify-content:space-between; margin-top:10px;">
-            <label style="display:flex; gap:10px; align-items:center; margin:0;">
-              <input id="editSongToggle" type="checkbox">
-              <span><b>Edit song (tempo / lyrics / Suno prompt)</b></span>
-            </label>
-            <div class="row">
-              <button id="btnOpenLyricsBuilder" class="btn secondary">Build Lyrics + Suno</button>
-            </div>
-          </div>
-          <div class="hint" id="editHint" style="margin-top:8px;">
-            If the song has no lyrics, use <b>Build Lyrics + Suno</b>. Editing is only enabled once lyrics exist.
-          </div>
-
-
-          <div class="grid">
-            <div>
-              <label for="title">Title</label>
-              <input id="title" placeholder="Song title">
-            </div>
-            <div>
-              <label for="track_number">Track #</label>
-              <input id="track_number" type="number" min="1" max="99">
-            </div>
-          </div>
-
-          <div class="grid">
-            <div>
-              <label for="keywords">Keywords (optional)</label>
-              <input id="keywords" placeholder="faith, authority, bold praise">
-            </div>
-            <div>
-              <label for="scripture">Scripture (optional)</label>
-              <input id="scripture" placeholder="Ephesians 6:10">
-            </div>
-          </div>
-
-          <label for="suno_prompt">Suno Prompt</label>
-          <textarea id="suno_prompt" class="mono" style="min-height:130px;"></textarea>
-          <div class="hint">Reminder: songs should always include instruments. Voice stays anchored by artist identity, but each song can have a different beat/arrangement.</div>
-
-          <label for="lyrics">Lyrics</label>
-          <textarea id="lyrics" class="mono" style="min-height:180px;"></textarea>
-
-          <div class="divider"></div>
-
-          <h3 style="margin:0 0 10px;">Revision Controls (saved)</h3>
-
-          <div class="divider"></div>
-          <h3 style="margin:0 0 10px;">Song Edit Prompt (copy/paste to ChatGPT)</h3>
-          <textarea id="song_edit_prompt" class="mono" style="min-height:200px;" placeholder="Tick Edit song, set revision controls, then click Build Song Edit Prompt…"></textarea>
-          <div class="row" style="margin-top:10px;">
-            <button id="btnBuildSongEdit" class="btn primary">Build Song Edit Prompt</button>
-            <button id="btnCopySongEdit" class="btn copy">Copy Song Edit Prompt</button>
-            <button id="btnClearSongEdit" class="btn">Clear</button>
-          </div>
-          <div class="hint">Paste ChatGPT results back into <b>Suno Prompt</b> + <b>Lyrics</b>, then click <b>Save Song</b>.</div>
-
-          <div class="grid">
-            <div>
-              <label for="revision_goal">Revision goal</label>
-              <input id="revision_goal" placeholder="Make it more driving + bigger chorus lift">
-            </div>
-            <div>
-              <label for="tempo_direction">Tempo direction</label>
-              <select id="tempo_direction">
-                <option value="">(none)</option>
-                <option value="slower">slower</option>
-                <option value="same">same</option>
-                <option value="faster">faster</option>
-              </select>
-            </div>
-            <div>
-              <label for="energy_direction">Energy direction</label>
-              <select id="energy_direction">
-                <option value="">(none)</option>
-                <option value="more_drums">more drums</option>
-                <option value="less_drums">less drums</option>
-                <option value="bigger">bigger / more lift</option>
-                <option value="simpler">simpler / more space</option>
-              </select>
-            </div>
-            <div>
-              <label for="instrumentation_notes">Instrumentation notes</label>
-              <input id="instrumentation_notes" placeholder="Add tambourine lifts, heavier kick, more guitar drive">
-            </div>
-          </div>
-
-          <label for="edit_notes">Edit notes (saved)</label>
-          <textarea id="edit_notes" class="mono" style="min-height:110px;" placeholder="Anything else you want to remember for this song..."></textarea>
-
-          <div class="divider"></div>
-
-          <h3 style="margin:0 0 10px;">Status + Links</h3>
-          <div class="checkRow">
-            <label><input id="lyrics_done" type="checkbox"> Lyrics done</label>
-            <label><input id="longform_done" type="checkbox"> Long done</label>
-            <label><input id="long_packaged" type="checkbox"> Long packaged</label>
-            <label><input id="short_done" type="checkbox"> Shorts done</label>
-            <label><input id="short_packaged" type="checkbox"> Shorts packaged</label>
-            <label><input id="is_legacy_published" type="checkbox"> Legacy published</label>
-          </div>
-
-          <div class="grid">
-            <div>
-              <label for="youtube_long_url">YouTube Long URL</label>
-              <input id="youtube_long_url" placeholder="https://www.youtube.com/watch?v=…">
-            </div>
-            <div>
-              <label for="youtube_long_published_at">YouTube Long Published Date</label>
-              <input id="youtube_long_published_at" type="date">
-            </div>
-            <div>
-              <label for="youtube_short_url">YouTube Short URL</label>
-              <input id="youtube_short_url" placeholder="https://www.youtube.com/shorts/…">
-            </div>
-            <div>
-              <label for="youtube_short_published_at">YouTube Short Published Date</label>
-              <input id="youtube_short_published_at" type="date">
-            </div>
-          </div>
-        </div>
       </div>
 
       <div class="stickyBox">
@@ -415,18 +293,13 @@
       $("instrumentation_notes").value = s.instrumentation_notes || "";
       $("edit_notes").value = s.edit_notes || "";
 
-      $("lyrics_done").checked = !!s.lyrics_done || ((s.lyrics || "").trim().length > 0);
-      $("longform_done").checked = !!s.longform_done;
-      $("long_packaged").checked = !!s.long_packaged;
       $("short_done").checked = !!s.short_done;
       $("short_packaged").checked = !!s.short_packaged;
       $("is_legacy_published").checked = !!s.is_legacy_published;
 
       setEditMode();
 
-      $("youtube_long_url").value = s.youtube_long_url || "";
       $("youtube_long_published_at").value = s.youtube_long_published_at || "";
-      $("youtube_short_url").value = s.youtube_short_url || "";
       $("youtube_short_published_at").value = s.youtube_short_published_at || "";
 
       setDNAPreview();
@@ -480,16 +353,10 @@
         instrumentation_notes: $("instrumentation_notes").value.trim() || null,
         edit_notes: $("edit_notes").value || null,
 
-        lyrics_done: $("lyrics_done").checked,
-        longform_done: $("longform_done").checked,
-        long_packaged: $("long_packaged").checked,
         short_done: $("short_done").checked,
         short_packaged: $("short_packaged").checked,
-        is_legacy_published: $("is_legacy_published").checked,
-
-        youtube_long_url: $("youtube_long_url").value.trim() || null,
+        is_
         youtube_long_published_at: $("youtube_long_published_at").value.trim() || null,
-        youtube_short_url: $("youtube_short_url").value.trim() || null,
         youtube_short_published_at: $("youtube_short_published_at").value.trim() || null
       };
 
