@@ -108,7 +108,7 @@
               <span>Edit song (tempo / lyrics / Suno prompt)</span>
             </label>
 
-            <button id="btnLyricsBuilder" class="btn secondary">Build Lyrics + Suno</button>
+            <button id="btnOpenLyricsBuilder" class="btn secondary">Build Lyrics + Suno</button>
           </div>
 
           <div class="hint" id="editHint" style="margin-top:8px;">
@@ -597,16 +597,20 @@ ${buildSongContextBlock()}
         el.disabled = !on;
       }
 
-            $("btnOpenLyricsBuilder").disabled = canEdit; // only for missing lyrics
+                  const __el_btnOpenLyricsBuilder = $("btnOpenLyricsBuilder");
+      if (__el_btnOpenLyricsBuilder) __el_btnOpenLyricsBuilder.disabled = canEdit; // only for missing lyrics
 
       // Save only when editing
-      $("btnSaveSong").disabled = !on;
+            const __el_btnSaveSong2 = $("btnSaveSong");
+      if (__el_btnSaveSong2) __el_btnSaveSong2.disabled = !on;
 
-      // Build Song Edit prompt only when editing
-      $("btnBuildSongEdit").disabled = !on;
-      $("btnCopySongEdit").disabled = !on;
-      $("btnClearSongEdit").disabled = !on;
-    }
+      // Build Song Edit prompt only when editing      const __el_btnBuildSongEdit = $("btnBuildSongEdit");
+      if (__el_btnBuildSongEdit) __el_btnBuildSongEdit.disabled = !on;
+      const __el_btnCopySongEdit = $("btnCopySongEdit");
+      if (__el_btnCopySongEdit) __el_btnCopySongEdit.disabled = !on;
+      const __el_btnClearSongEdit = $("btnClearSongEdit");
+      if (__el_btnClearSongEdit) __el_btnClearSongEdit.disabled = !on;
+}
 
     const _tgl = $("editSongToggle");
     if (_tgl) _tgl.onchange = setEditMode;
@@ -813,14 +817,6 @@ ${buildSongContextBlock()}
     if (__el_btnSaveSong) __el_btnSaveSong.onclick = saveSong;
     const _ss = $("songSelect");
     if (_ss) _ss.onchange = (e) => selectSong(e.target.value);
-
-
-    const __el_btnLyricsBuilder = $("btnLyricsBuilder");
-    if (__el_btnLyricsBuilder) __el_btnLyricsBuilder.onclick = () => {
-      if (!album_id || !currentSongId) return;
-      window.location.href = `./song-lyrics-builder.html?album_id=${encodeURIComponent(album_id)}&song_id=${encodeURIComponent(currentSongId)}`;
-    };
-
     const __el_editToggle = $("editSongToggle");
     if (__el_editToggle) __el_editToggle.onchange = () => setEditMode();
 
