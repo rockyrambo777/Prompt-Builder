@@ -177,9 +177,7 @@
       const t = (text || "").trim();
       if (!t) return null;
       try { const v = JSON.parse(t); if (Array.isArray(v)) return v; } catch {}
-      const lines = t.split(/
-?
-/).map(s => s.trim()).filter(Boolean);
+      const lines = t.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
       if (lines.length) return lines;
       const parts = t.split(",").map(s => s.trim()).filter(Boolean);
       return parts.length ? parts : null;
