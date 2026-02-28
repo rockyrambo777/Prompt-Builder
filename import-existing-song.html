@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Import Existing Song</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 12px;}
+    .tab{padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);cursor:pointer}
+    .tab.active{background:rgba(59,130,246,.22);border-color:rgba(59,130,246,.45)}
+    .pane{display:none}
+    .pane.active{display:block}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
+    textarea{min-height:420px}
+    .topbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+    .chips{display:flex;gap:8px;flex-wrap:wrap}
+    .chip{padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);font-size:12px}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="topbar">
+      <div>
+        <h1 style="margin:0 0 6px;">Import Existing Song</h1>
+        <div class="muted" id="who">Signed in…</div>
+      </div>
+      <div class="row" style="gap:10px;flex-wrap:wrap;">
+        <a class="btn" href="./home.html">Home</a>
+        <a class="btn" id="btnBackAlbum" href="./albums.html">Album</a>
+        <button class="btn primary" id="btnSave">Save Imported Song</button>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:14px;">
+      <div class="chips">
+        <span class="chip" id="chipArtist">artist: —</span>
+        <span class="chip" id="chipAlbum">album: —</span>
+        <span class="chip" id="chipSongs">songs: —</span>
+      </div>
+      <div class="muted" style="margin-top:10px;">
+        Paste what you already have (Title + Suno Prompt + Lyrics). This creates a song inside the selected album so it shows up in Production + YouTube Packaging.
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:14px;">
+      <div class="grid2">
+        <div>
+          <label for="title">Song title</label>
+          <input id="title" placeholder="e.g. Stand in His Strength" />
+        </div>
+        <div>
+          <label for="track">Track # (optional)</label>
+          <input id="track" type="number" min="1" placeholder="e.g. 3" />
+        </div>
+
+        <div>
+          <label for="keywords">Keywords (optional)</label>
+          <input id="keywords" placeholder="e.g. faith, authority, bold praise" />
+        </div>
+        <div>
+          <label for="scripture">Scripture (faith artists only, optional)</label>
+          <input id="scripture" placeholder="e.g. Ephesians 6:10" />
+        </div>
+
+        <div>
+          <label for="suno_url">Suno link (optional)</label>
+          <input id="suno_url" placeholder="https://suno.com/..." />
+        </div>
+        <div>
+          <label for="youtube_url">YouTube long URL (optional)</label>
+          <input id="youtube_url" placeholder="https://www.youtube.com/watch?v=..." />
+        </div>
+      </div>
+
+      <div class="tabs" role="tablist" aria-label="Import tabs">
+        <button class="tab active" data-tab="suno">Suno Prompt</button>
+        <button class="tab" data-tab="lyrics">Lyrics</button>
+        <button class="tab" data-tab="bulk">Bulk (3-block paste)</button>
+      </div>
+
+      <div class="pane active" id="pane-suno">
+        <label for="suno_prompt">Suno Prompt</label>
+        <textarea id="suno_prompt" class="mono" placeholder="Paste the full Suno prompt for this song…"></textarea>
+        <div class="muted" style="margin-top:6px;">Tip: prompts must include instruments (your Artist DNA will keep voice anchored).</div>
+      </div>
+
+      <div class="pane" id="pane-lyrics">
+        <label for="lyrics">Lyrics</label>
+        <textarea id="lyrics" class="mono" placeholder="Paste the full lyrics…"></textarea>
+      </div>
+
+      <div class="pane" id="pane-bulk">
+        <label for="bulk">One paste (auto-split)</label>
+        <textarea id="bulk" class="mono" placeholder="TITLE: ...
+
+SUNO_PROMPT:
+...
+
+LYRICS:
+..."></textarea>
+        <div class="muted" style="margin-top:6px;">This will auto-fill Title + Suno Prompt + Lyrics when you click “Apply”.</div>
+        <div class="row" style="gap:10px;justify-content:flex-end;margin-top:10px;">
+          <button class="btn secondary" id="btnApplyBulk">Apply</button>
+        </div>
+      </div>
+
+      <div class="row" style="gap:10px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap;">
+        <button class="btn" id="btnClear">Clear</button>
+        <button class="btn" id="btnCopyJson">Copy JSON</button>
+        <button class="btn primary" id="btnSave2">Save Imported Song</button>
+      </div>
+
+      <div class="muted" id="status" style="margin-top:10px;"></div>
+    </div>
+  </div>
+
+<script type="module">
+  import { supabase, requireSessionOrRedirect } from "./app.js";
+  const $ = (id) => document.getElementById(id);
+
+  const ARTISTS = "artists";
+  const ALBUMS  = "albums";
+  const SONGS   = "songs";
+
+  const session = await requireSessionOrRedirect();
+  $("who").textContent = `Signed in: ${session.user.email}`;
+
+  const params = new URLSearchParams(window.location.search);
+  const album_id = params.get("album_id") || params.get("id"); // accept either
+  if (!album_id) {
+    alert("Missing album_id in URL. Open an album and click Import, or use: import-existing.html?album_id=...");
+  }
+
+  // Back button points to the album-edit view
+  $("btnBackAlbum").href = album_id ? `./album-edit.html?id=${encodeURIComponent(album_id)}` : "./albums.html";
+
+  // Tabs
+  for (const b of document.querySelectorAll(".tab")){
+    b.addEventListener("click", () => {
+      document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+      document.querySelectorAll(".pane").forEach(x=>x.classList.remove("active"));
+      b.classList.add("active");
+      const key = b.dataset.tab;
+      $("pane-"+key)?.classList.add("active");
+      if (key==="suno") $("pane-suno").classList.add("active");
+      if (key==="lyrics") $("pane-lyrics").classList.add("active");
+      if (key==="bulk") $("pane-bulk").classList.add("active");
+    });
+  }
+  // Fix pane ids mapping
+  const paneMap = {suno:"pane-suno", lyrics:"pane-lyrics", bulk:"pane-bulk"};
+  document.querySelectorAll(".tab").forEach(b=>{
+    b.onclick = () => {
+      document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+      document.querySelectorAll(".pane").forEach(x=>x.classList.remove("active"));
+      b.classList.add("active");
+      const paneId = paneMap[b.dataset.tab];
+      $(paneId).classList.add("active");
+    };
+  });
+
+  // Load album + artist preview
+  let album = null;
+  let artist = null;
+
+  async function loadContext(){
+    if (!album_id) return;
+    const a = await supabase.from(ALBUMS).select("*").eq("id", album_id).single();
+    if (a.error) throw a.error;
+    album = a.data;
+
+    const ar = await supabase.from(ARTISTS).select("*").eq("id", album.artist_id).single();
+    if (ar.error) throw ar.error;
+    artist = ar.data;
+
+    const count = await supabase.from(SONGS).select("id", { count:"exact", head:true }).eq("album_id", album_id);
+
+    $("chipArtist").textContent = `artist: ${artist.name}`;
+    $("chipAlbum").textContent  = `album: ${album.title}`;
+    $("chipSongs").textContent  = `songs: ${count.count ?? "—"}`;
+  }
+  try { await loadContext(); } catch(e){ console.error(e); $("status").textContent = "Error loading album/artist."; }
+
+  function parseBulk(text){
+    const get = (label) => {
+      const re = new RegExp(`^${label}:\s*([\s\S]*?)(?=\n[A-Z_]+\s*:\s*|$)`, "mi");
+      const m = text.match(re);
+      return m ? m[1].trim() : "";
+    };
+    return {
+      title: get("TITLE"),
+      suno_prompt: get("SUNO_PROMPT"),
+      lyrics: get("LYRICS")
+    };
+  }
+
+  $("btnApplyBulk").onclick = () => {
+    const t = $("bulk").value || "";
+    const p = parseBulk(t);
+    if (p.title) $("title").value = p.title;
+    if (p.suno_prompt) $("suno_prompt").value = p.suno_prompt;
+    if (p.lyrics) $("lyrics").value = p.lyrics;
+    $("status").textContent = "Applied ✅";
+  };
+
+  $("btnClear").onclick = () => {
+    ["title","track","keywords","scripture","suno_url","youtube_url","suno_prompt","lyrics","bulk"].forEach(id=>$(id).value="");
+    $("status").textContent = "";
+  };
+
+  function buildPayload(){
+    const payload = {
+      album_id,
+      title: ($("title").value || "").trim(),
+      track_number: parseInt(($("track").value||"").trim(),10) || null,
+      keywords: ($("keywords").value || "").trim() || null,
+      scripture: ($("scripture").value || "").trim() || null,
+      suno_url: ($("suno_url").value || "").trim() || null,
+      youtube_url: ($("youtube_url").value || "").trim() || null,
+      suno_prompt: ($("suno_prompt").value || "").trim() || null,
+      lyrics: ($("lyrics").value || "").trim() || null,
+      is_imported: true
+    };
+    return payload;
+  }
+
+  $("btnCopyJson").onclick = async () => {
+    const payload = buildPayload();
+    await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+    $("status").textContent = "Copied JSON ✅";
+  };
+
+  async function insertWithFallbackOne(obj){
+    // Drops unknown columns automatically if your DB doesn't have them yet
+    let working = { ...obj };
+    for (let attempts=0; attempts<10; attempts++){
+      const res = await supabase.from(SONGS).insert(working).select().single();
+      if (!res.error) return { ok:true, row: res.data };
+      const msg = String(res.error.message || "");
+      const m = msg.match(/column\s+\"([^\"]+)\"\s+of\s+relation/i);
+      if (!m) return { ok:false, error: msg };
+      delete working[m[1]];
+    }
+    return { ok:false, error: "Insert failed after fallbacks." };
+  }
+
+  async function save(){
+    $("status").textContent = "";
+    const payload = buildPayload();
+    if (!payload.title) return alert("Title is required.");
+    if (!payload.suno_prompt && !payload.lyrics) {
+      if (!confirm("No lyrics and no Suno prompt pasted. Save anyway?")) return;
+    }
+
+    $("status").textContent = "Saving…";
+    const res = await insertWithFallbackOne(payload);
+    if (!res.ok) { $("status").textContent = "Error: " + res.error; return; }
+    $("status").textContent = "Saved ✅ (song created)";
+  }
+
+  $("btnSave").onclick = save;
+  $("btnSave2").onclick = save;
+</script>
+</body>
+</html>
