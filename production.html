@@ -274,9 +274,35 @@
             <label><input id="use_artist_image" type="checkbox" checked> Use artist reference image (Flow/Grok)</label>
           </div>
           <div class="hint">Shorts do <b>not</b> use scenes. Longform uses scenes 1–25.</div>
+          <div class="divider"></div>
 
-    </div>
-  </div>
+          <div class="row" style="justify-content:space-between; align-items:center;">
+            <div class="muted">Build a strict prompt for ChatGPT. Paste ChatGPT results into the Working box (not saved).</div>
+            <div class="row">
+              <button id="btnBuild" class="btn primary">Build Prompt</button>
+              <button id="btnClearOutput" class="btn">Clear</button>
+            </div>
+          </div>
+
+          <label for="output" style="margin-top:10px;">Prompt Output (Copy this into ChatGPT)</label>
+          <textarea id="output" class="mono" style="min-height:220px;" placeholder="Click Build Prompt…"></textarea>
+
+          <div class="row" style="margin-top:10px;">
+            <button id="btnCopyOutput" class="btn copy">Copy Output</button>
+          </div>
+
+          <div class="divider"></div>
+
+          <label for="working_results">Working Results (paste from ChatGPT) — NOT SAVED</label>
+          <textarea id="working_results" class="mono" style="min-height:180px;" placeholder="Paste ChatGPT output here (scenes/shorts plan)…"></textarea>
+
+          <div class="row" style="margin-top:10px;">
+            <button id="btnCopyWorking" class="btn copy">Copy Working</button>
+            <button id="btnClearWorking" class="btn">Clear Working</button>
+          </div>
+
+        </div>
+      </div>
 
   <script type="module">
     import { supabase, requireSessionOrRedirect } from "./app.js";
