@@ -136,18 +136,18 @@
   }
 
   // globals loaded
-  let supabase = null;
   let song = null;
   let album = null;
   let artist = null;
   let currentArtistPlaylistsText = "None";
 
   async function init(){
-    const { createClient } = window.supabase;
     const cfg = getCfg();
-    supabase = createClient(cfg.url, cfg.anon);
-
-    const params = new URLSearchParams(location.search);
+    if (!window.supabase || !window.supabase.createClient){
+      throw new Error("Supabase library not loaded");
+    }
+    const sb = window.supabase.createClient(cfg.url, cfg.anon);
+const params = new URLSearchParams(location.search);
     const albumId = params.get("album_id");
     const songId = params.get("song_id");
 
@@ -157,27 +157,27 @@
     }
 
     // load song
-    const { data: s, error: se } = await supabase.from(SONGS).select("*").eq("id", songId).single();
+    const { data: s, error: se } = await sb.from(SONGS).select("*").eq("id", songId).single();
     if(se){ $("metaRow").innerHTML = `<span class="pill">Song load error: ${safe(se.message)}</span>`; return; }
     song = s;
 
     // load album if provided or from song
     const aId = albumId || song.album_id;
     if(aId){
-      const { data: a, error: ae } = await supabase.from(ALBUMS).select("*").eq("id", aId).single();
+      const { data: a, error: ae } = await sb.from(ALBUMS).select("*").eq("id", aId).single();
       if(!ae) album = a;
     }
 
     // load artist
     const artistId = (album && album.artist_id) ? album.artist_id : song.artist_id;
     if(artistId){
-      const { data: ar, error: arErr } = await supabase.from(ARTISTS).select("*").eq("id", artistId).single();
+      const { data: ar, error: arErr } = await sb.from(ARTISTS).select("*").eq("id", artistId).single();
       if(!arErr) artist = ar;
 
       // load playlists if enabled
       currentArtistPlaylistsText = "None";
       if(!arErr && artist?.default_playlist_enabled){
-        const { data: pls, error: pe } = await supabase
+        const { data: pls, error: pe } = await sb
           .from("artist_playlists")
           .select("title,description,sort_order")
           .eq("artist_id", artistId)
@@ -310,12 +310,32 @@
 
   // load supabase script
   (function(){
+    // load supabase-js only once
+    if (window.supabase && window.supabase.createClient){
+      init().catch(err=>{
+        $("metaRow").innerHTML = `<span class="pill">Error: ${safe(err.message||err)}</span>`;
+        console.error(err);
+      });
+      return;
+    }
+    const existing = document.getElementById("sbjs");
+    if (existing){
+      existing.addEventListener("load", ()=>init().catch(err=>{
+        $("metaRow").innerHTML = `<span class="pill">Error: ${safe(err.message||err)}</span>`;
+        console.error(err);
+      }));
+      return;
+    }
     const s=document.createElement("script");
+    s.id="sbjs";
     s.src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
     s.onload=()=>init().catch(err=>{
       $("metaRow").innerHTML = `<span class="pill">Error: ${safe(err.message||err)}</span>`;
       console.error(err);
     });
+    s.onerror=()=> {
+      $("metaRow").innerHTML = `<span class="pill">Error: Failed to load Supabase JS</span>`;
+    };
     document.head.appendChild(s);
   })();
 </script>
