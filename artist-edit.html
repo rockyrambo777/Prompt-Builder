@@ -249,21 +249,51 @@
     }
 
     async function loadPlaylists(artistId) {
-      const { data, error } = await supabase
-        .from("artist_playlists")
-        .select("id,title,url,description,sort_order")
-        .eq("artist_id", artistId)
-        .order("sort_order", { ascending: true });
-      if (error) throw error;
-      _playlists = (data || []).map((r) => ({
-        id: r.id,
-        title: r.title || "",
-        url: r.url || "",
-        description: r.description || "",
-        sort_order: r.sort_order ?? 0,
-      }));
-      renderPlaylists();
+      const elErr = document.getElementById("playlistErr");
+      const showErr = (msg) => {
+        if (!elErr) return;
+        elErr.style.display = "block";
+        elErr.textContent = msg;
+      };
+      const hideErr = () => {
+        if (!elErr) return;
+        elErr.style.display = "none";
+        elErr.textContent = "";
+      };
+
+      try {
+        hideErr();
+        const { data, error } = await supabase
+          .from("artist_playlists")
+          .select("id,title,url,description,sort_order")
+          .eq("artist_id", artistId)
+          .order("sort_order", { ascending: true });
+
+        if (error) {
+          // Most common cause: table/columns not created yet
+          console.error("artist_playlists load error:", error);
+          showErr("Playlist table not available yet. Run sql_artist_playlists.sql in Supabase, then refresh.");
+          _playlists = [];
+          renderPlaylists();
+          return;
+        }
+
+        _playlists = (data || []).map((r) => ({
+          id: r.id,
+          title: r.title || "",
+          url: r.url || "",
+          description: r.description || "",
+          sort_order: r.sort_order ?? 0,
+        }));
+        renderPlaylists();
+      } catch (e) {
+        console.error("artist_playlists load exception:", e);
+        showErr("Could not load playlists. Check Supabase table + permissions, then refresh.");
+        _playlists = [];
+        renderPlaylists();
+      }
     }
+
 
     async function savePlaylists(artistId) {
       // normalize
