@@ -98,7 +98,101 @@
 
     <div class="cols">
       <div>
-        
+
+        <div class="card">
+          <h2 style="margin:0 0 10px;">Song Editor</h2>
+
+          <div class="row" style="justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+            <label class="row" style="gap:10px; align-items:center; margin:0;">
+              <input type="checkbox" id="editSongToggle">
+              <span>Edit song (tempo / lyrics / Suno prompt)</span>
+            </label>
+
+            <button id="btnLyricsBuilder" class="btn secondary">Build Lyrics + Suno</button>
+          </div>
+
+          <div class="hint" id="editHint" style="margin-top:8px;">
+            If the song has no lyrics, use Build Lyrics + Suno. Editing unlocks once lyrics exist.
+          </div>
+
+          <div class="grid" style="margin-top:14px;">
+            <div>
+              <label for="title">Title</label>
+              <input id="title" placeholder="Song title">
+            </div>
+            <div>
+              <label for="track_number">Track #</label>
+              <input id="track_number" placeholder="e.g. 1">
+            </div>
+          </div>
+
+          <div class="grid">
+            <div>
+              <label for="keywords">Keywords (optional)</label>
+              <input id="keywords" placeholder="faith, authority, bold praise">
+            </div>
+            <div>
+              <label for="scripture">Scripture (optional)</label>
+              <input id="scripture" placeholder="Ephesians 6:10">
+            </div>
+          </div>
+
+          <label for="suno_prompt">Suno Prompt</label>
+          <textarea id="suno_prompt" class="mono" placeholder="Song prompt…"></textarea>
+
+          <label for="lyrics" style="margin-top:10px;">Lyrics</label>
+          <textarea id="lyrics" class="mono" placeholder="Lyrics…"></textarea>
+
+          <div class="divider" style="margin:14px 0;"></div>
+
+          <div class="grid">
+            <div>
+              <label for="revision_goal">Revision goal</label>
+              <select id="revision_goal">
+                <option value="">(optional)</option>
+                <option value="tempo">Change tempo</option>
+                <option value="lyrics">Change lyrics</option>
+                <option value="arrangement">Change arrangement</option>
+                <option value="energy">Change energy</option>
+                <option value="instrumentation">Change instruments</option>
+              </select>
+            </div>
+            <div>
+              <label for="tempo_direction">Tempo direction</label>
+              <select id="tempo_direction">
+                <option value="">(optional)</option>
+                <option value="slower">Slightly slower</option>
+                <option value="faster">Slightly faster</option>
+                <option value="much_slower">Much slower</option>
+                <option value="much_faster">Much faster</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid">
+            <div>
+              <label for="energy_direction">Energy direction</label>
+              <select id="energy_direction">
+                <option value="">(optional)</option>
+                <option value="more_energy">More energy</option>
+                <option value="less_energy">Less energy</option>
+                <option value="more_dramatic">More dramatic</option>
+                <option value="more_groove">More groove</option>
+              </select>
+            </div>
+            <div>
+              <label for="instrumentation_notes">Instrumentation notes</label>
+              <input id="instrumentation_notes" placeholder="Add more drums, heavier bass, etc.">
+            </div>
+          </div>
+
+          <label for="edit_notes">Edit notes</label>
+          <textarea id="edit_notes" class="mono" placeholder="What should change? Keep it short and clear."></textarea>
+
+          <div class="hint" style="margin-top:10px;">
+            Reminder: songs should always include instruments. Voice stays anchored by Artist DNA, but each song can have a different beat/arrangement.
+          </div>
+        </div>
 
       </div>
 
@@ -719,6 +813,16 @@ ${buildSongContextBlock()}
     if (__el_btnSaveSong) __el_btnSaveSong.onclick = saveSong;
     const _ss = $("songSelect");
     if (_ss) _ss.onchange = (e) => selectSong(e.target.value);
+
+
+    const __el_btnLyricsBuilder = $("btnLyricsBuilder");
+    if (__el_btnLyricsBuilder) __el_btnLyricsBuilder.onclick = () => {
+      if (!album_id || !currentSongId) return;
+      window.location.href = `./song-lyrics-builder.html?album_id=${encodeURIComponent(album_id)}&song_id=${encodeURIComponent(currentSongId)}`;
+    };
+
+    const __el_editToggle = $("editSongToggle");
+    if (__el_editToggle) __el_editToggle.onchange = () => setEditMode();
 
     const __el_btnHome = $("btnHome");
     if (__el_btnHome) __el_btnHome.onclick = () => window.location.href = "./home.html";
