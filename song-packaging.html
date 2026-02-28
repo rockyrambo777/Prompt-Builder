@@ -195,108 +195,70 @@ const safe = (v)=> (v??"").toString();
   $("btnBuild").onclick = () => {
   if (!song) return;
 
-    const includeArtist = !!$("include_artist_image")?.checked;
-
-  const mode = document.getElementById("package_mode").value;
-  const isGospelArtist = isGospel(artist);
+  const mode = document.getElementById("package_mode").value; // short | long | both
+  const includeArtist = !!document.getElementById("include_artist_image")?.checked;
 
   const baseContext =
-    "Create YouTube packaging copy for ONE song.
-
-" +
-    "Artist: " + (artist?.name || "") + "
-" +
-    "Genre: " + (artist?.main_genre || "") + "
-" +
-    "Lane: " + (artist?.default_lane || "") + "
-
-" +
-    "Song Title: " + (song?.title || "") + "
-
-" +
-    "Suno Prompt:
-" + (song?.suno_prompt || "") + "
-
-" +
-    "Lyrics:
-" + (song?.lyrics || "") + "
-
-" +
-    "IMPORTANT:
-" +
-    "- Only call this gospel/christian if the artist genre is gospel/christian.
-" +
-    "- Do NOT include Song Details (BPM/Key/etc).
-
-";
+    "Create YouTube packaging copy for ONE song.\n\n" +
+    "Artist: " + (artist?.name || "") + "\n" +
+    "Artist handle/channel: " + (artist?.youtube_handle || "") + "\n" +
+    "Main genre: " + (artist?.main_genre || "") + "\n" +
+    "Secondary genre: " + (artist?.secondary_genre || "") + "\n" +
+    "Lane: " + (artist?.default_lane || "") + "\n\n" +
+    "Artist DNA (voice_identity): " + (artist?.voice_identity || "") + "\n" +
+    "Must include: " + (artist?.must_include || "") + "\n" +
+    "Never include: " + (artist?.never_include || "") + "\n" +
+    "Suno voice anchor: " + (artist?.suno_voice_anchor || "") + "\n\n" +
+    "Song Title: " + (song?.title || "") + "\n\n" +
+    "Suno Prompt:\n" + (song?.suno_prompt || "") + "\n\n" +
+    "Lyrics:\n" + (song?.lyrics || "") + "\n\n" +
+    "IMPORTANT RULES:\n" +
+    "- Do NOT include any 'Song Details' line (no BPM/Key/etc).\n" +
+    "- Tags must fit the song genre/mood implied by the Suno prompt.\n" +
+    "- Keep tags comma-separated and UNDER 500 characters.\n" +
+    "- Thumbnail guidance is ONLY for long-form; shorts do not have thumbnails.\n" +
+    "- Only use scripture language if the artist genre is Gospel/Christian.\n\n" +
+    "Thumbnail option (Long only): Include artist image = " + (includeArtist ? "YES" : "NO") + "\n\n";
 
   let output = "";
 
   if (mode === "short") {
     output =
       baseContext +
-      "Return ONLY these sections for SHORTS:
-(Note: Shorts do not use thumbnails. Ignore any thumbnail options.)
-" +
-      "SHORTS_TITLE:
-" +
-      "SHORTS_DESCRIPTION:
-" +
-      "SHORTS_TAGS: (comma separated, under 500 chars)
-" +
-      "SHORTS_PINNED_COMMENT:
-" +
-      "TIKTOK_DESCRIPTION:
-";
-  }
-
-  else if (mode === "long") {
+      "Return ONLY these sections for SHORTS:\n" +
+      "SHORTS_TITLE:\n" +
+      "SHORTS_DESCRIPTION:\n" +
+      "SHORTS_TAGS: (comma separated, under 500 chars)\n" +
+      "SHORTS_PINNED_COMMENT:\n" +
+      "TIKTOK_DESCRIPTION:\n" +
+      "PLAYLIST_SUGGESTION:\n";
+  } else if (mode === "long") {
     output =
       baseContext +
-      "Return ONLY these sections for LONG FORM:
-" +
-      "LONG_YOUTUBE_TITLE:
-" +
-      "LONG_YOUTUBE_DESCRIPTION:
-" +
-      "LONG_YOUTUBE_TAGS: (comma separated, under 500 chars)
-" +
-      "LONG_PINNED_COMMENT:
-" +
-      "THUMBNAIL_DESCRIPTION:
-";
-  }
-
-  else { // both
+      "Return ONLY these sections for LONG FORM:\n" +
+      "LONG_YOUTUBE_TITLE:\n" +
+      "LONG_YOUTUBE_DESCRIPTION:\n" +
+      "LONG_YOUTUBE_TAGS: (comma separated, under 500 chars)\n" +
+      "LONG_PINNED_COMMENT:\n" +
+      "THUMBNAIL_DESCRIPTION: (Long only; if Include artist image = YES, include the artist image; if NO, avoid faces and use symbolic/scene-based design)\n" +
+      "PLAYLIST_SUGGESTION:\n";
+  } else {
     output =
       baseContext +
-      "Return LONG FORM package first, then SHORTS package.
-
-" +
-      "LONG_YOUTUBE_TITLE:
-" +
-      "LONG_YOUTUBE_DESCRIPTION:
-" +
-      "LONG_YOUTUBE_TAGS:
-" +
-      "LONG_PINNED_COMMENT:
-" +
-      "THUMBNAIL_DESCRIPTION:
-
-" +
-      "---
-
-" +
-      "SHORTS_TITLE:
-" +
-      "SHORTS_DESCRIPTION:
-" +
-      "SHORTS_TAGS:
-" +
-      "SHORTS_PINNED_COMMENT:
-" +
-      "TIKTOK_DESCRIPTION:
-";
+      "Return LONG FORM package first, then SHORTS package.\n\n" +
+      "LONG_YOUTUBE_TITLE:\n" +
+      "LONG_YOUTUBE_DESCRIPTION:\n" +
+      "LONG_YOUTUBE_TAGS:\n" +
+      "LONG_PINNED_COMMENT:\n" +
+      "THUMBNAIL_DESCRIPTION:\n" +
+      "PLAYLIST_SUGGESTION:\n\n" +
+      "---\n\n" +
+      "SHORTS_TITLE:\n" +
+      "SHORTS_DESCRIPTION:\n" +
+      "SHORTS_TAGS:\n" +
+      "SHORTS_PINNED_COMMENT:\n" +
+      "TIKTOK_DESCRIPTION:\n" +
+      "PLAYLIST_SUGGESTION:\n";
   }
 
   document.getElementById("out").value = output;
