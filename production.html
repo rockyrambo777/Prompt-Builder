@@ -815,7 +815,7 @@ ${buildSongContextBlock()}
     if (__el_btnBuildEditPrompt) __el_btnBuildEditPrompt.onclick = () => {
       if (!currentSong || !currentSong.id) return alert("Select a song first.");
 
-      const dna = currentArtist || {};
+      const dna = artist || {};
       const title = ($("title")?.value || currentSong.title || "").trim();
       const sunoPrompt = ($("suno_prompt")?.value || currentSong.suno_prompt || "").trim();
       const lyrics = ($("lyrics")?.value || currentSong.lyrics || "").trim();
