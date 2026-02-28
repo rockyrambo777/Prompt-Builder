@@ -158,6 +158,8 @@
     "youtube_long_url": "https://www.youtube.com/watch?v=…",
     "youtube_long_published_at": "2026-02-20",
     "longform_done": true,
+    "shorts_done": false,
+    "about_done": false,
     "long_packaged": true,
     "lyrics_done": true,
     "is_legacy_published": true
@@ -185,6 +187,8 @@
             <th class="mini">Scripture</th>
             <th class="tiny">Lyrics ✅</th>
             <th class="tiny">Long ✅</th>
+            <th class="tiny">Short ✅</th>
+            <th class="tiny">About ✅</th>
             <th class="tiny">YT 🔗</th>
             <th class="mini">Actions</th>
           </tr>
@@ -266,7 +270,18 @@
           <label><input id="m_legacy" type="checkbox"> Legacy published</label>
         </div>
 
-        <div class="row" style="justify-content:flex-end; margin-top:14px;">
+        
+        <div class="grid" style="margin-top:10px;">
+          <div class="checkRow">
+                      <div class="checkRow">
+            <label><input type="checkbox" id="m_shorts_done"> Shorts done</label>
+          </div>
+          <div class="checkRow">
+            <label><input type="checkbox" id="m_about_done"> About done</label>
+          </div>
+        </div>
+
+<div class="row" style="justify-content:flex-end; margin-top:14px;">
           <button id="btnModalDelete" class="btn danger">Delete Song</button>
           <button id="btnModalSave" class="btn primary">Save Song</button>
         </div>
@@ -351,7 +366,7 @@
       const body = $("songsBody");
       body.innerHTML = "";
       if (!songs.length){
-        body.innerHTML = "<tr><td colspan='10' class='muted'>No songs yet. Apply tracks.</td></tr>";
+        body.innerHTML = "<tr><td colspan='12' class='muted'>No songs yet. Apply tracks.</td></tr>";
         return;
       }
       songs.sort((a,b) => (a.track_number ?? 0) - (b.track_number ?? 0));
@@ -370,11 +385,18 @@
           <td class="tiny"><b>${s.track_number ?? ""}</b></td>
           <td><input data-title value="${escAttr(s.title)}"></td>
           <td><textarea data-suno class="mono" style="min-height:90px;">${safeText(s.suno_prompt || "")}</textarea></td>
-          <td><input data-suno_link value="${escAttr(s.suno_link)}" placeholder="https://suno.com/..."></td>
+          <td>
+            <div class="row" style="gap:8px;">
+              <input data-suno_link value="${escAttr(s.suno_link)}" placeholder="https://suno.com/..." style="flex:1;">
+              <span class="linkIcon" data-suno_open aria-disabled="${(s.suno_link||"").trim() ? "false" : "true"}" title="${(s.suno_link||"").trim() ? escAttr(s.suno_link) : "No Suno link yet"}">🔗</span>
+            </div>
+          </td>
           <td><input data-keywords value="${escAttr(s.keywords)}" placeholder="optional"></td>
           <td><input data-scripture value="${escAttr(s.scripture)}" placeholder="optional"></td>
           <td class="checkCell"><input type="checkbox" ${lyricsOk ? "checked" : ""} disabled></td>
-          <td class="checkCell"><input type="checkbox" ${longDone ? "checked" : ""} disabled></td>
+          <td class="checkCell"><input type="checkbox" data-long_done ${longDone ? "checked" : ""}></td>
+          <td class="checkCell"><input type="checkbox" data-short_done ${s.shorts_done ? "checked" : ""}></td>
+          <td class="checkCell"><input type="checkbox" data-about_done ${s.about_done ? "checked" : ""}></td>
           <td class="checkCell">
             <span class="linkIcon" data-yt ${ytDisabled} title="${ytUrl ? escAttr(ytUrl) : "No YouTube link yet"}">🔗</span>
           </td>
@@ -399,6 +421,27 @@
           if (!ytUrl) return;
           window.open(ytUrl, "_blank", "noopener,noreferrer");
         };
+
+        const sunoOpen = tr.querySelector("[data-suno_open]");
+        sunoOpen.onclick = () => {
+          const url = (tr.querySelector("[data-suno_link]")?.value || "").trim();
+          if (!url) return;
+          window.open(url, "_blank", "noopener,noreferrer");
+        };
+
+        const longCb = tr.querySelector("[data-long_done]");
+        const shortCb = tr.querySelector("[data-short_done]");
+        const aboutCb = tr.querySelector("[data-about_done]");
+
+        const updateFlag = async (field, val) => {
+          const sid = tr.dataset.songId;
+          const { error } = await supabase.from(SONGS).update({ [field]: val }).eq("id", sid);
+          if (error) alert("Save error: " + error.message);
+        };
+
+        longCb.onchange = () => updateFlag("longform_done", longCb.checked);
+        shortCb.onchange = () => updateFlag("shorts_done", shortCb.checked);
+        aboutCb.onchange = () => updateFlag("about_done", aboutCb.checked);
       }
     }
 
@@ -461,12 +504,13 @@
         const keywords = r.querySelector("[data-keywords]").value.trim() || null;
         const scripture = r.querySelector("[data-scripture]").value.trim() || null;
         const suno_prompt = (r.querySelector("[data-suno]")?.value || "").trim() || null;
+        const suno_link = (r.querySelector("[data-suno_link]")?.value || "").trim() || null;
         if (!title) continue;
 
         // Try with suno_prompt; fallback if column missing
-        let upd = await supabase.from(SONGS).update({ title, keywords, scripture, suno_prompt }).eq("id", sid);
+        let upd = await supabase.from(SONGS).update({ title, keywords, scripture, suno_prompt, suno_link }).eq("id", sid);
         if (upd.error && String(upd.error.message || "").toLowerCase().includes("suno_prompt")) {
-          await supabase.from(SONGS).update({ title, keywords, scripture }).eq("id", sid);
+          await supabase.from(SONGS).update({ title, keywords, scripture, suno_link }).eq("id", sid);
         }
       }
 
@@ -611,6 +655,8 @@
 
       $("m_lyrics_done").checked = !!s.lyrics_done || hasLyricsText(s);
       $("m_long_done").checked = !!s.longform_done;
+      $("m_shorts_done").checked = !!s.shorts_done;
+      $("m_about_done").checked = !!s.about_done;
       $("m_long_packaged").checked = !!s.long_packaged;
       $("m_legacy").checked = !!s.is_legacy_published;
     }
@@ -639,6 +685,8 @@
 
         lyrics_done: $("m_lyrics_done").checked,
         longform_done: $("m_long_done").checked,
+        shorts_done: $("m_shorts_done").checked,
+        about_done: $("m_about_done").checked,
         long_packaged: $("m_long_packaged").checked,
         is_legacy_published: $("m_legacy").checked
       };
