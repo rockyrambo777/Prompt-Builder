@@ -101,6 +101,20 @@
         <div class="card">
           <h2 style="margin:0 0 10px;">Song Editor</h2>
 
+          <div class="row" style="justify-content:space-between; margin-top:10px;">
+            <label style="display:flex; gap:10px; align-items:center; margin:0;">
+              <input id="editSongToggle" type="checkbox">
+              <span><b>Edit song (tempo / lyrics / Suno prompt)</b></span>
+            </label>
+            <div class="row">
+              <button id="btnOpenLyricsBuilder" class="btn secondary">Build Lyrics + Suno</button>
+            </div>
+          </div>
+          <div class="hint" id="editHint" style="margin-top:8px;">
+            If the song has no lyrics, use <b>Build Lyrics + Suno</b>. Editing is only enabled once lyrics exist.
+          </div>
+
+
           <div class="grid">
             <div>
               <label for="title">Title</label>
@@ -133,6 +147,17 @@
           <div class="divider"></div>
 
           <h3 style="margin:0 0 10px;">Revision Controls (saved)</h3>
+
+          <div class="divider"></div>
+          <h3 style="margin:0 0 10px;">Song Edit Prompt (copy/paste to ChatGPT)</h3>
+          <textarea id="song_edit_prompt" class="mono" style="min-height:200px;" placeholder="Tick Edit song, set revision controls, then click Build Song Edit Prompt…"></textarea>
+          <div class="row" style="margin-top:10px;">
+            <button id="btnBuildSongEdit" class="btn primary">Build Song Edit Prompt</button>
+            <button id="btnCopySongEdit" class="btn copy">Copy Song Edit Prompt</button>
+            <button id="btnClearSongEdit" class="btn">Clear</button>
+          </div>
+          <div class="hint">Paste ChatGPT results back into <b>Suno Prompt</b> + <b>Lyrics</b>, then click <b>Save Song</b>.</div>
+
           <div class="grid">
             <div>
               <label for="revision_goal">Revision goal</label>
@@ -203,44 +228,53 @@
         <div class="card">
           <h2 style="margin:0 0 10px;">Prompt Builder</h2>
 
+          
           <div class="grid">
             <div>
               <label for="video_mode">Mode</label>
               <select id="video_mode">
-                <option value="long">Long video (Flow + Grok)</option>
-                <option value="shorts">Shorts plan (Flow + Grok + Onscreen text)</option>
+                <option value="long_lyric" selected>Longform – Lyric Video (Flow)</option>
+                <option value="long_music">Longform – Music Video (Grok image-to-video)</option>
+                <option value="shorts">Shorts plan (10s) (Flow + Grok + Onscreen text)</option>
               </select>
             </div>
             <div>
-              <label for="scene_count">Scenes</label>
+              <label for="scene_count">Scenes (longform only)</label>
               <select id="scene_count">
-                <option value="6">6</option>
-                <option value="8" selected>8</option>
-                <option value="10">10</option>
+                <option value="1" >1</option>
+<option value="2" >2</option>
+<option value="3" >3</option>
+<option value="4" >4</option>
+<option value="5" >5</option>
+<option value="6" >6</option>
+<option value="7" >7</option>
+<option value="8" >8</option>
+<option value="9" >9</option>
+<option value="10" >10</option>
+<option value="11" >11</option>
+<option value="12" selected>12</option>
+<option value="13" >13</option>
+<option value="14" >14</option>
+<option value="15" >15</option>
+<option value="16" >16</option>
+<option value="17" >17</option>
+<option value="18" >18</option>
+<option value="19" >19</option>
+<option value="20" >20</option>
+<option value="21" >21</option>
+<option value="22" >22</option>
+<option value="23" >23</option>
+<option value="24" >24</option>
+<option value="25" >25</option>
               </select>
             </div>
           </div>
 
-          <label for="output">Prompt Output (copy/paste to ChatGPT)</label>
-          <textarea id="output" class="mono" style="min-height:240px;" placeholder="Click Build Prompt…"></textarea>
-
-          <div class="row" style="margin-top:10px;">
-            <button id="btnBuild" class="btn primary">Build Prompt</button>
-            <button id="btnClearOutput" class="btn">Clear</button>
+          <div class="checkRow" style="margin-top:10px;">
+            <label><input id="use_artist_image" type="checkbox" checked> Use artist reference image (Flow/Grok)</label>
           </div>
+          <div class="hint">Shorts do <b>not</b> use scenes. Longform uses scenes 1–25.</div>
 
-          <div class="divider"></div>
-
-          <h3 style="margin:0 0 10px;">Working Results (paste from ChatGPT) — NOT SAVED</h3>
-          <label for="working_results">Paste results here</label>
-          <textarea id="working_results" class="mono" style="min-height:180px;"></textarea>
-          <div class="row" style="margin-top:10px;">
-            <button id="btnCopyWorking" class="btn copy">Copy Working</button>
-            <button id="btnClearWorking" class="btn">Clear Working</button>
-          </div>
-          <div class="hint">This box is just a scratchpad for your workflow (never saved).</div>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -338,6 +372,8 @@
       $("suno_prompt").value = s.suno_prompt || "";
       $("lyrics").value = s.lyrics || "";
 
+      $("editSongToggle").checked = false;
+
       $("revision_goal").value = s.revision_goal || "";
       $("tempo_direction").value = s.tempo_direction || "";
       $("energy_direction").value = s.energy_direction || "";
@@ -350,6 +386,8 @@
       $("short_done").checked = !!s.short_done;
       $("short_packaged").checked = !!s.short_packaged;
       $("is_legacy_published").checked = !!s.is_legacy_published;
+
+      setEditMode();
 
       $("youtube_long_url").value = s.youtube_long_url || "";
       $("youtube_long_published_at").value = s.youtube_long_published_at || "";
@@ -550,10 +588,212 @@ ${buildSongContextBlock()}
 `;
     }
 
+    
+    // --- Edit gating: only allow editing when lyrics exist ---
+    function hasLyrics(){
+      const l = (currentSong?.lyrics || "").trim();
+      return l.length > 0;
+    }
+
+    function setEditMode(){
+      const canEdit = hasLyrics();
+      const on = $("editSongToggle").checked && canEdit;
+
+      // Gate toggle itself if no lyrics
+      $("editSongToggle").disabled = !canEdit;
+      $("editHint").textContent = canEdit
+        ? "Tick Edit song to change tempo/lyrics/Suno prompt. Then build the Song Edit Prompt."
+        : "This song has no lyrics yet. Use Build Lyrics + Suno first. Editing unlocks once lyrics exist.";
+
+      // These fields become editable only in edit mode
+      const ids = ["title","track_number","keywords","scripture","suno_prompt","lyrics",
+                   "revision_goal","tempo_direction","energy_direction","instrumentation_notes","edit_notes"];
+      for (const id of ids){
+        const el = $(id);
+        if (!el) continue;
+        el.disabled = !on;
+      }
+
+            $("btnOpenLyricsBuilder").disabled = canEdit; // only for missing lyrics
+
+      // Save only when editing
+      $("btnSaveSong").disabled = !on;
+
+      // Build Song Edit prompt only when editing
+      $("btnBuildSongEdit").disabled = !on;
+      $("btnCopySongEdit").disabled = !on;
+      $("btnClearSongEdit").disabled = !on;
+    }
+
+    $("editSongToggle").onchange = setEditMode;
+
+    // Open Lyrics Builder (existing page)
+    $("btnOpenLyricsBuilder").onclick = () => {
+      if (!currentSong) return;
+      // Use existing lyric builder page
+      window.location.href = `./song-lyrics-builder.html?album_id=${encodeURIComponent(albumId)}&song_id=${encodeURIComponent(currentSong.id)}`;
+    };
+
+    function artistDNASummary(){
+      if (!artist) return "(No artist loaded)";
+      const parts = [];
+      if (artist.main_genre || artist.secondary_genre){
+        parts.push(`Genres: ${(artist.main_genre||"").trim()}${artist.secondary_genre ? " / " + artist.secondary_genre.trim() : ""}`.trim());
+      }
+      if (artist.voice_identity) parts.push(`Voice Identity: ${artist.voice_identity}`);
+      if (artist.suno_voice_anchor) parts.push(`Suno Voice Anchor: ${artist.suno_voice_anchor}`);
+      if (artist.must_include) parts.push(`Must Include: ${artist.must_include}`);
+      if (artist.never_include) parts.push(`Never Include: ${artist.never_include}`);
+      if (artist.default_perso) parts.push(`Persona: ${artist.default_perso}`);
+      if (artist.default_lane) parts.push(`Lane: ${artist.default_lane}`);
+      return parts.join("\n");
+    }
+
+    function buildSongEditPrompt(){
+      if (!currentSong) return;
+      if (!hasLyrics()) return alert("No lyrics yet. Use Build Lyrics + Suno first.");
+
+      const out = [];
+      out.push("Update this existing song's lyrics + Suno prompt based on the edit request.");
+      out.push("");
+      out.push("Return ONLY these sections (no extra talk):");
+      out.push("UPDATED_SUNO_PROMPT:");
+      out.push("UPDATED_LYRICS:");
+      out.push("");
+      out.push("Artist DNA (must follow):");
+      out.push(artistDNASummary());
+      out.push("");
+      out.push("Song:");
+      out.push(`- Title: ${$("title").value}`);
+      out.push(`- Track #: ${$("track_number").value || "(none)"}`);
+      out.push("");
+      out.push("Current Suno prompt:");
+      out.push("```");
+      out.push($("suno_prompt").value || "");
+      out.push("```");
+      out.push("");
+      out.push("Current lyrics:");
+      out.push("```");
+      out.push($("lyrics").value || "");
+      out.push("```");
+      out.push("");
+      out.push("Edit request:");
+      out.push(`- Revision goal: ${$("revision_goal").value || "(none)"}`);
+      out.push(`- Tempo direction: ${$("tempo_direction").value || "(none)"}`);
+      out.push(`- Energy direction: ${$("energy_direction").value || "(none)"}`);
+      if ($("instrumentation_notes")?.value) out.push(`- Instrumentation notes: ${$("instrumentation_notes").value}`);
+      if ($("edit_notes")?.value) out.push(`- Edit notes: ${$("edit_notes").value}`);
+      out.push("");
+      out.push("Rules:");
+      out.push("- Suno prompt must include instruments (never instrument-less).");
+      out.push("- Keep the artist voice identity consistent (use Suno voice anchor if provided).");
+      out.push("- Keep genre aligned to artist main/secondary genres.");
+      out.push("- Make lyrics singable and clean (no profanity).");
+      out.push("- UPDATED_SUNO_PROMPT must be <= 1000 characters.");
+
+      $("song_edit_prompt").value = out.join("\n");
+    }
+
+    $("btnBuildSongEdit").onclick = buildSongEditPrompt;
+    $("btnCopySongEdit").onclick = async () => {
+      const t = $("song_edit_prompt").value || "";
+      if (!t.trim()) return alert("Nothing to copy.");
+      await navigator.clipboard.writeText(t);
+      $("statusLine").textContent = "Song edit prompt copied ✅";
+    };
+    $("btnClearSongEdit").onclick = () => $("song_edit_prompt").value = "";
+
+    // --- Updated video prompt builder ---
+    function buildLongPrompt(isMusicVideo){
+      const sc = Number($("scene_count").value);
+      const useRef = $("use_artist_image").checked ? "YES" : "NO";
+      const out = [];
+      out.push("You are generating a LONGFORM video plan and prompts for this song.");
+      out.push("");
+      out.push("Output MUST be ONLY repeating blocks in this exact order (no JSON, no extra text):");
+      out.push("SCENE 1:");
+      out.push("LYRICS_RANGE:");
+      out.push("IMAGE_PROMPT:");
+      out.push("GROK_VIDEO_PROMPT:");
+      out.push("");
+      out.push(`Generate SCENE 1 through SCENE ${sc}.`);
+      out.push("");
+      out.push("Artist DNA (must follow):");
+      out.push(artistDNASummary());
+      out.push("");
+      out.push("Song:");
+      out.push(`- Title: ${currentSong.title}`);
+      out.push("");
+      out.push("Lyrics:");
+      out.push("```");
+      out.push(currentSong.lyrics || "");
+      out.push("```");
+      out.push("");
+      out.push("Video requirements:");
+      out.push(`- Type: ${isMusicVideo ? "MUSIC VIDEO (use Grok image-to-video)" : "LYRIC VIDEO (visuals support on-screen lyrics)"}`);
+      out.push(`- Use artist reference image: ${useRef}`);
+      out.push("- IMAGE_PROMPT: 1920x1080 (16:9), Canva/Flow-ready, NO baked text.");
+      out.push("- GROK_VIDEO_PROMPT: max 10 seconds, say 'image-to-video', describe motion/camera.");
+      out.push("- LYRICS_RANGE: exact lines used in that scene.");
+      out.push("- Keep visuals consistent with artist identity and song mood.");
+      if (isMusicVideo){
+        out.push("- Music video scenes: cinematic/performance/story oriented.");
+      } else {
+        out.push("- Lyric video scenes: leave clean negative space for subtitles.");
+      }
+      return out.join("\n");
+    }
+
+    function buildShortsPrompt(){
+      const useRef = $("use_artist_image").checked ? "YES" : "NO";
+      const out = [];
+      out.push("You are generating SHORTS video plans for this song (10 second clips).");
+      out.push("");
+      out.push("Output MUST be ONLY repeating blocks in this exact order (no JSON, no extra text):");
+      out.push("SHORT 1:");
+      out.push("LYRICS_RANGE:");
+      out.push("ONSCREEN_TEXT:");
+      out.push("IMAGE_PROMPT:");
+      out.push("GROK_VIDEO_PROMPT:");
+      out.push("");
+      out.push("Generate SHORT 1 through SHORT 5.");
+      out.push("");
+      out.push("Artist DNA (must follow):");
+      out.push(artistDNASummary());
+      out.push("");
+      out.push("Song:");
+      out.push(`- Title: ${currentSong.title}`);
+      out.push("");
+      out.push("Lyrics:");
+      out.push("```");
+      out.push(currentSong.lyrics || "");
+      out.push("```");
+      out.push("");
+      out.push("Shorts requirements:");
+      out.push(`- Use artist reference image: ${useRef}`);
+      out.push("- Each short must specify exact LYRICS_RANGE + exact ONSCREEN_TEXT.");
+      out.push("- IMAGE_PROMPT: 1080x1920 (9:16), NO baked text, space for captions.");
+      out.push("- GROK_VIDEO_PROMPT: max 10 seconds, say 'image-to-video', describe motion/camera.");
+      return out.join("\n");
+    }
+
+    // Override existing buildLongPrompt/buildShortsPrompt if they exist
+    window.__buildLongPrompt = buildLongPrompt;
+    window.__buildShortsPrompt = buildShortsPrompt;
+
+    $("video_mode").onchange = () => {
+      const mode = $("video_mode").value;
+      const isLong = (mode === "long_lyric" || mode === "long_music");
+      $("scene_count").disabled = !isLong;
+    };
+
+
     function buildPrompt(){
       if (!currentSong) return;
       const mode = $("video_mode").value;
-      $("output").value = (mode === "shorts") ? buildShortsPrompt() : buildLongPrompt();
+      if (mode === "shorts") $("output").value = __buildShortsPrompt();
+      else if (mode === "long_music") $("output").value = __buildLongPrompt(true);
+      else $("output").value = __buildLongPrompt(false);
       $("statusLine").textContent = "Prompt built ✅";
     }
 
