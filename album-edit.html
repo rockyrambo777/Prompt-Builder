@@ -832,7 +832,19 @@
       return items;
     }
 
-    async function insertWithFallback(obj){
+    
+    async function __insertOneWithFallback(obj){
+      // Reuse the page's existing insertWithFallback(rows) if available.
+      if (typeof insertWithFallback === "function"){
+        const r = await insertWithFallback([obj]);
+        // Some implementations return {data,error}; others return arrays. Normalize.
+        if (r && r.error) return { ok:false, error: String(r.error.message||r.error) };
+        const data = r?.data || r;
+        const row = Array.isArray(data) ? data[0] : data;
+        return { ok: !!row, row };
+      }
+
+      // Fallback: try inserting, dropping unknown columns automatically.
       let working = {...obj};
       for (let attempts=0; attempts<8; attempts++){
         const res = await supabase.from(SONGS).insert(working).select().single();
@@ -844,9 +856,11 @@
       }
       return { ok:false, error:"Insert failed after fallbacks." };
     }
+      return { ok:false, error:"Insert failed after fallbacks." };
+    }
 
     async function doImportOne(payload){
-      const ins = await insertWithFallback(payload);
+      const ins = await __insertOneWithFallback(payload);
       if (!ins.ok) return ins;
       songs.unshift(ins.row);
       await loadSongs(); // refresh from DB to ensure ordering/derived fields
