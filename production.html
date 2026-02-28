@@ -514,7 +514,8 @@ ${buildSongContextBlock()}
       $("btnClearSongEdit").disabled = !on;
     }
 
-    $("editSongToggle").onchange = setEditMode;
+    const _tgl = $("editSongToggle");
+    if (_tgl) _tgl.onchange = setEditMode;
 
     // Open Lyrics Builder (existing page)
     $("btnOpenLyricsBuilder").onclick = () => {
@@ -670,7 +671,8 @@ ${buildSongContextBlock()}
     window.__buildLongPrompt = buildLongPrompt;
     window.__buildShortsPrompt = buildShortsPrompt;
 
-    $("video_mode").onchange = () => {
+    const _vm = $("video_mode");
+    if (_vm) _vm.onchange = () => {
       const mode = $("video_mode").value;
       const isLong = (mode === "long_lyric" || mode === "long_music");
       $("scene_count").disabled = !isLong;
@@ -705,7 +707,8 @@ ${buildSongContextBlock()}
     $("btnClearWorking").onclick = () => $("working_results").value = "";
 
     $("btnSaveSong").onclick = saveSong;
-    $("songSelect").onchange = (e) => selectSong(e.target.value);
+    const _ss = $("songSelect");
+    if (_ss) _ss.onchange = (e) => selectSong(e.target.value);
 
     $("btnHome").onclick = () => window.location.href = "./home.html";
     $("btnAlbum").onclick = () => window.location.href = `./album-edit.html?id=${encodeURIComponent(album_id)}`;
