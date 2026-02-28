@@ -335,6 +335,9 @@ function norm(v){
       const trackPlan = getTrackPlan();
 
       const albumGenre = [artist.main_genre, artist.secondary_genre].filter(Boolean).join(" / ") || "(not set)";
+      const introLine = isFaithArtist(artist)
+        ? "You are helping me plan a professional GOSPEL / CHRISTIAN album for an AI music workflow."
+        : `You are helping me plan a professional ${albumGenre} album for an AI music workflow.`;
       const leadType = $("lead_type").value || "solo";
       const theme = norm($("theme").value);
       const mood = norm($("mood").value);
@@ -357,7 +360,7 @@ function norm(v){
         ? `ARTIST PERSONA (STYLE VOICE)\n${artist.default_perso}\n`
         : "";
 
-      return `You are helping me plan a professional GOSPEL album for an AI music workflow.
+      return `${introLine}
 
 ARTIST
 - Name: ${artist.name}
