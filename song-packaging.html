@@ -161,7 +161,21 @@
   const song_id = qs.get("song_id");
   const album_id = qs.get("album_id");
 
-  const safe = (v)=> (v??"").toString();
+  
+  // Nav buttons
+  $("btnHome").onclick = ()=> location.href = "./home.html";
+  $("btnAlbum").onclick = ()=> {
+    const aid = album_id || song?.album_id;
+    if (aid) location.href = `./album-edit.html?id=${encodeURIComponent(aid)}`;
+    else history.back();
+  };
+  $("btnBack").onclick = ()=> {
+    const aid = album_id || song?.album_id;
+    if (aid) location.href = `./album-edit.html?id=${encodeURIComponent(aid)}`;
+    else history.back();
+  };
+
+const safe = (v)=> (v??"").toString();
   const isGospel = (artist)=> {
     const g = (artist?.main_genre || "") + " " + (artist?.secondary_genre || "") + " " + (artist?.default_lane || "");
     return /gospel|christian|worship/i.test(g);
@@ -302,7 +316,7 @@
       };
     } catch (e) { /* ignore */ }
 
-    $("shorts_packaged").checked = !!(song.shorts_packaged ?? song.short_packaged ?? false);
+    $("shorts_packaged").checked = !!(song.short_packaged ?? song.shorts_done ?? song.short_done ?? false);
     $("youtube_release_date").value = safe(song.youtube_release_date || "");
 
     $("subline").textContent = album ? `Album: ${album.title}` : "Single";
@@ -321,7 +335,9 @@
     const msg = r.error.message || "";
     // If missing column error, remove that key and retry
     // Supabase/Postgres often: "column \"xyz\" of relation \"songs\" does not exist"
-    const m = msg.match(/column \"([^\"]+)\"/);
+    let m = msg.match(/column \"([^\"]+)\"/);
+    if (!m) m = msg.match(/Could not find the '([^']+)' column/);
+    if (!m) m = msg.match(/column ([a-zA-Z0-9_]+) of relation/);
     if (m) {
       const bad = m[1];
       const p2 = {...patch};
@@ -339,7 +355,6 @@
       long_packaged: $("long_packaged").checked,
       youtube_release_date: $("youtube_release_date").value || null,
       // shorts packaged: try common column names
-      shorts_packaged: $("shorts_packaged").checked,
       short_packaged: $("shorts_packaged").checked,
     };
     const r = await updateWithFallback(song.id, patch);
