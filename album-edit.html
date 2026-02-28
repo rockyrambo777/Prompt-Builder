@@ -128,6 +128,7 @@
 
       <div class="row" style="margin-top:10px;">
         <button id="btnApplyTracks" class="btn secondary">Apply Tracks → Songs</button>
+        <button id="btnImportExisting" class="btn secondary">Import Existing Song</button>
         <div class="muted">Creates songs (title + suno_prompt when provided).</div>
       </div>
 
@@ -139,7 +140,7 @@
             <th class="mini">Title</th>
             <th class="wide">Suno Prompt</th>
             <th class="mini">Keywords</th>
-            <th class="mini">Scripture</th>
+            <th class="mini scriptureCol">Scripture</th>
             <th class="tiny">Lyrics ✅</th>
             <th class="tiny">Long ✅</th>
             <th class="tiny">Short ✅</th>
@@ -265,7 +266,7 @@ function safeText(v){ return (v === null || v === undefined) ? "" : String(v); }
           <td><input data-title value="${escAttr(s.title)}"></td>
           <td><textarea data-suno class="mono" style="min-height:90px;">${safeText(s.suno_prompt || "")}</textarea></td>
           <td><input data-keywords value="${escAttr(s.keywords)}" placeholder="optional"></td>
-          <td><input data-scripture value="${escAttr(s.scripture)}" placeholder="optional"></td>
+          <td class="scriptureCol"><input data-scripture value="${escAttr(s.scripture)}" placeholder="optional"></td>
           <td class="checkCell"><input type="checkbox" data-lyrics-done ${checked} disabled></td>
           <td class="checkCell"><input type="checkbox" data-long_done ${s.longform_done ? "checked" : ""}></td>
           <td class="checkCell"><input type="checkbox" data-short_done ${s.short_done ? "checked" : ""}></td>
@@ -327,8 +328,15 @@ function safeText(v){ return (v === null || v === undefined) ? "" : String(v); }
       if (error) { $("statusLine").textContent = "Error: " + error.message; return; }
       album = a;
 
-      const { data: art, error: e2 } = await supabase.from(ARTISTS).select("id,name").eq("id", album.artist_id).single();
+      const { data: art, error: e2 } = await supabase.from(ARTISTS).select("id,name,main_genre,secondary_genre").eq("id", album.artist_id).single();
       if (!e2) artist = art;
+      // Determine if this artist is Gospel/Christian (controls scripture fields)
+      const gText = `${(art?.main_genre||"")} ${(art?.secondary_genre||"")}`.toLowerCase();
+      window.__isGospelArtist = (gText.includes("gospel") || gText.includes("christ"));
+      document.querySelectorAll(".scriptureCol").forEach(el => {
+        el.style.display = window.__isGospelArtist ? "" : "none";
+      });
+
 
       const { data: s, error: e3 } = await supabase.from(SONGS).select("*").eq("album_id", id).order("track_number", { ascending: true });
       songs = e3 ? [] : (s || []);
@@ -400,7 +408,8 @@ function safeText(v){ return (v === null || v === undefined) ? "" : String(v); }
         const sid = r.dataset.songId;
         const title = r.querySelector("[data-title]").value.trim();
         const keywords = r.querySelector("[data-keywords]").value.trim() || null;
-        const scripture = r.querySelector("[data-scripture]").value.trim() || null;
+        const scriptureEl = r.querySelector("[data-scripture]");
+        const scripture = (window.__isGospelArtist && scriptureEl) ? (scriptureEl.value.trim() || null) : null;
         const suno_prompt = (r.querySelector("[data-suno]")?.value || "").trim() || null;
         if (!title) continue;
 
@@ -469,6 +478,9 @@ function safeText(v){ return (v === null || v === undefined) ? "" : String(v); }
     $("btnSave").onclick = saveAlbum;
     $("btnDelete").onclick = deleteAlbum;
     $("btnApplyTracks").onclick = applyTracksToSongs;
+    $("btnImportExisting").onclick = () => {
+      window.location.href = `./import-existing-song.html?album_id=${encodeURIComponent(id)}`;
+    };
 
     $("btnCopyPrompt").onclick = async () => {
       const p = $("prompt").value;
