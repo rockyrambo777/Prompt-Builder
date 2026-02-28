@@ -140,7 +140,7 @@
             <th class="wide">Suno Prompt</th>
             <th class="mini">Keywords</th>
             <th class="mini">Scripture</th>
-            <th class="tiny"> ✅</th>
+            <th class="tiny">Lyrics ✅</th>
             <th class="tiny">Long ✅</th>
             <th class="tiny">Short ✅</th>
             <th class="tiny">Links 🔗</th>
@@ -271,8 +271,9 @@
             </div>
           </td>
           <td>
-            <button class="btn secondary" data-lyrics>Edit Production</button>
+            <button class="btn secondary" data-lyrics>Edit Lyrics</button>
             <button class="btn secondary" data-suno-pack>Suno Pack</button>
+            <button class="btn primary" data-packaging>Packaging</button>
           </td>
         `;
         body.appendChild(tr);
@@ -289,11 +290,16 @@
         shortCb && (shortCb.onchange = () => updateFlag("short_done", shortCb.checked));
 
         tr.querySelector("[data-lyrics]").onclick = () => {
-          window.location.href = `./production.html?id=${encodeURIComponent(s.id)}&album_id=${encodeURIComponent(id)}`;
+          window.location.href = `./song-edit.html?id=${encodeURIComponent(s.id)}&album_id=${encodeURIComponent(id)}`;
         };
 
         tr.querySelector("[data-suno-pack]").onclick = () => {
           window.location.href = `./song-suno.html?id=${encodeURIComponent(s.id)}&album_id=${encodeURIComponent(id)}`;
+        };
+
+
+        tr.querySelector("[data-packaging]").onclick = () => {
+          window.location.href = `./song-packaging.html?song_id=${encodeURIComponent(s.id)}&album_id=${encodeURIComponent(id)}`;
         };
 
         const sunoEl = tr.querySelector("[data-suno_link]");
