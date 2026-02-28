@@ -968,7 +968,7 @@
   
     // Import modal bindings
     const __impBtn = $("btnImportSong");
-    if (__impBtn) __impBtn.onclick = openImport;
+    if (__impBtn) __impBtn.onclick = () => { if (!album?.id) return alert("Album not loaded yet."); window.location.href = `./import-existing-song.html?album_id=${encodeURIComponent(album.id)}`; };
     const __bulkBtn = $("btnBulkImport");
     if (__bulkBtn) __bulkBtn.onclick = openBulk;
 
