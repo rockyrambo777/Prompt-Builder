@@ -289,8 +289,7 @@
       artist?.bandcamp_url ? `Bandcamp: ${artist.bandcamp_url}` : "",
       artist?.spotify_url ? `Spotify: ${artist.spotify_url}` : "",
       artist?.website_url ? `Website: ${artist.website_url}` : "",
-    ].filter(Boolean).join("
-");
+    ].filter(Boolean).join("\n");
 
     const baseContext = `Context:
 - Artist: ${safe(artist?.name)}
