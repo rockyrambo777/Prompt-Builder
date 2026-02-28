@@ -289,7 +289,7 @@
         shortCb && (shortCb.onchange = () => updateFlag("short_done", shortCb.checked));
 
         tr.querySelector("[data-lyrics]").onclick = () => {
-          window.location.href = `./song-edit.html?id=${encodeURIComponent(s.id)}&album_id=${encodeURIComponent(id)}`;
+          window.location.href = `./production.html?id=${encodeURIComponent(s.id)}&album_id=${encodeURIComponent(id)}`;
         };
 
         tr.querySelector("[data-suno-pack]").onclick = () => {
