@@ -74,7 +74,6 @@
         </div>
         <div class="row">
           <button id="btnCopyPrompt" class="btn copy">Copy Prompt</button>
-          <button id="btnCreatePlaylist" class="btn secondary">Create Playlist</button>
           <button id="btnSave" class="btn primary">Save</button>
           <button id="btnDelete" class="btn danger">Delete</button>
         </div>
@@ -130,6 +129,7 @@
       <div class="row" style="margin-top:10px;">
         <button id="btnApplyTracks" class="btn secondary">Apply Tracks → Songs</button>
         <button id="btnImportExisting" class="btn secondary">Import Existing Song</button>
+          <button class="btn" id="btnPlaylist">Create Playlist</button>
         <div class="muted">Creates songs (title + suno_prompt when provided).</div>
       </div>
 
@@ -338,15 +338,6 @@ function safeText(v){ return (v === null || v === undefined) ? "" : String(v); }
         el.style.display = window.__isGospelArtist ? "" : "none";
       });
 
-      // Default playlist option (if enabled, album-level playlist creation is hidden)
-      window.__artistHasDefaultPlaylist = !!art?.default_playlist_enabled;
-      if (window.__artistHasDefaultPlaylist) {
-        const btn = $("btnCreatePlaylist");
-        if (btn) btn.style.display = "none";
-      }
-      window.__artistDefaultPlaylistTitle = art?.default_playlist_title || "";
-      window.__artistDefaultPlaylistDescription = art?.default_playlist_description || "";
-
 
       const { data: s, error: e3 } = await supabase.from(SONGS).select("*").eq("album_id", id).order("track_number", { ascending: true });
       songs = e3 ? [] : (s || []);
@@ -492,9 +483,8 @@ function safeText(v){ return (v === null || v === undefined) ? "" : String(v); }
       window.location.href = `./import-existing-song.html?album_id=${encodeURIComponent(id)}`;
     };
 
-    $("btnCreatePlaylist").onclick = () => {
-      if (!id) return alert("Missing album id.");
-      window.location.href = `./album-playlist.html?album_id=${encodeURIComponent(id)}`;
+    $("btnPlaylist").onclick = () => {
+      location.href = `./album-playlist.html?album_id=${encodeURIComponent(albumId)}`;
     };
 
     $("btnCopyPrompt").onclick = async () => {
