@@ -91,7 +91,7 @@
 
             <div class="hint">
               This step only selects the artist for context.<br>
-              We do <b>not</b> auto-fill album fields with artist defaults — you choose album settings in Step 2.
+              Artist identity stays stable (voice + genre family), but each album can have a different mood/theme/style.
             </div>
           </div>
 
@@ -100,7 +100,7 @@
             <div class="panel">
 - Artist Lane: the artist’s typical lane (example: Country / Soul / Pop). Used as a “style hint”.
 - Persona: the artist’s writing/production persona. Used as the core style rule for Suno prompts.
-- Album Genre: default is Gospel, but you can change it per album.
+- Album Genres: follow the artist’s main/secondary genres (set in Artist DNA).
 - Artist DNA: stable voice + genre family + instrument rules (always injected into prompts).
             </div>
           </div>
@@ -116,21 +116,15 @@
       <!-- Step 2 -->
       <div id="step2" style="display:none;">
         <h2 style="margin:14px 0 8px;">Album Setup</h2>
+        <div class="panel" style="margin:10px 0 12px;">
+          <b>Artist Genres (from Artist DNA)</b><br>
+          <span id="artistGenresPreview" class="muted">—</span><br>
+          <span class="muted">Album genre is inherited from the artist. Use Theme/Mood/Style to shape this album.</span>
+        </div>
+
 
         <div class="grid">
-          <div>
-            <label for="album_genre">Album Genre</label>
-            <select id="album_genre">
-              <option value="gospel" selected>Gospel</option>
-              <option value="christian-pop">Christian Pop</option>
-              <option value="christian-rock">Christian Rock</option>
-              <option value="country-gospel">Country Gospel</option>
-              <option value="worship">Worship</option>
-              <option value="traditional-gospel">Traditional Gospel</option>
-              <option value="other">Other</option>
-            </select>
-            <div class="hint">Album mood/style changes here — artist voice/genre family stays stable.</div>
-          </div>
+</div>
 
           <div>
             <label for="lead_type">Lead Type</label>
@@ -143,18 +137,18 @@
 
           <div>
             <label for="theme">Theme</label>
-            <input id="theme" placeholder="e.g. Revival Fire, Healing Waters, Freedom & Breakthrough">
+            <input id="theme" placeholder="Optional. If blank, ChatGPT will suggest the best theme for this artist + album.">
           </div>
 
           <div>
             <label for="mood">Mood</label>
-            <input id="mood" placeholder="e.g. Triumphant, Intimate, High-Energy, Reflective">
+            <input id="mood" placeholder="Optional. If blank, ChatGPT will pick a mood that fits the artist + album.">
           </div>
 
           <div>
             <label for="style">Style / Lane Hint</label>
-            <input id="style" placeholder="e.g. Country Gospel, Soul Worship, Pop Praise (optional)">
-            <div class="hint">Optional. If blank, we’ll use the artist lane as the style hint.</div>
+            <input id="style" placeholder="Optional. If blank, ChatGPT will choose a style lane hint that matches the artist + album.">
+            <div class="hint">Tip: keep this simple (e.g. “Soul worship”, “Country rock”, “Pop ballad”).</div>
           </div>
 
           <div>
@@ -166,12 +160,7 @@
             <label for="notes">Album Notes</label>
             <input id="notes" placeholder="Any constraints, do/don’t, special direction">
           </div>
-
-          <div>
-            <label for="album_genre_other">If Genre = Other</label>
-            <input id="album_genre_other" placeholder="Type the genre (only if you chose Other)">
-          </div>
-        </div>
+</div>
 
         <div class="hint">
           Pro workflow: keep this broad. Track-specific keywords/scripture go in the Track Planner.
@@ -192,7 +181,7 @@
               <th class="tiny">#</th>
               <th>Track direction / vibe</th>
               <th class="mini">Keywords</th>
-              <th class="mini">Scripture</th>
+              <th class="mini" id="thScripture">Scripture <span class="muted">(faith artists only)</span></th>
             </tr>
           </thead>
           <tbody id="tracksBody"></tbody>
@@ -259,15 +248,28 @@
       };
     });
 
-    function norm(v){
-      const s = (v ?? "").toString().trim();
-      return s ? s : null;
+    
+    function isFaithArtist(a){
+      if (!a) return false;
+      const s = `${a.main_genre||""} ${a.secondary_genre||""}`.toLowerCase();
+      return ["gospel","christian","worship","praise","hymn"].some(k => s.includes(k));
     }
 
-    function getGenre(){
-      const g = $("album_genre").value;
-      if (g !== "other") return g;
-      return norm($("album_genre_other").value) || "other";
+    function updateArtistGenrePreview(a){
+      const g = [a?.main_genre, a?.secondary_genre].filter(Boolean).join(" / ");
+      const el = $("artistGenresPreview");
+      if (el) el.textContent = g || "—";
+      const th = $("thScripture");
+      if (th) th.style.display = isFaithArtist(a) ? "" : "none";
+      // hide scripture cells in existing rows
+      for (const r of document.querySelectorAll("[data-track-row]")){
+        const cell = r.querySelector("[data-scripture-cell]");
+        if (cell) cell.style.display = isFaithArtist(a) ? "" : "none";
+      }
+    }
+function norm(v){
+      const s = (v ?? "").toString().trim();
+      return s ? s : null;
     }
 
     function getTrackPlan(){
@@ -276,7 +278,7 @@
         track_number: Number(r.dataset.track),
         direction: (r.querySelector("[data-direction]").value || "").trim() || null,
         keywords: (r.querySelector("[data-keywords]").value || "").trim() || null,
-        scripture: (r.querySelector("[data-scripture]").value || "").trim() || null,
+        scripture: isFaithArtist(artist) ? ((r.querySelector("[data-scripture]")?.value || "").trim() || null) : null,
       }));
     }
 
@@ -290,9 +292,9 @@
         tr.dataset.track = String(i);
         tr.innerHTML = `
           <td class="tiny"><b>${i}</b></td>
-          <td><input data-direction placeholder="e.g. opener praise, altar call ballad, breakthrough anthem"></td>
-          <td><input data-keywords placeholder="e.g. revival, fire, mercy"></td>
-          <td><input data-scripture placeholder="e.g. Acts 2:1-4"></td>
+          <td><input data-direction placeholder="e.g. upbeat opener, slow emotional ballad, club banger, guitar anthem"></td>
+          <td><input data-keywords placeholder="e.g. confident, heartbreak, victory"></td>
+          ${isFaithArtist(artist) ? `<td data-scripture-cell><input data-scripture placeholder="e.g. Psalm 23:1"></td>` : `<td data-scripture-cell style="display:none;"></td>`}
         `;
         body.appendChild(tr);
       }
@@ -462,7 +464,7 @@ ERROR: NON_COMPLIANT_OUTPUT
             suno_voice_anchor: artist.suno_voice_anchor || null,
           },
           album: {
-            album_genre: getGenre(),
+            album_genre: (artist?.main_genre || null),
             theme: norm($("theme").value),
             mood: norm($("mood").value),
             style_hint: norm($("style").value) || norm(artist.default_lane),
@@ -496,10 +498,12 @@ ERROR: NON_COMPLIANT_OUTPUT
         artist = null;
         $("artistPreview").textContent = "(select an artist)";
         $("artistChips").innerHTML = "";
+        updateArtistGenrePreview(null);
         return;
       }
       artist = JSON.parse(opt.dataset.artist);
       setArtistPreview(artist);
+      updateArtistGenrePreview(artist);
     };
 
     $("btnBuildTracks").onclick = ensureTrackRows;
