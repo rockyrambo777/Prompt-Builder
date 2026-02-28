@@ -409,11 +409,7 @@ Short-form rules:
     if (mode === "long") {
       $("out").value = longPrompt;
     } else if (mode === "both") {
-      $("out").value = longPrompt + "
-
----
-
-" + shortsPrompt;
+      $("out").value = longPrompt + "\n\n---\n\n" + shortsPrompt;
     } else {
       // default: shorts only
       $("out").value = shortsPrompt;
