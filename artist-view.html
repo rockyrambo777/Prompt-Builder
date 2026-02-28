@@ -127,6 +127,12 @@
         </div>
       </div>
 
+      <div class="card" style="padding:14px; margin-top:12px;">
+        <div style="font-weight:900; margin-bottom:6px;">Default YouTube Playlists</div>
+        <div class="muted" id="plEnabledNote">—</div>
+        <div id="plList" style="margin-top:10px; display:flex; flex-direction:column; gap:10px;"></div>
+      </div>
+
       <div class="kv" style="margin-top:12px;">
         <div class="k">Copy/Paste Injection Block</div>
         <div class="v mono" id="dnaPreview">—</div>
@@ -236,7 +242,7 @@
     async function load(){
       $("statusLine").textContent = "Loading…";
 
-      const { data, error } = await supabase.from("artists").select("*,default_playlist_enabled,default_playlist_title,default_playlist_description").eq("id", id).single();
+      const { data, error } = await supabase.from("artists").select("*").eq("id", id).single();
       if (error) { $("statusLine").textContent = "Error: " + error.message; return; }
 
       $("title").textContent = data.name ? data.name : "Artist";
@@ -258,6 +264,37 @@
       $("mustInclude").textContent = data.must_include ? data.must_include : "—";
       $("neverInclude").textContent = data.never_include ? data.never_include : "—";
       $("sunoVoiceAnchor").textContent = data.suno_voice_anchor ? data.suno_voice_anchor : "—";
+
+
+      // Default playlists
+      if (data.default_playlist_enabled){
+        $("plEnabledNote").textContent = "Enabled ✅ (used for packaging recommendations)";
+      } else {
+        $("plEnabledNote").textContent = "Disabled (album-based playlists)";
+      }
+      $("plList").innerHTML = "";
+      if (data.default_playlist_enabled){
+        const { data: pls, error: plErr } = await supabase
+          .from("artist_playlists")
+          .select("title,description,sort_order")
+          .eq("artist_id", id)
+          .order("sort_order", { ascending: true });
+        if (plErr){
+          $("plList").innerHTML = `<div class="muted">Could not load playlists: ${safe(plErr.message)}</div>`;
+        } else if (!pls || !pls.length){
+          $("plList").innerHTML = `<div class="muted">No default playlists saved yet.</div>`;
+        } else {
+          for (const p of pls){
+            const div = document.createElement("div");
+            div.className = "card";
+            div.style.padding = "12px";
+            div.innerHTML = `<div style="font-weight:800;">${safe(p.title)}</div>` +
+                            (p.description ? `<div class="muted" style="margin-top:4px; white-space:pre-wrap;">${safe(p.description)}</div>` : "");
+            $("plList").appendChild(div);
+          }
+        }
+      }
+
 
       const dna = [
         "=== ARTIST DNA ===",
