@@ -3,85 +3,46 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>SVS System – Album Studio (Edit)</title>
+  <title>SVS System – Edit Artist</title>
   <style>
     :root{
       --bg:#0b0f19; --card:#121a2a; --card2:#0f1626; --border:#23304a;
       --muted:#92a4c7; --text:#e8eefc; --primary:#2f6fed; --danger:#d14b4b;
-      --chip:#1c273f; --ok:#7CFFB2; --warn:#ffcc66;
     }
     body { font-family: Arial, sans-serif; background:var(--bg); color:var(--text); margin:0; }
-    .wrap { max-width: 1300px; margin: 0 auto; padding: 24px; }
+    .wrap { max-width: 1000px; margin: 0 auto; padding: 24px; }
     .top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
     .muted { color:var(--muted); font-size: 14px; }
-    .btn { padding:10px 12px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); cursor:pointer; font-weight:800; }
+    .btn { padding:12px 14px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); cursor:pointer; font-weight:800; }
     .btn.primary { background:var(--primary); border:none; }
     .btn.secondary { background:#1c273f; border:1px solid #2a3a5c; }
     .btn.danger { background:var(--danger); border:none; }
-    .btn.copy { background:#16315f; border:1px solid #2a3a5c; }
-    .btn.small { padding:8px 10px; font-size:12px; border-radius:10px; }
     .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-top:14px; }
     .grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; }
-    @media (max-width: 980px){ .grid { grid-template-columns: 1fr; } }
+    @media (max-width: 800px){ .grid { grid-template-columns: 1fr; } }
     label { font-size:12px; color:var(--muted); display:block; margin:8px 0 6px; }
     input, select, textarea {
       padding:12px; border-radius:12px; border:1px solid #2a3a5c;
       background:var(--card2); color:var(--text); width:100%;
       box-sizing:border-box;
     }
-    textarea { min-height: 140px; resize: vertical; }
+    textarea { min-height: 110px; resize: vertical; }
     .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-    .chips { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
-    .chip { font-size:12px; padding:6px 10px; border-radius:999px; border:1px solid #2a3a5c; background:var(--chip); color:var(--text); }
-    .pill{
-      display:inline-block; padding:4px 10px; border-radius:999px;
-      border:1px solid #2a3a5c; background:var(--card2); font-size:12px;
-    }
-    .pill.ok{ border-color:#1f6b45; }
-    .pill.warn{ border-color:#6b4c1d; }
-    table { width:100%; border-collapse: collapse; margin-top:10px; }
-    th, td { border-bottom:1px solid #22304a; padding:10px; text-align:left; vertical-align: top; }
-    th { color:var(--muted); font-size:12px; }
-    .tiny { width: 70px; }
-    .mini { width: 200px; }
-    .wide { width: 420px; }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
     .sectionTitle { margin: 0 0 10px; }
-    .hint { font-size:12px; color:var(--muted); margin-top:6px; line-height:1.4; }
-    .checkCell { text-align:center; }
+    .hint { font-size:12px; color:var(--muted); margin-top:4px; line-height:1.4; }
+    .actions { display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+    .checkRow { display:flex; align-items:center; gap:10px; margin:10px 0; }
     input[type="checkbox"]{ width:18px; height:18px; accent-color: var(--primary); }
-    .linkIcon {
-      font-size:18px; cursor:pointer; user-select:none;
-      padding: 6px 10px; border-radius:10px; border:1px solid #2a3a5c; background:#0f1626;
-      display:inline-flex; align-items:center; justify-content:center;
-    }
-    .linkIcon[aria-disabled="true"]{ opacity:0.35; cursor:not-allowed; }
-
-    /* Modal */
-    .modalOverlay{
-      position:fixed; inset:0; background:rgba(0,0,0,0.55);
-      display:none; align-items:center; justify-content:center;
-      padding:16px; z-index:9999;
-    }
-    .modal{
-      width:min(980px, 100%);
-      background:var(--card); border:1px solid var(--border);
-      border-radius:16px; padding:16px;
-    }
-    .modalHead{ display:flex; justify-content:space-between; gap:10px; align-items:flex-start; flex-wrap:wrap; }
-    .modalGrid{ display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; }
-    @media (max-width: 900px){ .modalGrid{ grid-template-columns: 1fr; } }
-    .inlineChecks{ display:flex; gap:14px; flex-wrap:wrap; align-items:center; margin-top:10px; }
-    .inlineChecks label{ margin:0; display:flex; gap:8px; align-items:center; color:var(--text); font-size:13px; }
-    .rightActions{ display:flex; gap:10px; flex-wrap:wrap; }
+    .divider { border:0; border-top:1px solid #22304a; margin:16px 0; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="top">
       <div>
-        <h1 style="margin:0;" id="pageTitle">Album Studio</h1>
+        <h1 style="margin:0;">Edit Artist</h1>
         <div id="who" class="muted"></div>
+        <div id="statusLine" class="muted"></div>
       </div>
       <div class="row">
         <button id="btnBack" class="btn secondary">Back</button>
@@ -90,180 +51,116 @@
     </div>
 
     <div class="card">
-      <div class="row" style="justify-content:space-between;">
-        <div>
-          <div id="statusLine" class="muted"></div>
-          <div class="chips" id="chips"></div>
-        </div>
-        <div class="row">
-          <button id="btnGoProduction" class="btn secondary">Production</button>
-          <button id="btnCopyPrompt" class="btn copy">Copy Prompt</button>
-          <button id="btnSave" class="btn primary">Save</button>
-          <button id="btnDelete" class="btn danger">Delete</button>
-        </div>
-      </div>
-
-      <h2 class="sectionTitle" style="margin-top:18px;">Album Info</h2>
+      <h2 class="sectionTitle">Profile</h2>
       <div class="grid">
         <div>
-          <label for="status">Status</label>
-          <select id="status">
-            <option value="draft">draft</option>
-            <option value="ideation">ideation</option>
-            <option value="approved">approved</option>
-            <option value="producing">producing</option>
-            <option value="released">released</option>
+          <label for="name">Name *</label>
+          <input id="name" placeholder="e.g. Nina's Gospel Groove">
+        </div>
+        <div>
+          <label for="channel_hand">Channel Handle</label>
+          <input id="channel_hand" placeholder="e.g. @NinasGospelGroove">
+          <div class="hint">You can paste with or without @.</div>
+        </div>
+
+        <div>
+          <label for="youtube_chan">YouTube Channel Name</label>
+          <input id="youtube_chan" placeholder="Display name on YouTube">
+        </div>
+
+        <div>
+          <label for="default_lane">Default Lane</label>
+          <select id="default_lane">
+            <option value="">(none)</option>
+            <option value="SVS">SoulVibe Sanctuary</option>
+            <option value="GGG">Gospel Groove Girls</option>
+            <option value="NGG">Nina's Gospel Groove</option>
+            <option value="GSG">Glory Shout Gospel</option>
+            <option value="SIS">Shaun in Stereo</option>
           </select>
         </div>
 
         <div>
-          <label for="titleInput">Final Album Title</label>
-          <input id="titleInput" placeholder="Paste the recommended album title here">
+          <label for="default_perso">Default Persona</label>
+          <input id="default_perso" placeholder="e.g. Persona v3 / Country Gospel / etc">
         </div>
+      </div>
 
-        <div><label for="theme">Theme</label><input id="theme"></div>
-        <div><label for="style">Style / Lane Hint</label><input id="style"></div>
-        <div><label for="mood">Mood</label><input id="mood"></div>
+      <hr class="divider">
 
+      <h2 class="sectionTitle">Artist DNA (Stable)</h2>
+      <div class="hint">This stays consistent across albums: genre family + voice identity + instrument rules. Album mood/style is set on the album page.</div>
+
+      <div class="grid" style="margin-top:10px;">
         <div>
-          <label for="lead_type">Lead Type</label>
-          <select id="lead_type">
-            <option value="solo">solo</option>
-            <option value="solo+choir">solo + choir</option>
-            <option value="choir">choir</option>
+          <label for="main_genre">Main Genre</label>
+          <select id="main_genre">
+            <option value="">(none)</option>
+            <option value="Gospel">Gospel</option>
+            <option value="Worship">Worship</option>
+            <option value="Christian">Christian</option>
           </select>
+          <div class="hint">Usually Gospel.</div>
         </div>
-
-        <div><label for="total_tracks">Tracks</label><input id="total_tracks" type="number" min="1" max="50"></div>
-        <div><label for="notes">Notes</label><input id="notes"></div>
-      </div>
-
-      <h2 class="sectionTitle" style="margin-top:18px;">ChatGPT Prompt (stored)</h2>
-      <textarea id="prompt" class="mono"></textarea>
-
-      <h2 class="sectionTitle" style="margin-top:18px;">Working Results (paste from ChatGPT) — NOT SAVED</h2>
-      <div class="grid">
-        <div style="grid-column: 1 / -1;">
-          <label for="working_tracks">TRACKS_JSON</label>
-          <textarea id="working_tracks" class="mono" placeholder='Paste JSON array of tracks. Example:
-[
-  {
-    "track_number": 1,
-    "title": "Stand in His Strength",
-    "suno_prompt": "…",
-    "lyrics": "…",
-    "keywords": "faith, authority",
-    "scripture": "Ephesians 6:10",
-    "youtube_long_url": "https://www.youtube.com/watch?v=…",
-    "youtube_long_published_at": "2026-02-20",
-    "longform_done": true,
-    "long_packaged": true,
-    "lyrics_done": true,
-    "is_legacy_published": true
-  }
-]'></textarea>
-          <div class="hint">Scratchpad only (not stored). “Apply Tracks → Songs” replaces current songs in this album.</div>
-        </div>
-      </div>
-
-      <div class="row" style="margin-top:10px;">
-        <button id="btnApplyTracks" class="btn secondary">Apply Tracks → Songs</button>
-        <button id="btnClearWorking" class="btn">Clear Working</button>
-        <div class="muted">Imports titles + Suno prompt + lyrics + links + done flags (only if your DB columns exist).</div>
-      </div>
-
-      <h2 class="sectionTitle" style="margin-top:18px;">Songs (final)</h2>
-      <table>
-        <thead>
-          <tr>
-            <th class="tiny">#</th>
-            <th class="mini">Title</th>
-            <th class="wide">Suno Prompt</th>
-            <th class="mini">Keywords</th>
-            <th class="mini">Scripture</th>
-            <th class="tiny">Lyrics ✅</th>
-            <th class="tiny">Long ✅</th>
-            <th class="tiny">YT 🔗</th>
-            <th class="mini">Actions</th>
-          </tr>
-        </thead>
-        <tbody id="songsBody"></tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- Song Edit Modal -->
-  <div id="modalOverlay" class="modalOverlay" role="dialog" aria-modal="true" aria-label="Edit Song">
-    <div class="modal">
-      <div class="modalHead">
         <div>
-          <h2 style="margin:0;" id="modalTitle">Edit Song</h2>
-          <div class="muted" id="modalSub"></div>
-          <div class="row" style="margin-top:8px;">
-            <span class="pill" id="legacyPill">legacy: —</span>
-          </div>
-        </div>
-        <div class="rightActions">
-          <button id="btnModalProduction" class="btn secondary">Open Production</button>
-          <button id="btnModalClose" class="btn">Close</button>
+          <label for="secondary_genre">Secondary Genre</label>
+          <select id="secondary_genre">
+            <option value="">(none)</option>
+            <option value="Country">Country</option>
+            <option value="Soul">Soul</option>
+            <option value="Pop">Pop</option>
+            <option value="Rock">Rock</option>
+            <option value="Country Rock">Country Rock</option>
+          </select>
+          <div class="hint">Example: Gospel / Country, Gospel / Soul.</div>
         </div>
       </div>
 
-      <div class="modalBody">
-        <div class="modalGrid">
-          <div>
-            <label for="m_track">Track #</label>
-            <input id="m_track" type="number" min="1" max="99" />
-          </div>
-          <div>
-            <label for="m_title">Title</label>
-            <input id="m_title" />
-          </div>
+      <label for="voice_identity">Voice Identity (stable singer vibe)</label>
+      <textarea id="voice_identity" placeholder="Example: Female lead, warm belt tone, emotional but controlled delivery, light country twang."></textarea>
 
-          <div style="grid-column: 1 / -1;">
-            <label for="m_suno">Suno Prompt</label>
-            <textarea id="m_suno" class="mono" style="min-height:120px;"></textarea>
-          </div>
+      <label for="must_include">Must Include (always instruments)</label>
+      <textarea id="must_include" placeholder="Example: Full instrumentation required: drums, bass, core instrument (guitar or piano), tasteful pads."></textarea>
 
-          <div style="grid-column: 1 / -1;">
-            <label for="m_lyrics">Lyrics</label>
-            <textarea id="m_lyrics" class="mono" style="min-height:160px;"></textarea>
-          </div>
+      <label for="never_include">Never Include (banned elements)</label>
+      <textarea id="never_include" placeholder="Example: No EDM drops, no 808s, no trap hats, no heavy autotune, no horns."></textarea>
 
-          <div>
-            <label for="m_keywords">Keywords</label>
-            <input id="m_keywords" placeholder="optional" />
-          </div>
-          <div>
-            <label for="m_scripture">Scripture</label>
-            <input id="m_scripture" placeholder="optional" />
-          </div>
+      <label for="suno_voice_anchor">Suno Voice Anchor (VOICE ONLY)</label>
+      <textarea id="suno_voice_anchor" placeholder="Short anchor that keeps the same voice/personality. Do not describe the whole beat here."></textarea>
 
-          <div>
-            <label for="m_yt_url">YouTube Long URL</label>
-            <input id="m_yt_url" placeholder="https://www.youtube.com/watch?v=…" />
-          </div>
-          <div>
-            <label for="m_yt_date">YouTube Long Published Date</label>
-            <input id="m_yt_date" type="date" />
-          </div>
-        </div>
+      <hr class="divider">
 
-        <div class="inlineChecks">
-          <label><input id="m_lyrics_done" type="checkbox"> Lyrics done</label>
-          <label><input id="m_long_done" type="checkbox"> Long done</label>
-          <label><input id="m_long_packaged" type="checkbox"> Long packaged</label>
-          <label><input id="m_legacy" type="checkbox"> Legacy published</label>
-        </div>
+      <h2 class="sectionTitle">YouTube Packaging Defaults</h2>
 
-        <div class="row" style="justify-content:flex-end; margin-top:14px;">
-          <button id="btnModalDelete" class="btn danger">Delete Song</button>
-          <button id="btnModalSave" class="btn primary">Save Song</button>
-        </div>
+      <label for="youtube_about">Artist About (auto-inserted into descriptions)</label>
+      <textarea id="youtube_about" placeholder="2–5 sentences about the artist, genre, and message."></textarea>
 
-        <div class="hint">
-          <b>Legacy mode:</b> song stays visible, but shows “legacy” and can be edited.
-        </div>
+      <div class="checkRow">
+        <input id="thumb_use_artist_default" type="checkbox">
+        <label for="thumb_use_artist_default" style="margin:0;">Default: include artist image in thumbnails (Long videos)</label>
+      </div>
+
+      <label for="thumbnail_style_long">Default Thumbnail Style (Long Videos)</label>
+      <textarea id="thumbnail_style_long" placeholder="Describe the default thumbnail look: colors, lighting, composition, text rules, SEO/CTR rules."></textarea>
+
+      <hr class="divider">
+
+      <h2 class="sectionTitle">Links</h2>
+      <div class="grid">
+        <div><label for="spotify_url">Spotify</label><input id="spotify_url" placeholder="https://..."></div>
+        <div><label for="bandcamp_ur">Bandcamp</label><input id="bandcamp_ur" placeholder="https://..."></div>
+        <div><label for="apple_music_">Apple Music</label><input id="apple_music_" placeholder="https://..."></div>
+        <div><label for="soundcloud_u">SoundCloud</label><input id="soundcloud_u" placeholder="https://..."></div>
+        <div><label for="youtube_url">YouTube</label><input id="youtube_url" placeholder="https://..."></div>
+        <div><label for="website_url">Website</label><input id="website_url" placeholder="https://..."></div>
+        <div><label for="beacons_url">Beacons</label><input id="beacons_url" placeholder="https://..."></div>
+        <div><label for="tiktok_url">TikTok</label><input id="tiktok_url" placeholder="https://..."></div>
+        <div><label for="facebook_url">Facebook</label><input id="facebook_url" placeholder="https://..."></div>
+      </div>
+
+      <div class="actions" style="margin-top:18px;">
+        <button id="btnCancel" class="btn secondary">Cancel</button>
+        <button id="btnSave" class="btn primary">Save Changes</button>
       </div>
     </div>
   </div>
@@ -271,432 +168,128 @@
   <script type="module">
     import { supabase, requireSessionOrRedirect } from "./app.js";
     const $ = (id) => document.getElementById(id);
-
-    const ALBUMS = "albums";
-    const SONGS = "songs";
-    const ARTISTS = "artists";
+    const TABLE = "artists";
 
     const session = await requireSessionOrRedirect();
     $("who").textContent = `Signed in: ${session.user.email}`;
 
     const params = new URLSearchParams(window.location.search);
-    const id = params.get("id");
-    if (!id) { alert("Missing album id"); window.location.href = "./albums.html"; }
-
-    let album = null;
-    let artist = null;
-    let songs = [];
-    let currentSong = null;
-
-    function safeText(v){ return (v === null || v === undefined) ? "" : String(v); }
-    function escAttr(s){
-      return safeText(s).replaceAll("&","&amp;").replaceAll('"','&quot;').replaceAll("<","&lt;").replaceAll(">","&gt;");
-    }
-    function hasLyricsText(song){
-      const lyr = (song?.lyrics ?? "").toString().trim();
-      return lyr.length > 0;
+    const artistId = params.get("id");
+    if (!artistId) {
+      alert("Missing artist id");
+      window.location.href = "./artists.html";
     }
 
-    function setChips(){
-      const chips = $("chips");
-      chips.innerHTML = "";
-      const vals = [
-        album?.status ? ("status: " + album.status) : null,
-        artist?.name ? ("artist: " + artist.name) : null,
-        album?.total_tracks ? ("tracks: " + album.total_tracks) : null,
-        album?.lead_type ? ("lead: " + album.lead_type) : null,
-      ].filter(Boolean);
-      for (const v of vals){
-        const s = document.createElement("span");
-        s.className = "chip";
-        s.textContent = v;
-        chips.appendChild(s);
-      }
+    const safe = (v) => (v === null || v === undefined) ? "" : String(v);
+
+    function normalizeHandle(v){
+      const s = (v || "").trim();
+      if (!s) return null;
+      return s.startsWith("@") ? s.slice(1) : s;
+    }
+    function normalizeUrl(v){
+      const s = (v || "").trim();
+      if (!s) return null;
+      if (s.startsWith("http://") || s.startsWith("https://")) return s;
+      return "https://" + s;
     }
 
-    // ✅ AUTO STATUS: approved -> producing when ALL songs have lyrics + suno_share_url
-    async function maybeAutoSetProducing(){
-      if (!album || !songs) return;
-      const current = (album.status || "").toLowerCase();
-      if (current !== "approved") return;
-
-      const allDone = songs.length > 0 && songs.every(s => {
-        const lyrOk = ((s.lyrics ?? "").toString().trim().length > 0);
-        const sunoOk = ((s.suno_share_url ?? "").toString().trim().length > 0);
-        return lyrOk && sunoOk;
-      });
-
-      if (!allDone) return;
-
-      const { error } = await supabase.from(ALBUMS).update({ status: "producing" }).eq("id", id);
-      if (error) return;
-
-      album.status = "producing";
-      $("status").value = "producing";
-      setChips();
-      $("statusLine").textContent = "All tracks complete → status auto-set to producing ✅";
-    }
-
-    function renderSongs(){
-      const body = $("songsBody");
-      body.innerHTML = "";
-      if (!songs.length){
-        body.innerHTML = "<tr><td colspan='9' class='muted'>No songs yet. Apply tracks.</td></tr>";
-        return;
-      }
-      songs.sort((a,b) => (a.track_number ?? 0) - (b.track_number ?? 0));
-
-      for (const s of songs){
-        const tr = document.createElement("tr");
-        tr.dataset.songId = s.id;
-
-        const lyricsOk = hasLyricsText(s);
-        const longDone = !!s.longform_done;
-        const ytUrl = (s.youtube_long_url || "").trim();
-        const ytDisabled = ytUrl ? "" : "aria-disabled='true'";
-        const legacy = !!s.is_legacy_published;
-
-        tr.innerHTML = `
-          <td class="tiny"><b>${s.track_number ?? ""}</b></td>
-          <td><input data-title value="${escAttr(s.title)}"></td>
-          <td><textarea data-suno class="mono" style="min-height:90px;">${safeText(s.suno_prompt || "")}</textarea></td>
-          <td><input data-keywords value="${escAttr(s.keywords)}" placeholder="optional"></td>
-          <td><input data-scripture value="${escAttr(s.scripture)}" placeholder="optional"></td>
-          <td class="checkCell"><input type="checkbox" ${lyricsOk ? "checked" : ""} disabled></td>
-          <td class="checkCell"><input type="checkbox" ${longDone ? "checked" : ""} disabled></td>
-          <td class="checkCell">
-            <span class="linkIcon" data-yt ${ytDisabled} title="${ytUrl ? escAttr(ytUrl) : "No YouTube link yet"}">🔗</span>
-          </td>
-          <td>
-            <div class="row">
-              <button class="btn secondary small" data-open>Open</button>
-              <button class="btn secondary small" data-prod>Production</button>
-              <span class="pill ${legacy ? "warn" : "ok"}" title="${legacy ? "Legacy published" : "Active"}">${legacy ? "legacy" : "active"}</span>
-            </div>
-          </td>
-        `;
-        body.appendChild(tr);
-
-        tr.querySelector("[data-open]").onclick = () => openSongModal(s.id);
-
-        tr.querySelector("[data-prod]").onclick = () => {
-          window.location.href = `./production.html?album_id=${encodeURIComponent(id)}&song_id=${encodeURIComponent(s.id)}`;
-        };
-
-        const ytEl = tr.querySelector("[data-yt]");
-        ytEl.onclick = () => {
-          if (!ytUrl) return;
-          window.open(ytUrl, "_blank", "noopener,noreferrer");
-        };
-      }
-    }
-
-    async function loadAlbum(){
+    async function load(){
       $("statusLine").textContent = "Loading…";
 
-      const { data: a, error } = await supabase.from(ALBUMS).select("*").eq("id", id).single();
+      const { data, error } = await supabase
+        .from(TABLE)
+        .select("*")
+        .eq("id", artistId)
+        .single();
+
       if (error) { $("statusLine").textContent = "Error: " + error.message; return; }
-      album = a;
 
-      const { data: art } = await supabase.from(ARTISTS).select("id,name").eq("id", album.artist_id).single();
-      artist = art || null;
+      $("name").value = safe(data.name);
+      $("channel_hand").value = safe(data.channel_hand ? ("@" + data.channel_hand) : "");
+      $("youtube_chan").value = safe(data.youtube_chan);
+      $("default_lane").value = safe(data.default_lane);
+      $("default_perso").value = safe(data.default_perso);
 
-      const { data: s, error: e3 } = await supabase.from(SONGS).select("*").eq("album_id", id).order("track_number", { ascending: true });
-      songs = e3 ? [] : (s || []);
+      $("main_genre").value = safe(data.main_genre);
+      $("secondary_genre").value = safe(data.secondary_genre);
+      $("voice_identity").value = safe(data.voice_identity);
+      $("must_include").value = safe(data.must_include);
+      $("never_include").value = safe(data.never_include);
+      $("suno_voice_anchor").value = safe(data.suno_voice_anchor);
 
-      $("pageTitle").textContent = `Album Studio: ${album.title || "(Draft)"}`;
-      $("status").value = album.status || "draft";
-      $("titleInput").value = album.title || "";
-      $("theme").value = album.theme || "";
-      $("style").value = album.style || "";
-      $("mood").value = album.mood || "";
-      $("lead_type").value = album.lead_type || "solo";
-      $("total_tracks").value = album.total_tracks || 12;
-      $("notes").value = album.notes || "";
-      $("prompt").value = album.chatgpt_prompt || "";
+      $("youtube_about").value = safe(data.youtube_about);
+      $("thumb_use_artist_default").checked = !!data.thumb_use_artist_default;
+      $("thumbnail_style_long").value = safe(data.thumbnail_style_long);
 
-      // Working scratchpad is intentionally NOT loaded from DB.
-      $("working_tracks").value = "";
+      $("spotify_url").value = safe(data.spotify_url);
+      $("bandcamp_ur").value = safe(data.bandcamp_ur);
+      $("apple_music_").value = safe(data.apple_music_);
+      $("soundcloud_u").value = safe(data.soundcloud_u);
+      $("youtube_url").value = safe(data.youtube_url);
+      $("website_url").value = safe(data.website_url);
+      $("beacons_url").value = safe(data.beacons_url);
+      $("tiktok_url").value = safe(data.tiktok_url);
+      $("facebook_url").value = safe(data.facebook_url);
 
-      $("statusLine").textContent = `Album ID: ${album.id}`;
-      setChips();
-      renderSongs();
-
-      await maybeAutoSetProducing();
+      $("statusLine").textContent = "Ready ✅";
     }
 
-    async function saveAlbum(){
-      const payload = {
-        status: $("status").value,
-        title: $("titleInput").value.trim() || null,
-        theme: $("theme").value.trim() || null,
-        style: $("style").value.trim() || null,
-        mood: $("mood").value.trim() || null,
-        lead_type: $("lead_type").value || "solo",
-        total_tracks: Number($("total_tracks").value || 12),
-        notes: $("notes").value.trim() || null,
-        chatgpt_prompt: $("prompt").value || null
-      };
+    async function save(){
+      const name = $("name").value.trim();
+      if (!name) return alert("Name is required.");
 
       $("statusLine").textContent = "Saving…";
-      const { error } = await supabase.from(ALBUMS).update(payload).eq("id", id);
-      if (error) { $("statusLine").textContent = "Error: " + error.message; return; }
-
-      // Save quick edits from table (title/keywords/scripture/suno_prompt)
-      const rows = [...document.querySelectorAll("#songsBody tr[data-song-id]")];
-      for (const r of rows){
-        const sid = r.dataset.songId;
-        const title = r.querySelector("[data-title]").value.trim();
-        const keywords = r.querySelector("[data-keywords]").value.trim() || null;
-        const scripture = r.querySelector("[data-scripture]").value.trim() || null;
-        const suno_prompt = (r.querySelector("[data-suno]")?.value || "").trim() || null;
-        if (!title) continue;
-
-        // Try with suno_prompt; fallback if column missing
-        let upd = await supabase.from(SONGS).update({ title, keywords, scripture, suno_prompt }).eq("id", sid);
-        if (upd.error && String(upd.error.message || "").toLowerCase().includes("suno_prompt")) {
-          await supabase.from(SONGS).update({ title, keywords, scripture }).eq("id", sid);
-        }
-      }
-
-      $("statusLine").textContent = "Saved ✅";
-      await loadAlbum();
-    }
-
-    async function deleteAlbum(){
-      const ok = confirm("Delete this album? Songs will be deleted too.");
-      if (!ok) return;
-      $("statusLine").textContent = "Deleting…";
-      const { error } = await supabase.from(ALBUMS).delete().eq("id", id);
-      if (error) { $("statusLine").textContent = "Error: " + error.message; return; }
-      window.location.href = "./albums.html";
-    }
-
-    function normalizeTracks(arr){
-      // Accept array of objects with extra fields; accept array of strings as titles.
-      if (!Array.isArray(arr)) return [];
-
-      if (arr.every(x => typeof x === "string")) {
-        return arr.map((title, idx) => ({
-          track_number: idx + 1,
-          title: String(title).replace(/^"+|"+$/g,"").trim()
-        })).filter(t => t.title);
-      }
-
-      return arr.map((x, idx) => {
-        const track_number = Number(x.track_number || (idx+1));
-        return {
-          track_number,
-          title: safeText(x.title).trim(),
-          suno_prompt: x.suno_prompt ? safeText(x.suno_prompt).trim() : null,
-          lyrics: x.lyrics ? safeText(x.lyrics) : null,
-          keywords: x.keywords ? safeText(x.keywords).trim() : null,
-          scripture: x.scripture ? safeText(x.scripture).trim() : null,
-
-          // Optional “done + publish” fields (only inserted if your DB supports them)
-          lyrics_done: x.lyrics_done,
-          longform_done: x.longform_done,
-          long_packaged: x.long_packaged,
-          is_legacy_published: x.is_legacy_published,
-          youtube_long_url: x.youtube_long_url ? safeText(x.youtube_long_url).trim() : null,
-          youtube_long_published_at: x.youtube_long_published_at ? safeText(x.youtube_long_published_at).trim() : null,
-        };
-      }).filter(t => t.title);
-    }
-
-    async function insertWithFallback(rows){
-      // Try inserting rows; if Supabase says a column doesn't exist, remove it and retry.
-      let working = rows.map(r => ({...r}));
-
-      for (let attempts=0; attempts<8; attempts++){
-        const res = await supabase.from(SONGS).insert(working);
-        if (!res.error) return { ok:true };
-
-        const msg = String(res.error.message || "");
-        const m = msg.match(/column\s+\"([^\"]+)\"\s+of\s+relation/i);
-        if (!m) return { ok:false, error: msg };
-
-        const bad = m[1];
-        working = working.map(r => {
-          const c = {...r};
-          delete c[bad];
-          return c;
-        });
-      }
-      return { ok:false, error:"Insert failed after fallbacks." };
-    }
-
-    async function applyTracksToSongs(){
-      const rawText = $("working_tracks").value;
-      const raw = (() => {
-        const t = (rawText || "").trim();
-        if (!t) return null;
-        try {
-          const v = JSON.parse(t);
-          if (Array.isArray(v)) return v;
-        } catch {}
-        return null;
-      })();
-
-      if (!raw) return alert("Paste a valid JSON ARRAY into TRACKS_JSON.");
-
-      const tracks = normalizeTracks(raw);
-      if (!tracks.length) return alert("No valid tracks found.");
-
-      $("statusLine").textContent = "Replacing songs…";
-
-      // Delete existing songs in album
-      await supabase.from(SONGS).delete().eq("album_id", id);
-
-      // Build insert rows
-      const rows = tracks.map(t => ({
-        album_id: id,
-        track_number: t.track_number,
-        title: t.title,
-        suno_prompt: t.suno_prompt || null,
-        lyrics: t.lyrics || null,
-        keywords: t.keywords || null,
-        scripture: t.scripture || null,
-        lyrics_done: t.lyrics_done,
-        longform_done: t.longform_done,
-        long_packaged: t.long_packaged,
-        is_legacy_published: t.is_legacy_published,
-        youtube_long_url: t.youtube_long_url || null,
-        youtube_long_published_at: t.youtube_long_published_at || null
-      }));
-
-      const ins = await insertWithFallback(rows);
-      if (!ins.ok) { $("statusLine").textContent = "Error: " + ins.error; return; }
-
-      $("statusLine").textContent = "Songs imported ✅";
-      await loadAlbum();
-    }
-
-    // Modal helpers
-    function openModal(){ $("modalOverlay").style.display = "flex"; }
-    function closeModal(){ $("modalOverlay").style.display = "none"; currentSong = null; }
-    function findSong(songId){ return songs.find(s => String(s.id) === String(songId)); }
-
-    function fillModal(s){
-      currentSong = s;
-
-      $("modalTitle").textContent = `Edit Song: ${s.title || ""}`;
-      $("modalSub").textContent = `Song ID: ${s.id}`;
-      const legacy = !!s.is_legacy_published;
-      $("legacyPill").textContent = legacy ? "legacy: YES" : "legacy: NO";
-      $("legacyPill").className = "pill " + (legacy ? "warn" : "ok");
-
-      $("m_track").value = s.track_number ?? "";
-      $("m_title").value = s.title ?? "";
-      $("m_suno").value = s.suno_prompt ?? "";
-      $("m_lyrics").value = s.lyrics ?? "";
-      $("m_keywords").value = s.keywords ?? "";
-      $("m_scripture").value = s.scripture ?? "";
-      $("m_yt_url").value = s.youtube_long_url ?? "";
-      $("m_yt_date").value = s.youtube_long_published_at ?? "";
-
-      $("m_lyrics_done").checked = !!s.lyrics_done || hasLyricsText(s);
-      $("m_long_done").checked = !!s.longform_done;
-      $("m_long_packaged").checked = !!s.long_packaged;
-      $("m_legacy").checked = !!s.is_legacy_published;
-    }
-
-    async function openSongModal(songId){
-      const s = findSong(songId);
-      if (!s) return;
-      fillModal(s);
-      openModal();
-    }
-
-    async function saveSongFromModal(){
-      if (!currentSong) return;
 
       const payload = {
-        track_number: Number($("m_track").value || currentSong.track_number || 1),
-        title: ($("m_title").value || "").trim() || null,
-        suno_prompt: ($("m_suno").value || "").trim() || null,
-        lyrics: ($("m_lyrics").value || "").trim() || null,
-        keywords: ($("m_keywords").value || "").trim() || null,
-        scripture: ($("m_scripture").value || "").trim() || null,
+        name,
+        channel_hand: normalizeHandle($("channel_hand").value),
+        youtube_chan: $("youtube_chan").value.trim() || null,
+        default_lane: $("default_lane").value || null,
+        default_perso: $("default_perso").value.trim() || null,
 
-        youtube_long_url: ($("m_yt_url").value || "").trim() || null,
-        youtube_long_published_at: ($("m_yt_date").value || "").trim() || null,
+        main_genre: $("main_genre").value || null,
+        secondary_genre: $("secondary_genre").value || null,
+        voice_identity: ($("voice_identity").value || "").trim() || null,
+        must_include: ($("must_include").value || "").trim() || null,
+        never_include: ($("never_include").value || "").trim() || null,
+        suno_voice_anchor: ($("suno_voice_anchor").value || "").trim() || null,
 
-        lyrics_done: $("m_lyrics_done").checked,
-        longform_done: $("m_long_done").checked,
-        long_packaged: $("m_long_packaged").checked,
-        is_legacy_published: $("m_legacy").checked
+        youtube_about: ($("youtube_about").value || "").trim() || null,
+        thumb_use_artist_default: !!$("thumb_use_artist_default").checked,
+        thumbnail_style_long: ($("thumbnail_style_long").value || "").trim() || null,
+
+        spotify_url: normalizeUrl($("spotify_url").value),
+        bandcamp_ur: normalizeUrl($("bandcamp_ur").value),
+        apple_music_: normalizeUrl($("apple_music_").value),
+        soundcloud_u: normalizeUrl($("soundcloud_u").value),
+        youtube_url: normalizeUrl($("youtube_url").value),
+        website_url: normalizeUrl($("website_url").value),
+        beacons_url: normalizeUrl($("beacons_url").value),
+        tiktok_url: normalizeUrl($("tiktok_url").value),
+        facebook_url: normalizeUrl($("facebook_url").value),
       };
 
-      async function updateWithFallback(obj){
-        let working = {...obj};
-        for (let attempts=0; attempts<8; attempts++){
-          const res = await supabase.from(SONGS).update(working).eq("id", currentSong.id);
-          if (!res.error) return { ok:true };
-          const msg = String(res.error.message || "");
-          const m = msg.match(/column\s+\"([^\"]+)\"\s+of\s+relation/i);
-          if (!m) return { ok:false, error: msg };
-          delete working[m[1]];
-        }
-        return { ok:false, error:"Update failed after fallbacks." };
-      }
+      const { error } = await supabase
+        .from(TABLE)
+        .update(payload)
+        .eq("id", artistId);
 
-      $("statusLine").textContent = "Saving song…";
-      const up = await updateWithFallback(payload);
-      if (!up.ok) { $("statusLine").textContent = "Error: " + up.error; return; }
-
-      $("statusLine").textContent = "Song saved ✅";
-      closeModal();
-      await loadAlbum();
-    }
-
-    async function deleteSongFromModal(){
-      if (!currentSong) return;
-      const ok = confirm("Delete this song?");
-      if (!ok) return;
-
-      $("statusLine").textContent = "Deleting song…";
-      const { error } = await supabase.from(SONGS).delete().eq("id", currentSong.id);
       if (error) { $("statusLine").textContent = "Error: " + error.message; return; }
 
-      $("statusLine").textContent = "Song deleted ✅";
-      closeModal();
-      await loadAlbum();
+      $("statusLine").textContent = "Saved ✅";
+      window.location.href = `./artist-view.html?id=${encodeURIComponent(artistId)}`;
     }
 
-    $("btnSave").onclick = saveAlbum;
-    $("btnDelete").onclick = deleteAlbum;
-    $("btnApplyTracks").onclick = applyTracksToSongs;
-    $("btnClearWorking").onclick = () => $("working_tracks").value = "";
-
-    $("btnCopyPrompt").onclick = async () => {
-      const p = $("prompt").value;
-      if (!p) return alert("No prompt stored.");
-      await navigator.clipboard.writeText(p);
-      $("statusLine").textContent = "Prompt copied ✅";
-    };
-
-    $("btnGoProduction").onclick = () => {
-      window.location.href = `./production.html?album_id=${encodeURIComponent(id)}`;
-    };
-
-    $("btnBack").onclick = () => window.location.href = "./albums.html";
+    $("btnSave").onclick = save;
+    $("btnCancel").onclick = () => window.location.href = `./artist-view.html?id=${encodeURIComponent(artistId)}`;
+    $("btnBack").onclick = () => window.location.href = `./artist-view.html?id=${encodeURIComponent(artistId)}`;
     $("btnLogout").onclick = async () => {
       await supabase.auth.signOut();
       window.location.href = "./index.html";
     };
 
-    $("btnModalClose").onclick = closeModal;
-    $("modalOverlay").onclick = (e) => { if (e.target === $("modalOverlay")) closeModal(); };
-
-    $("btnModalProduction").onclick = () => {
-      if (!currentSong) return;
-      window.location.href = `./production.html?album_id=${encodeURIComponent(id)}&song_id=${encodeURIComponent(currentSong.id)}`;
-    };
-    $("btnModalSave").onclick = saveSongFromModal;
-    $("btnModalDelete").onclick = deleteSongFromModal;
-
-    await loadAlbum();
+    await load();
   </script>
 </body>
 </html>
