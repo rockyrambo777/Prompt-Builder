@@ -176,6 +176,12 @@
       </div>
 
       <h2 class="sectionTitle" style="margin-top:18px;">Songs (final)</h2>
+      <div class="row" style="margin:10px 0 12px; gap:10px; flex-wrap:wrap;">
+        <button id="btnImportSong" class="btn secondary">Import Existing Song</button>
+        <button id="btnBulkImport" class="btn">Bulk Import</button>
+        <span class="muted">For already-released/back-catalog songs: paste Title + Suno prompt + Lyrics. Optional links + “already distributed”.</span>
+      </div>
+
       <table>
         <thead>
           <tr>
@@ -293,7 +299,118 @@
     </div>
   </div>
 
-  <script type="module">
+  
+  <!-- Import Existing Song Modal -->
+  <div id="importOverlay" class="modalOverlay" role="dialog" aria-modal="true" aria-label="Import Song" style="display:none;">
+    <div class="modal" style="max-width:920px;">
+      <div class="modalHead">
+        <div>
+          <h2 style="margin:0;" id="importTitle">Import Existing Song</h2>
+          <div class="muted" id="importSub">Paste what you already have. This creates a new song row in this album.</div>
+        </div>
+        <div class="rightActions">
+          <button id="btnImportClose" class="btn">Close</button>
+        </div>
+      </div>
+
+      <div class="grid2" style="margin-top:12px;">
+        <div>
+          <label for="imp_title">Title</label>
+          <input id="imp_title" placeholder="Song title">
+        </div>
+        <div>
+          <label for="imp_track">Track # (optional)</label>
+          <input id="imp_track" type="number" min="1" placeholder="e.g. 1">
+        </div>
+
+        <div>
+          <label for="imp_keywords">Keywords (optional)</label>
+          <input id="imp_keywords" placeholder="e.g. faith, authority, bold praise">
+        </div>
+        <div>
+          <label for="imp_scripture">Scripture (faith artists only, optional)</label>
+          <input id="imp_scripture" placeholder="e.g. Ephesians 6:10">
+        </div>
+
+        <div class="span2">
+          <label for="imp_suno_prompt">Suno Prompt</label>
+          <textarea id="imp_suno_prompt" class="mono" style="min-height:110px;" placeholder="Paste the Suno prompt you used…"></textarea>
+        </div>
+
+        <div class="span2">
+          <label for="imp_lyrics">Lyrics</label>
+          <textarea id="imp_lyrics" class="mono" style="min-height:180px;" placeholder="Paste full lyrics…"></textarea>
+        </div>
+
+        <div>
+          <label for="imp_suno_url">Suno Link (optional)</label>
+          <input id="imp_suno_url" placeholder="https://suno.com/...">
+        </div>
+        <div>
+          <label for="imp_youtube_url">YouTube Long URL (optional)</label>
+          <input id="imp_youtube_url" placeholder="https://www.youtube.com/watch?v=...">
+        </div>
+
+        <div class="row span2" style="gap:14px; align-items:center; margin-top:4px;">
+          <label class="row" style="gap:8px; margin:0;">
+            <input id="imp_distributed" type="checkbox">
+            <span>Already distributed</span>
+          </label>
+          <div style="flex:1;">
+            <label for="imp_distributor">Distributor (optional)</label>
+            <input id="imp_distributor" placeholder="e.g. Ditto, DistroKid, CD Baby">
+          </div>
+          <div style="width:220px;">
+            <label for="imp_release_date">Original Release Date (optional)</label>
+            <input id="imp_release_date" type="date">
+          </div>
+        </div>
+
+        <div class="row span2" style="justify-content:flex-end; gap:10px; margin-top:10px;">
+          <button id="btnImportCreate" class="btn primary">Create Song</button>
+        </div>
+
+        <div class="span2 muted" id="importStatus"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bulk Import Modal -->
+  <div id="bulkOverlay" class="modalOverlay" role="dialog" aria-modal="true" aria-label="Bulk Import" style="display:none;">
+    <div class="modal" style="max-width:980px;">
+      <div class="modalHead">
+        <div>
+          <h2 style="margin:0;">Bulk Import</h2>
+          <div class="muted">Paste multiple songs. Separator: a line with <b>---</b>.</div>
+        </div>
+        <div class="rightActions">
+          <button id="btnBulkClose" class="btn">Close</button>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <div class="muted" style="margin-bottom:8px;">
+          Format per song:
+          <span class="mono">TITLE:</span> …<br>
+          <span class="mono">SUNO_PROMPT:</span> …<br>
+          <span class="mono">LYRICS:</span> …<br>
+          Optional: <span class="mono">SUNO_URL:</span>, <span class="mono">YOUTUBE_URL:</span>, <span class="mono">KEYWORDS:</span>, <span class="mono">SCRIPTURE:</span>, <span class="mono">TRACK:</span>
+        </div>
+        <textarea id="bulk_text" class="mono" style="min-height:320px;" placeholder="TITLE: ...&#10;SUNO_PROMPT: ...&#10;LYRICS: ...&#10;---&#10;TITLE: ..."></textarea>
+
+        <div class="row" style="justify-content:flex-end; gap:10px; margin-top:10px; flex-wrap:wrap;">
+          <label class="row" style="gap:8px; margin-right:auto;">
+            <input id="bulk_distributed" type="checkbox">
+            <span>Mark all as already distributed</span>
+          </label>
+          <button id="btnBulkPreview" class="btn secondary">Preview Count</button>
+          <button id="btnBulkImportDo" class="btn primary">Import All</button>
+        </div>
+        <div class="muted" id="bulkStatus" style="margin-top:8px;"></div>
+      </div>
+    </div>
+  </div>
+<script type="module">
     import { supabase, requireSessionOrRedirect } from "./app.js";
     const $ = (id) => document.getElementById(id);
 
@@ -661,6 +778,82 @@
       $("m_legacy").checked = !!s.is_legacy_published;
     }
 
+    // --- Import Existing / Bulk Import ---
+    const show = (id) => { const el = $(id); if (el) el.style.display = ""; };
+    const hide = (id) => { const el = $(id); if (el) el.style.display = "none"; };
+
+    function openImport(){
+      $("importStatus").textContent = "";
+      $("imp_title").value = "";
+      $("imp_track").value = "";
+      $("imp_keywords").value = "";
+      $("imp_scripture").value = "";
+      $("imp_suno_prompt").value = "";
+      $("imp_lyrics").value = "";
+      $("imp_suno_url").value = "";
+      $("imp_youtube_url").value = "";
+      $("imp_distributed").checked = false;
+      $("imp_distributor").value = "";
+      $("imp_release_date").value = "";
+      show("importOverlay");
+    }
+
+    function openBulk(){
+      $("bulkStatus").textContent = "";
+      $("bulk_text").value = "";
+      $("bulk_distributed").checked = false;
+      show("bulkOverlay");
+    }
+
+    function parseBulk(text){
+      const blocks = text.split(/\n\s*---\s*\n/).map(s => s.trim()).filter(Boolean);
+      const items = [];
+      for (const b of blocks){
+        const get = (label) => {
+          const re = new RegExp(`^${label}:\s*([\s\S]*?)(?=\n[A-Z_]+\s*:\s*|$)`, "mi");
+          const m = b.match(re);
+          return m ? m[1].trim() : "";
+        };
+        const title = get("TITLE");
+        const suno_prompt = get("SUNO_PROMPT");
+        const lyrics = get("LYRICS");
+        if (!title && !lyrics && !suno_prompt) continue;
+        items.push({
+          title,
+          track_number: parseInt(get("TRACK")||"",10) || null,
+          keywords: get("KEYWORDS") || null,
+          scripture: get("SCRIPTURE") || null,
+          suno_prompt,
+          lyrics,
+          suno_url: get("SUNO_URL") || null,
+          youtube_url: get("YOUTUBE_URL") || null
+        });
+      }
+      return items;
+    }
+
+    async function insertWithFallback(obj){
+      let working = {...obj};
+      for (let attempts=0; attempts<8; attempts++){
+        const res = await supabase.from(SONGS).insert(working).select().single();
+        if (!res.error) return { ok:true, row: res.data };
+        const msg = String(res.error.message || "");
+        const m = msg.match(/column\s+\"([^\"]+)\"\s+of\s+relation/i);
+        if (!m) return { ok:false, error: msg };
+        delete working[m[1]];
+      }
+      return { ok:false, error:"Insert failed after fallbacks." };
+    }
+
+    async function doImportOne(payload){
+      const ins = await insertWithFallback(payload);
+      if (!ins.ok) return ins;
+      songs.unshift(ins.row);
+      await loadSongs(); // refresh from DB to ensure ordering/derived fields
+      return ins;
+    }
+
+
     async function openSongModal(songId){
       const s = findSong(songId);
       if (!s) return;
@@ -760,6 +953,84 @@
     $("btnModalDelete").onclick = deleteSongFromModal;
 
     await loadAlbum();
-  </script>
+  
+    // Import modal bindings
+    const __impBtn = $("btnImportSong");
+    if (__impBtn) __impBtn.onclick = openImport;
+    const __bulkBtn = $("btnBulkImport");
+    if (__bulkBtn) __bulkBtn.onclick = openBulk;
+
+    if ($("btnImportClose")) $("btnImportClose").onclick = () => hide("importOverlay");
+    if ($("btnBulkClose")) $("btnBulkClose").onclick = () => hide("bulkOverlay");
+
+    if ($("btnBulkPreview")) $("btnBulkPreview").onclick = () => {
+      const items = parseBulk($("bulk_text").value || "");
+      $("bulkStatus").textContent = `Parsed ${items.length} song(s).`;
+    };
+
+    if ($("btnImportCreate")) $("btnImportCreate").onclick = async () => {
+      $("importStatus").textContent = "";
+      const title = ($("imp_title").value || "").trim();
+      const lyrics = ($("imp_lyrics").value || "").trim();
+      const suno_prompt = ($("imp_suno_prompt").value || "").trim();
+
+      if (!title) return alert("Title is required.");
+      if (!lyrics && !suno_prompt) {
+        if (!confirm("No lyrics and no Suno prompt pasted. Create anyway?")) return;
+      }
+
+      const payload = {
+        album_id: album.id,
+        title,
+        track_number: parseInt(($("imp_track").value||"").trim(),10) || null,
+        keywords: ($("imp_keywords").value || "").trim() || null,
+        scripture: ($("imp_scripture").value || "").trim() || null,
+        suno_prompt: suno_prompt || null,
+        lyrics: lyrics || null,
+        suno_url: ($("imp_suno_url").value || "").trim() || null,
+        youtube_url: ($("imp_youtube_url").value || "").trim() || null,
+        is_imported: true,
+        is_distributed: $("imp_distributed").checked,
+        distributor: ($("imp_distributor").value || "").trim() || null,
+        original_release_date: ($("imp_release_date").value || "").trim() || null
+      };
+
+      $("importStatus").textContent = "Creating…";
+      const res = await doImportOne(payload);
+      if (!res.ok) { $("importStatus").textContent = "Error: " + res.error; return; }
+      $("importStatus").textContent = "Created ✅";
+      hide("importOverlay");
+    };
+
+    if ($("btnBulkImportDo")) $("btnBulkImportDo").onclick = async () => {
+      const items = parseBulk($("bulk_text").value || "");
+      if (!items.length) return alert("No songs parsed. Check your format.");
+      if (!confirm(`Import ${items.length} songs into this album?`)) return;
+
+      $("bulkStatus").textContent = "Importing…";
+      let ok = 0;
+      for (let i=0;i<items.length;i++){
+        const it = items[i];
+        const payload = {
+          album_id: album.id,
+          title: it.title || `Untitled ${i+1}`,
+          track_number: it.track_number,
+          keywords: it.keywords,
+          scripture: it.scripture,
+          suno_prompt: it.suno_prompt || null,
+          lyrics: it.lyrics || null,
+          suno_url: it.suno_url || null,
+          youtube_url: it.youtube_url || null,
+          is_imported: true,
+          is_distributed: $("bulk_distributed").checked
+        };
+        const res = await doImportOne(payload);
+        if (res.ok) ok++;
+        $("bulkStatus").textContent = `Imported ${ok}/${items.length}…`;
+      }
+      $("bulkStatus").textContent = `Done ✅ Imported ${ok}/${items.length}.`;
+      hide("bulkOverlay");
+    };
+</script>
 </body>
 </html>
