@@ -291,18 +291,7 @@
       $("tempo_direction").value = s.tempo_direction || "";
       $("energy_direction").value = s.energy_direction || "";
       $("instrumentation_notes").value = s.instrumentation_notes || "";
-      $("edit_notes").value = s.edit_notes || "";
-
-      $("short_done").checked = !!s.short_done;
-      $("short_packaged").checked = !!s.short_packaged;
-      $("is_legacy_published").checked = !!s.is_legacy_published;
-
-      setEditMode();
-
-      $("youtube_long_published_at").value = s.youtube_long_published_at || "";
-      $("youtube_short_published_at").value = s.youtube_short_published_at || "";
-
-      setDNAPreview();
+      $("edit_notes").value = s.edit_notes || "";      setEditMode();      setDNAPreview();
     }
 
     function selectSong(songId){
@@ -351,13 +340,7 @@
         tempo_direction: $("tempo_direction").value || null,
         energy_direction: $("energy_direction").value || null,
         instrumentation_notes: $("instrumentation_notes").value.trim() || null,
-        edit_notes: $("edit_notes").value || null,
-
-        short_done: $("short_done").checked,
-        short_packaged: $("short_packaged").checked,
-        is_
-        youtube_long_published_at: $("youtube_long_published_at").value.trim() || null,
-        youtube_short_published_at: $("youtube_short_published_at").value.trim() || null
+        edit_notes: $("edit_notes").value || null,        is_
       };
 
       async function updateWithFallback(obj){
