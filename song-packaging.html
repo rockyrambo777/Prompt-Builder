@@ -210,7 +210,8 @@
       const core = [];
       core.push(`Create YouTube packaging copy for the following.`);
       core.push(``);
-      core.push(`Return these sections (keep it clean, no extra talk):`);
+      core.push(`Return these sections (keep it clean, no extra talk):
+PLAYLIST_RECOMMENDATION:`);
       if (mode === "long"){
         core.push(`YOUTUBE_TITLE:`);
         core.push(`YOUTUBE_DESCRIPTION:`);
@@ -258,7 +259,9 @@
       core.push(`---`);
 
       core.push(``);
-      core.push(`Rules:`);
+      core.push(`Rules:
+- PLAYLIST_RECOMMENDATION: Recommend best playlist for this upload. Use artist default playlist if enabled, otherwise album playlist.
+`);
       core.push(`- Do NOT include a "Song Details: BPM/Key/Genre/Mood" line.`);
       if (mode === "long"){
         core.push(`- Title must follow your format: [Emotional Hook] | [Song Title] | Soul Music | [Artist].`);
