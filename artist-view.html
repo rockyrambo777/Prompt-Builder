@@ -164,7 +164,24 @@
 
       <h2 style="margin:0 0 8px;">Links</h2>
       <div class="grid" id="linksGrid"></div>
-    </div>
+    
+        <div class="card">
+          <div class="cardHead">
+            <div>
+              <div class="h2">Default Playlist</div>
+              <div class="muted">Used by packaging to recommend where songs should be added.</div>
+            </div>
+          </div>
+          <div id="playlistBox" class="box">
+            <div class="row">
+              <span class="pill" id="plEnabled">enabled: —</span>
+              <span class="pill" id="plTitle">title: —</span>
+            </div>
+            <div class="muted" style="margin-top:10px; white-space:pre-wrap;" id="plDesc">—</div>
+          </div>
+        </div>
+
+</div>
   </div>
 
   <script type="module">
@@ -219,7 +236,7 @@
     async function load(){
       $("statusLine").textContent = "Loading…";
 
-      const { data, error } = await supabase.from("artists").select("*").eq("id", id).single();
+      const { data, error } = await supabase.from("artists").select("*,default_playlist_enabled,default_playlist_title,default_playlist_description").eq("id", id).single();
       if (error) { $("statusLine").textContent = "Error: " + error.message; return; }
 
       $("title").textContent = data.name ? data.name : "Artist";
