@@ -274,6 +274,32 @@
             <label><input id="use_artist_image" type="checkbox" checked> Use artist reference image (Flow/Grok)</label>
           </div>
           <div class="hint">Shorts do <b>not</b> use scenes. Longform uses scenes 1–25.</div>
+          <div class="divider"></div>
+
+          <div class="row" style="justify-content:space-between; align-items:center;">
+            <div class="muted">Build a strict prompt for ChatGPT. Paste results into the Working box (not saved).</div>
+            <div class="row">
+              <button id="btnBuild" class="btn primary">Build Prompt</button>
+              <button id="btnClearOutput" class="btn">Clear</button>
+            </div>
+          </div>
+
+          <label for="output">Prompt Output (Copy this into ChatGPT)</label>
+          <textarea id="output" class="mono" style="min-height:260px;" placeholder="Click Build Prompt…"></textarea>
+
+          <div class="divider"></div>
+          <div class="row" style="justify-content:space-between; align-items:center;">
+            <div>
+              <h3 style="margin:0;">Working Results (paste from ChatGPT) — NOT SAVED</h3>
+              <div class="hint">Paste SCENE blocks / SHORT blocks here after ChatGPT responds.</div>
+            </div>
+            <div class="row">
+              <button id="btnCopyWorking" class="btn copy">Copy Working</button>
+              <button id="btnClearWorking" class="btn">Clear Working</button>
+            </div>
+          </div>
+          <textarea id="working_results" class="mono" style="min-height:220px;" placeholder="Paste results here…"></textarea>
+
 
     </div>
   </div>
@@ -373,17 +399,6 @@
       $("lyrics").value = s.lyrics || "";
 
       $("editSongToggle").checked = false;
-
-      const hasLyrics = ((s.lyrics || "").trim().length > 0) || !!s.lyrics_done;
-      // If no lyrics yet: force user to use lyrics builder first
-      $("btnOpenLyricsBuilder").disabled = hasLyrics;
-      $("editSongToggle").disabled = !hasLyrics;
-      const hint = $("editHint");
-      if (hint){
-        hint.textContent = hasLyrics
-          ? "Tick Edit song only when you want to change tempo/lyrics/Suno prompt. Leave it off if you only want video prompts."
-          : "No lyrics yet — click “Build Lyrics + Suno” first. Editing is disabled until lyrics exist.";
-      }
 
       $("revision_goal").value = s.revision_goal || "";
       $("tempo_direction").value = s.tempo_direction || "";
@@ -534,6 +549,69 @@
       }
 
       return lines.join("\n");
+    }
+
+    function buildLongPrompt(){
+      const n = Number($("scene_count").value || 8);
+
+      return `You are helping us create a LONG lyric video using:
+- Google Flow (image generation with optional reference image tick)
+- Grok (image-to-video, 10s clips)
+
+We need you to output ONLY in this strict repeated block format (no JSON, no extra commentary):
+
+SCENE 1:
+LYRICS_RANGE:
+ONSCREEN_TEXT:
+IMAGE_PROMPT (1920x1080, no baked-in text):
+GROK_VIDEO_PROMPT (10s, image-to-video):
+
+Repeat for SCENE 2..${n}.
+
+Rules:
+- Keep each SCENE visually distinct (different shot, camera, environment), but consistent with the artist identity.
+- No mic in scenes unless lyrics explicitly mention it.
+- DO NOT include multiple options. One clear choice per scene.
+- Onscreen text must be short (max ~8 words) and match the lyric range.
+- IMAGE_PROMPT must be detailed and Flow-ready: subject, background, palette, lighting, composition, no text.
+- GROK_VIDEO_PROMPT must be a simple cinematic motion instruction for 10 seconds based on the image.
+- Songs must always feature instruments in the overall vibe (describe them visually when appropriate), but do not clutter scenes.
+
+ARTIST DNA:
+${buildArtistDNABlock()}
+
+${buildSongContextBlock()}
+`;
+    }
+
+    function buildShortsPrompt(){
+      return `We are creating SHORTS from this song.
+
+Return ONLY in this strict repeated block format (no extra commentary):
+
+SHORT 1:
+LYRICS_RANGE:
+ONSCREEN_TEXT (exact text to show):
+SCENE:
+IMAGE_PROMPT (1920x1080, no baked-in text):
+GROK_VIDEO_PROMPT (10s, image-to-video):
+
+SHORT 2:
+...
+
+Rules:
+- Each SHORT is a single 10s clip (Grok limit).
+- Choose the BEST 3–5 shorts moments from the lyrics (hooks, chorus hits, emotional peaks).
+- Onscreen text must be short, readable, and match the lyric meaning.
+- IMAGE_PROMPT: detailed Flow-ready prompt, 1920x1080, no baked-in text.
+- GROK_VIDEO_PROMPT: 10s motion description only.
+- Keep consistent with the artist identity and genre.
+
+ARTIST DNA:
+${buildArtistDNABlock()}
+
+${buildSongContextBlock()}
+`;
     }
 
     
@@ -738,12 +816,6 @@
 
     function buildPrompt(){
       if (!currentSong) return;
-      const hasLyrics = ((currentSong.lyrics || "").trim().length > 0) || !!currentSong.lyrics_done;
-      if (!hasLyrics){
-        alert("This song has no lyrics yet. Build Lyrics + Suno first.");
-        $("btnOpenLyricsBuilder").click();
-        return;
-      }
       const mode = $("video_mode").value;
       if (mode === "shorts") $("output").value = __buildShortsPrompt();
       else if (mode === "long_music") $("output").value = __buildLongPrompt(true);
