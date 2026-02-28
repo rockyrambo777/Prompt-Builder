@@ -1,524 +1,255 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>SVS System – Edit Artist</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Edit Artist</title>
   <style>
-    :root{
-      --bg:#0b0f19; --card:#121a2a; --card2:#0f1626; --border:#23304a;
-      --muted:#92a4c7; --text:#e8eefc; --primary:#2f6fed; --danger:#d14b4b;
-      --ok:#7CFFB2; --warn:#ffcc66;
-    }
-    body { font-family: Arial, sans-serif; background:var(--bg); color:var(--text); margin:0; }
-    .wrap { max-width: 1050px; margin: 0 auto; padding: 24px; }
-    .top { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; }
-    .muted { color:var(--muted); font-size: 14px; }
-    .btn { padding:12px 14px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); cursor:pointer; font-weight:800; }
-    .btn.primary { background:var(--primary); border:none; }
-    .btn.secondary { background:#1c273f; border:1px solid #2a3a5c; }
-    .btn.danger { background:var(--danger); border:none; }
-    .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-top:14px; }
-    .grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; }
-    @media (max-width: 860px){ .grid { grid-template-columns: 1fr; } }
-    label { font-size:12px; color:var(--muted); display:block; margin:8px 0 6px; }
-    input, select, textarea {
-      padding:12px; border-radius:12px; border:1px solid #2a3a5c;
-      background:var(--card2); color:var(--text); width:100%;
-      box-sizing:border-box;
-    }
-    textarea { min-height: 110px; resize: vertical; }
-    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-    .sectionTitle { margin: 0 0 10px; }
-    .hint { font-size:12px; color:var(--muted); margin-top:4px; line-height:1.4; }
-    .actions { display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
-    .checkRow { display:flex; align-items:center; gap:10px; margin:10px 0; }
-    input[type="checkbox"]{ width:18px; height:18px; accent-color: var(--primary); }
-    .divider { border:0; border-top:1px solid #22304a; margin:16px 0; }
-    .pill{
-      display:inline-block; padding:6px 10px; border-radius:999px;
-      border:1px solid #2a3a5c; background:var(--card2); font-size:12px;
-    }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-    .pill.ok { border-color:#1f6b45; }
-    .pill.warn { border-color:#6b4c1d; }
+    :root{--bg:#0b1220;--card:#0f1a2f;--line:rgba(255,255,255,.08);--text:#e8eefc;--mut:#a8b4d6}
+    *{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:radial-gradient(1200px 600px at 20% -10%,rgba(59,130,246,.25),transparent 60%),radial-gradient(900px 500px at 90% 0%,rgba(16,185,129,.18),transparent 55%),var(--bg);color:var(--text)}
+    header{display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid var(--line)}
+    header h1{margin:0;font-size:22px}
+    .nav{display:flex;gap:10px;align-items:center}
+    .pill{padding:9px 12px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--text);border-radius:999px;text-decoration:none;font-weight:700;font-size:13px}
+    .pill.red{background:rgba(239,68,68,.16);border-color:rgba(239,68,68,.28)}
+    .wrap{max-width:1100px;margin:22px auto;padding:0 18px}
+    .card{background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02));border:1px solid var(--line);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.25);padding:16px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    label{display:block;font-size:12px;color:var(--mut);margin:10px 0 6px}
+    input[type=text], textarea, select{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(0,0,0,.22);color:var(--text);outline:none}
+    textarea{min-height:110px;resize:vertical}
+    .btnbar{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+    .btn{padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--text);cursor:pointer;font-weight:800}
+    .btn.primary{background:rgba(59,130,246,.25);border-color:rgba(59,130,246,.35)}
+    .btn.green{background:rgba(16,185,129,.18);border-color:rgba(16,185,129,.35)}
+    .mut{color:var(--mut);font-size:12px;line-height:1.35}
+    table{width:100%;border-collapse:separate;border-spacing:0 10px}
+    th{font-size:12px;color:var(--mut);text-align:left;padding:0 8px}
+    td{padding:0 8px}
+    .rowbox{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:12px;padding:10px}
+    .toast{position:fixed;right:16px;bottom:16px;z-index:999;background:rgba(0,0,0,.75);border:1px solid var(--line);color:var(--text);padding:10px 12px;border-radius:12px;display:none;max-width:min(520px,calc(100vw - 32px))}
+    .toast.ok{border-color:rgba(16,185,129,.45)} .toast.bad{border-color:rgba(239,68,68,.45)}
+    @media(max-width:900px){.grid{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="top">
-      <div>
-        <h1 style="margin:0;">Edit Artist</h1>
-        <div id="who" class="muted"></div>
-        <div id="statusLine" class="muted"></div>
-        <div style="margin-top:10px;">
-          <span id="completePill" class="pill">Setup: —</span>
-        </div>
-      </div>
-      <div class="row">
-        <button id="btnBack" class="btn secondary">Back</button>
-        <button id="btnLogout" class="btn danger">Logout</button>
-      </div>
+  <header>
+    <div>
+      <h1>Edit Artist</h1>
+      <div class="mut" id="who">Loading…</div>
     </div>
+    <div class="nav">
+      <a class="pill" href="./home.html">Home</a>
+      <a class="pill" href="./artists.html">Artists</a>
+      <a class="pill red" href="./index.html">Logout</a>
+    </div>
+  </header>
 
+  <div class="wrap">
     <div class="card">
-      <h2 class="sectionTitle">Profile</h2>
+      <div class="mut">Artist DNA is stored here so prompts don't rely on ChatGPT memory.</div>
+
       <div class="grid">
         <div>
-          <label for="name">Name *</label>
-          <input id="name" placeholder="e.g. Nina's Gospel Groove">
-        </div>
-        <div>
-          <label for="channel_hand">Channel Handle</label>
-          <input id="channel_hand" placeholder="e.g. @NinasGospelGroove">
-          <div class="hint">You can paste with or without @.</div>
-        </div>
+          <label>Name</label>
+          <input id="name" type="text" placeholder="SoulVibe Sanctuary" />
 
-        <div>
-          <label for="youtube_chan">YouTube Channel Name</label>
-          <input id="youtube_chan" placeholder="Display name on YouTube">
-        </div>
+          <label>Default lane</label>
+          <input id="lane" type="text" placeholder="SVS / Country Rock / etc" />
 
-        <div>
-          <label for="tagline">Tagline</label>
-          <input id="tagline" placeholder="1 line vibe (used in descriptions)">
+          <label>Main genre</label>
+          <input id="main_genre" type="text" placeholder="Gospel" />
+
+          <label>Secondary genre</label>
+          <input id="secondary_genre" type="text" placeholder="Soul / Country / Rock" />
+
+          <label>Voice identity (stable)</label>
+          <textarea id="voice_identity" placeholder="Describe the signature voice + vibe that must stay consistent."></textarea>
         </div>
 
         <div>
-          <label for="default_lane">Default Lane (optional)</label>
-          <input id="default_lane" placeholder="e.g. Country Gospel / Soul Worship">
-          <div class="hint">Lane is a hint. Album mood/style is set per album.</div>
-        </div>
+          <label>Persona (legacy field)</label>
+          <textarea id="perso" placeholder="If you still use this, keep it short."></textarea>
 
-        <div>
-          <label for="default_perso">Default Persona (optional)</label>
-          <input id="default_perso" placeholder="Persona label or reference">
-        </div>
-      </div>
+          <label>Must include</label>
+          <textarea id="must_include" placeholder="Instruments, choir, live drums, etc"></textarea>
 
-      <hr class="divider">
+          <label>Never include</label>
+          <textarea id="never_include" placeholder="No 808, no explicit, no profanity, etc"></textarea>
 
-      <h2 class="sectionTitle">Artist DNA (Stable — REQUIRED)</h2>
-      <div class="hint">These fields keep genre + voice identity consistent across albums. Songs must always include instruments.</div>
-
-      <div class="grid" style="margin-top:10px;">
-        <div>
-          <label for="main_genre">Main Genre *</label>
-          <select id="main_genre">
-            <option value="">(select)</option>
-            <option value="Gospel">Gospel</option>
-            <option value="Worship">Worship</option>
-            <option value="Christian">Christian</option>
-            <option value="Country Rock">Country Rock</option>
-            <option value="Southern Rock">Southern Rock</option>
-          </select>
-        </div>
-        <div>
-          <label for="secondary_genre">Secondary Genre *</label>
-          <select id="secondary_genre">
-            <option value="">(select)</option>
-            <option value="Country">Country</option>
-            <option value="Soul">Soul</option>
-            <option value="Pop">Pop</option>
-            <option value="Rock">Rock</option>
-            <option value="Country Rock">Country Rock</option>
-            <option value="Traditional Church">Traditional Church</option>
-            <option value="Worship">Worship</option>
-            <option value="Contemporary Worship">Contemporary Worship</option>
-            <option value="Christian Hip-Hop">Christian Hip-Hop</option>
-            <option value="Country Rock">Country Rock</option>
-            <option value="Southern Rock">Southern Rock</option>
-          </select>
+          <label>Suno voice anchor (short)</label>
+          <input id="suno_voice_anchor" type="text" placeholder="Anchor phrase for Suno persona/voice" />
         </div>
       </div>
 
-      <label for="voice_identity">Voice Identity *</label>
-      <textarea id="voice_identity" placeholder="Stable singer vibe/identity: tone, delivery, lead/choir style, etc."></textarea>
+      <hr style="border:none;border-top:1px solid var(--line);margin:16px 0" />
 
-      <label for="must_include">Must Include (always instruments) *</label>
-      <textarea id="must_include" placeholder="Always include: drums, bass, core instrument (guitar/piano), supporting textures, etc."></textarea>
+      <h2 style="margin:0 0 6px 0;font-size:18px">Default YouTube Playlists (Optional)</h2>
+      <div class="mut">Add one or more playlists that this artist commonly uses. Packaging pages will ask ChatGPT to recommend the best playlist.</div>
 
-      <label for="never_include">Never Include (banned elements) *</label>
-      <textarea id="never_include" placeholder="What to avoid: EDM drops, 808s, trap hats, heavy autotune, horns, etc."></textarea>
-
-      <label for="suno_voice_anchor">Suno Voice Anchor (VOICE ONLY) *</label>
-      <textarea id="suno_voice_anchor" placeholder="Short anchor to keep the same voice/personality. Do NOT lock the beat/tempo here."></textarea>
-
-      <hr class="divider">
-
-      
-      <h2 class="sectionTitle">Default YouTube Playlist (Optional)</h2>
-      <div class="hint">If enabled, songs will be recommended into this default playlist during YouTube packaging. If disabled, playlists are album-based.</div>
-
-      
-      <div class="muted">Optional: store one or more default YouTube playlists for this artist (used in packaging to recommend where songs belong). If disabled, playlists are album-based.</div>
-
-      <div class="grid" style="margin-top:10px;">
-        <div style="display:flex; gap:10px; align-items:center; padding:10px 0;">
-          <input type="checkbox" id="default_playlist_enabled" />
-          <label for="default_playlist_enabled" style="margin:0; font-weight:800;">This artist has default playlist(s)</label>
-        </div>
+      <div class="btnbar" style="margin-top:10px">
+        <button class="btn green" id="btnAddPl">+ Add playlist</button>
+        <button class="btn" id="btnLoadPl">Reload playlists</button>
       </div>
 
-      <div id="playlistManager" class="card" style="padding:14px; margin-top:12px; display:none;">
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
-          <div>
-            <div style="font-weight:900;">Default YouTube Playlists</div>
-            <div class="muted">Add as many as you want. Packaging prompts will include all of them.</div>
-          </div>
-          <button id="btnAddPlaylist" class="btn secondary" type="button">+ Add Playlist</button>
-        </div>
-
-        <div id="playlistList" style="margin-top:12px; display:flex; flex-direction:column; gap:12px;"></div>
-
-        <template id="playlistRowTpl">
-          <div class="card" style="padding:12px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
-              <div style="font-weight:800;">Playlist</div>
-              <button class="btn danger btnRemove" type="button">Remove</button>
-            </div>
-
-            <label style="margin-top:10px;">Title</label>
-            <input class="pl_title" placeholder="Playlist title">
-
-            <label style="margin-top:10px;">Description</label>
-            <textarea class="pl_desc" placeholder="Short playlist description (2–6 lines)."></textarea>
-          </div>
-        </template>
-      </div>
-<hr class="divider">
-<h2 class="sectionTitle">About + Packaging Defaults</h2>
-      <label for="artist_about">Artist About (insert into YouTube/Bandcamp)</label>
-      <textarea id="artist_about" placeholder="2–5 sentences. This becomes your standard 'About the Artist' injection."></textarea>
-
-      <label for="youtube_about">YouTube About (optional override)</label>
-      <textarea id="youtube_about" placeholder="If filled, packaging will use this instead of Artist About."></textarea>
-
-      <div class="checkRow">
-        <input id="thumb_use_artist_default" type="checkbox">
-        <label for="thumb_use_artist_default" style="margin:0;">Default: include artist image in thumbnails (Long videos)</label>
+      <div class="rowbox" style="margin-top:12px">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:90px">Order</th>
+              <th style="width:260px">Title</th>
+              <th>Description</th>
+              <th style="width:90px">Remove</th>
+            </tr>
+          </thead>
+          <tbody id="plBody"></tbody>
+        </table>
+        <div class="mut">Tip: Use order 1,2,3… to control display order.</div>
       </div>
 
-      <label for="thumbnail_style_long">Default Thumbnail Style (Long Videos)</label>
-      <textarea id="thumbnail_style_long" placeholder="Describe the default thumbnail look: colors, lighting, composition, text rules, SEO/CTR rules."></textarea>
-
-      <hr class="divider">
-
-      <h2 class="sectionTitle">Blueprint JSON (Advanced, optional)</h2>
-      <div class="hint">
-        Store extra stable presets here (visual motifs, tag presets, distribution defaults, etc). This avoids adding tons of new columns later.
-      </div>
-      <label for="blueprint">Blueprint JSON</label>
-      <textarea id="blueprint" class="mono" placeholder='Example: {"visual":{"cover_style":"..."},"distribution":{"ditto":{"genres":["Gospel","Country"]}}}'></textarea>
-
-      <hr class="divider">
-
-      <h2 class="sectionTitle">Links</h2>
-      <div class="grid">
-        <div><label for="spotify_url">Spotify</label><input id="spotify_url" placeholder="https://..."></div>
-        <div><label for="bandcamp_ur">Bandcamp</label><input id="bandcamp_ur" placeholder="https://..."></div>
-        <div><label for="apple_music_">Apple Music</label><input id="apple_music_" placeholder="https://..."></div>
-        <div><label for="soundcloud_u">SoundCloud</label><input id="soundcloud_u" placeholder="https://..."></div>
-        <div><label for="youtube_url">YouTube</label><input id="youtube_url" placeholder="https://..."></div>
-        <div><label for="website_url">Website</label><input id="website_url" placeholder="https://..."></div>
-        <div><label for="beacons_url">Beacons</label><input id="beacons_url" placeholder="https://..."></div>
-        <div><label for="tiktok_url">TikTok</label><input id="tiktok_url" placeholder="https://..."></div>
-        <div><label for="facebook_url">Facebook</label><input id="facebook_url" placeholder="https://..."></div>
-      </div>
-
-      <div class="actions" style="margin-top:18px;">
-        <button id="btnCancel" class="btn secondary">Cancel</button>
-        <button id="btnSave" class="btn primary">Save Changes</button>
+      <div class="btnbar">
+        <button class="btn primary" id="save">Save Artist</button>
       </div>
     </div>
   </div>
 
+  <div id="toast" class="toast"></div>
+
   <script type="module">
-    import { supabase, requireSessionOrRedirect } from "./app.js";
+    import { requireSessionOrRedirect, supabase, readId } from "./app.js";
+
     const $ = (id) => document.getElementById(id);
-    const TABLE = "artists";
 
-    const session = await requireSessionOrRedirect();
-    $("who").textContent = `Signed in: ${session.user.email}`;
+    const toast = (msg, ok=true) => {
+      const t = $("toast");
+      t.textContent = msg;
+      t.className = "toast " + (ok ? "ok" : "bad");
+      t.style.display = "block";
+      setTimeout(() => (t.style.display = "none"), 2200);
+    };
 
-    const params = new URLSearchParams(window.location.search);
-    const artistId = params.get("id");
-    if (!artistId) {
-      alert("Missing artist id");
-      window.location.href = "./artists.html";
+    let artistId = null;
+
+    function plRow({ sort_order = 1, title = "", description = "" } = {}){
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><input class="plOrder" type="text" value="${sort_order}" /></td>
+        <td><input class="plTitle" type="text" value="${escapeHtml(title)}" placeholder="Playlist title" /></td>
+        <td><input class="plDesc" type="text" value="${escapeHtml(description)}" placeholder="Playlist description (optional)" /></td>
+        <td><button class="btn" type="button">Remove</button></td>
+      `;
+      tr.querySelector("button").onclick = () => tr.remove();
+      return tr;
     }
 
-    const safe = (v) => (v === null || v === undefined) ? "" : String(v);
-
-    function normalizeHandle(v){
-      const s = (v || "").trim();
-      if (!s) return null;
-      return s.startsWith("@") ? s.slice(1) : s;
-    }
-    function normalizeUrl(v){
-      const s = (v || "").trim();
-      if (!s) return null;
-      if (s.startsWith("http://") || s.startsWith("https://")) return s;
-      return "https://" + s;
+    function escapeHtml(s){
+      return String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\"/g,"&quot;").replace(/'/g,"&#039;");
     }
 
-    function parseBlueprint(){
-      const raw = ($("blueprint").value || "").trim();
-      if (!raw) return {};
-      try {
-        const obj = JSON.parse(raw);
-        if (obj && typeof obj === "object") return obj;
-      } catch (e) {}
-      throw new Error("Blueprint JSON is invalid. Fix JSON or leave blank.");
-    }
-
-    function updateCompleteness(){
-    // ---- Default Playlist(s) manager ----
-    const PLAYLIST_TABLE = "artist_playlists";
-    let currentPlaylists = [];
-
-    function togglePlaylistUI(){
-      const enabled = !!$("default_playlist_enabled").checked;
-      $("playlistManager").style.display = enabled ? "block" : "none";
-    }
-
-    function addPlaylistRow(item = { title: "", description: "" }){
-      const tpl = $("playlistRowTpl");
-      const node = tpl.content.firstElementChild.cloneNode(true);
-      node.querySelector(".pl_title").value = item.title || "";
-      node.querySelector(".pl_desc").value = item.description || "";
-      node.querySelector(".btnRemove").onclick = () => node.remove();
-      $("playlistList").appendChild(node);
-    }
-
-    function collectPlaylistsFromUI(){
-      const enabled = !!$("default_playlist_enabled").checked;
-      if (!enabled) return [];
-      const rows = Array.from($("playlistList").children);
-      const out = [];
-      for (const r of rows){
-        const title = (r.querySelector(".pl_title")?.value || "").trim();
-        const description = (r.querySelector(".pl_desc")?.value || "").trim();
-        if (!title) continue;
-        out.push({ title, description });
-      }
-      return out;
-    }
-
-    async function loadPlaylists(){
-      $("playlistList").innerHTML = "";
-      if (!artistId) return;
+    async function loadArtist(){
       const { data, error } = await supabase
-        .from(PLAYLIST_TABLE)
-        .select("id,title,description,sort_order")
-        .eq("artist_id", artistId)
-        .order("sort_order", { ascending: true });
-
-      if (error) { console.warn("playlist load", error.message); currentPlaylists = []; return; }
-      currentPlaylists = data || [];
-      if (!currentPlaylists.length){
-        // start with one blank row if enabled
-        if ($("default_playlist_enabled").checked) addPlaylistRow();
-        return;
-      }
-      for (const p of currentPlaylists){
-        addPlaylistRow({ title: p.title, description: p.description });
-      }
-    }
-
-    async function savePlaylists(){
-      const enabled = !!$("default_playlist_enabled").checked;
-
-      // If disabled: wipe existing playlists
-      if (!enabled){
-        const { error } = await supabase.from(PLAYLIST_TABLE).delete().eq("artist_id", artistId);
-        if (error) throw new Error(error.message);
-        return;
-      }
-
-      const fresh = collectPlaylistsFromUI();
-
-      // Simple strategy: delete all and re-insert in order
-      const del = await supabase.from(PLAYLIST_TABLE).delete().eq("artist_id", artistId);
-      if (del.error) throw new Error(del.error.message);
-
-      if (!fresh.length) return;
-
-      const rows = fresh.map((p, idx) => ({
-        artist_id: artistId,
-        title: p.title,
-        description: p.description || null,
-        sort_order: idx
-      }));
-
-      const ins = await supabase.from(PLAYLIST_TABLE).insert(rows);
-      if (ins.error) throw new Error(ins.error.message);
-    }
-
-    function updateCompleteness(){
-      const required = [
-        ["name", $("name").value],
-        ["main_genre", $("main_genre").value],
-        ["secondary_genre", $("secondary_genre").value],
-        ["voice_identity", $("voice_identity").value],
-        ["must_include", $("must_include").value],
-        ["never_include", $("never_include").value],
-        ["suno_voice_anchor", $("suno_voice_anchor").value],
-      ];
-      const missing = required.filter(([,v]) => !(v || "").trim()).map(([k]) => k);
-      const pill = $("completePill");
-      if (missing.length) {
-        pill.textContent = `Setup: missing ${missing.length}`;
-        pill.classList.remove("ok");
-        pill.classList.add("warn");
-        pill.title = "Missing: " + missing.join(", ");
-      } else {
-        pill.textContent = "Setup: complete ✅";
-        pill.classList.remove("warn");
-        pill.classList.add("ok");
-        pill.title = "All required Artist DNA fields filled.";
-      }
-    }
-
-    ["name","main_genre","secondary_genre","voice_identity","must_include","never_include","suno_voice_anchor"].forEach(id => {
-      $(id).addEventListener("input", updateCompleteness);
-      $(id).addEventListener("change", updateCompleteness);
-    });
-
-    async function load(){
-      $("statusLine").textContent = "Loading…";
-
-      const { data, error } = await supabase
-        .from(TABLE)
+        .from("artists")
         .select("*")
         .eq("id", artistId)
         .single();
+      if (error) throw error;
 
-      if (error) { $("statusLine").textContent = "Error: " + error.message; return; }
+      $("name").value = data.name || "";
+      $("lane").value = data.default_lane || "";
+      $("main_genre").value = data.main_genre || "";
+      $("secondary_genre").value = data.secondary_genre || "";
+      $("voice_identity").value = data.voice_identity || "";
+      $("perso").value = data.default_perso || "";
+      $("must_include").value = data.must_include || "";
+      $("never_include").value = data.never_include || "";
+      $("suno_voice_anchor").value = data.suno_voice_anchor || "";
+    }
 
-      $("name").value = safe(data.name);
-      $("channel_hand").value = safe(data.channel_hand ? ("@" + data.channel_hand) : "");
-      $("youtube_chan").value = safe(data.youtube_chan);
-      $("tagline").value = safe(data.tagline);
-      $("default_lane").value = safe(data.default_lane);
-      $("default_perso").value = safe(data.default_perso);
+    async function loadPlaylists(){
+      const body = $("plBody");
+      body.innerHTML = "";
 
-      $("main_genre").value = safe(data.main_genre);
-      $("secondary_genre").value = safe(data.secondary_genre);
-      $("voice_identity").value = safe(data.voice_identity);
-      $("must_include").value = safe(data.must_include);
-      $("never_include").value = safe(data.never_include);
-      $("suno_voice_anchor").value = safe(data.suno_voice_anchor);
+      // table might not exist yet for new installs
+      const { data, error } = await supabase
+        .from("artist_playlists")
+        .select("title,description,sort_order")
+        .eq("artist_id", artistId)
+        .order("sort_order", { ascending: true });
 
-      $("artist_about").value = safe(data.artist_about);
-      $("youtube_about").value = safe(data.youtube_about);
-      $("thumb_use_artist_default").checked = !!data.thumb_use_artist_default;
-      $("thumbnail_style_long").value = safe(data.thumbnail_style_long);
+      if (error){
+        // If table doesn't exist yet, don't hard fail UI
+        console.warn(error);
+        return;
+      }
 
+      (data || []).forEach(p => body.appendChild(plRow(p)));
+      if (!data || !data.length) body.appendChild(plRow({ sort_order: 1 }));
+    }
 
-      $("default_playlist_enabled").checked = !!data.default_playlist_enabled;
+    function collectPlaylists(){
+      const rows = Array.from($("plBody").querySelectorAll("tr"));
+      const items = rows.map(r => {
+        const sort_order = parseInt(r.querySelector(".plOrder").value || "1", 10) || 1;
+        const title = (r.querySelector(".plTitle").value || "").trim();
+        const description = (r.querySelector(".plDesc").value || "").trim();
+        return { sort_order, title, description };
+      }).filter(x => x.title.length);
+      // sort + normalize order
+      items.sort((a,b)=>a.sort_order-b.sort_order);
+      return items.map((x,i)=>({ ...x, sort_order: i+1 }));
+    }
 
-      // Playlists
+    async function saveAll(){
+      const payload = {
+        name: $("name").value.trim(),
+        default_lane: $("lane").value.trim(),
+        main_genre: $("main_genre").value.trim(),
+        secondary_genre: $("secondary_genre").value.trim(),
+        voice_identity: $("voice_identity").value.trim(),
+        default_perso: $("perso").value.trim(),
+        must_include: $("must_include").value.trim(),
+        never_include: $("never_include").value.trim(),
+        suno_voice_anchor: $("suno_voice_anchor").value.trim(),
+      };
+
+      const { error } = await supabase.from("artists").update(payload).eq("id", artistId);
+      if (error) throw error;
+
+      // playlists: replace strategy
+      const playlists = collectPlaylists();
+
+      // If table doesn't exist, skip silently
+      const del = await supabase.from("artist_playlists").delete().eq("artist_id", artistId);
+      if (!del.error && playlists.length){
+        const ins = await supabase.from("artist_playlists").insert(
+          playlists.map(p => ({ artist_id: artistId, ...p }))
+        );
+        if (ins.error) throw ins.error;
+      }
+
+      toast("Saved.");
+    }
+
+    async function init(){
+      const session = await requireSessionOrRedirect();
+      $("who").textContent = `Signed in: ${session.user.email}`;
+
+      const params = new URLSearchParams(window.location.search);
+      artistId = readId(params.get("id"));
+      if (!artistId) { toast("Missing artist id.", false); return; }
+
+      await loadArtist();
       await loadPlaylists();
-      togglePlaylistUI();
 
-      $("blueprint").value = data.blueprint ? JSON.stringify(data.blueprint, null, 2) : "{}";
-
-      $("spotify_url").value = safe(data.spotify_url);
-      $("bandcamp_ur").value = safe(data.bandcamp_ur);
-      $("apple_music_").value = safe(data.apple_music_);
-      $("soundcloud_u").value = safe(data.soundcloud_u);
-      $("youtube_url").value = safe(data.youtube_url);
-      $("website_url").value = safe(data.website_url);
-      $("beacons_url").value = safe(data.beacons_url);
-      $("tiktok_url").value = safe(data.tiktok_url);
-      $("facebook_url").value = safe(data.facebook_url);
-
-      updateCompleteness();
-      $("statusLine").textContent = "Ready ✅";
+      $("btnAddPl").onclick = () => $("plBody").appendChild(plRow({ sort_order: $("plBody").children.length + 1 }));
+      $("btnLoadPl").onclick = loadPlaylists;
+      $("save").onclick = async () => {
+        try{ await saveAll(); }
+        catch(e){ console.error(e); toast(e.message || "Save failed", false); }
+      };
     }
 
-    async function save(){
-      try {
-        const name = $("name").value.trim();
-        if (!name) return alert("Name is required.");
-
-        $("statusLine").textContent = "Saving…";
-
-        const blueprint = parseBlueprint();
-
-        const payload = {
-          name,
-          channel_hand: normalizeHandle($("channel_hand").value),
-          youtube_chan: $("youtube_chan").value.trim() || null,
-          tagline: ($("tagline").value || "").trim() || null,
-          default_lane: ($("default_lane").value || "").trim() || null,
-          default_perso: ($("default_perso").value || "").trim() || null,
-
-          main_genre: $("main_genre").value || null,
-          secondary_genre: $("secondary_genre").value || null,
-          voice_identity: ($("voice_identity").value || "").trim() || null,
-          must_include: ($("must_include").value || "").trim() || null,
-          never_include: ($("never_include").value || "").trim() || null,
-          suno_voice_anchor: ($("suno_voice_anchor").value || "").trim() || null,
-
-          artist_about: ($("artist_about").value || "").trim() || null,
-          youtube_about: ($("youtube_about").value || "").trim() || null,
-          thumb_use_artist_default: !!$("thumb_use_artist_default").checked,
-          thumbnail_style_long: ($("thumbnail_style_long").value || "").trim() || null,
-
-          default_playlist_enabled: !!$("default_playlist_enabled").checked,
-                    
-          blueprint,
-
-          spotify_url: normalizeUrl($("spotify_url").value),
-          bandcamp_ur: normalizeUrl($("bandcamp_ur").value),
-          apple_music_: normalizeUrl($("apple_music_").value),
-          soundcloud_u: normalizeUrl($("soundcloud_u").value),
-          youtube_url: normalizeUrl($("youtube_url").value),
-          website_url: normalizeUrl($("website_url").value),
-          beacons_url: normalizeUrl($("beacons_url").value),
-          tiktok_url: normalizeUrl($("tiktok_url").value),
-          facebook_url: normalizeUrl($("facebook_url").value),
-        };
-
-        const { error } = await supabase
-          .from(TABLE)
-          .update(payload)
-          .eq("id", artistId);
-
-        if (error) { $("statusLine").textContent = "Error: " + error.message; return; }
-
-        await savePlaylists();
-
-        $("statusLine").textContent = "Saved ✅";
-        window.location.href = `./artist-view.html?id=${encodeURIComponent(artistId)}`;
-      } catch (err) {
-        alert(err.message || String(err));
-        $("statusLine").textContent = "Fix issues and try again.";
-      }
-    }
-
-    $("btnSave").onclick = save;
-    $("btnCancel").onclick = () => window.location.href = `./artist-view.html?id=${encodeURIComponent(artistId)}`;
-    $("btnBack").onclick = () => window.location.href = `./artist-view.html?id=${encodeURIComponent(artistId)}`;
-    $("btnLogout").onclick = async () => {
-      await supabase.auth.signOut();
-      window.location.href = "./index.html";
-    };
-
-
-    $("default_playlist_enabled").onchange = async () => {
-      togglePlaylistUI();
-      if ($("default_playlist_enabled").checked && $("playlistList").children.length === 0){
-        await loadPlaylists();
-        if ($("playlistList").children.length === 0) addPlaylistRow();
-      }
-    };
-    $("btnAddPlaylist").onclick = () => addPlaylistRow();
-
-
-    (async () => { try { await load(); } catch (e) { console.error(e); } })();
+    init();
   </script>
 </body>
 </html>
