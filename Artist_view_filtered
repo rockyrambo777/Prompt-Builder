@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Artist Overview</title>
+  <style>
+
+    :root{
+      --bg:#0b0f19; --card:#121a2a; --card2:#0f1626; --border:#23304a;
+      --muted:#92a4c7; --text:#e8eefc; --primary:#2f6fed; --danger:#d14b4b;
+      --chip:#1c273f; --ok:#7CFFB2; --warn:#ffcc66;
+    }
+    body { font-family: Arial, sans-serif; background:var(--bg); color:var(--text); margin:0; }
+    .wrap { max-width: 1400px; margin: 0 auto; padding: 24px; }
+    .top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+    .muted { color:var(--muted); font-size: 14px; }
+    .btn { padding:10px 12px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); cursor:pointer; font-weight:800; }
+    .btn.primary { background:var(--primary); border:none; }
+    .btn.secondary { background:#1c273f; border:1px solid #2a3a5c; }
+    .btn.danger { background:var(--danger); border:none; }
+    .btn.copy { background:#16315f; border:1px solid #2a3a5c; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-top:14px; }
+    .grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; }
+    @media (max-width: 980px){ .grid { grid-template-columns: 1fr; } }
+    .grid3 { display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:12px; }
+    @media (max-width: 1100px){ .grid3 { grid-template-columns: 1fr; } }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .divider{ height:1px; background:#22304a; margin:14px 0; }
+    .chips { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    .chip { font-size:12px; padding:6px 10px; border-radius:999px; border:1px solid #2a3a5c; background:var(--chip); color:var(--text); }
+    .pill{
+      display:inline-block; padding:4px 10px; border-radius:999px;
+      border:1px solid #2a3a5c; background:var(--card2); font-size:12px;
+    }
+    .pill.ok{ border-color:#1f6b45; }
+    .pill.warn{ border-color:#6b4c1d; }
+    .pill.bad{ border-color:#6b2a2a; }
+    .hint { font-size:12px; color:var(--muted); margin-top:6px; line-height:1.4; }
+
+    .artistGrid{ display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:12px; }
+    @media (max-width: 1100px){ .artistGrid{ grid-template-columns: 1fr; } }
+    .artistCard{
+      border:1px solid #2a3a5c; background:var(--card2); border-radius:16px; padding:14px;
+      cursor:pointer;
+    }
+    .artistCard:hover{ background:#111b2f; }
+    .artistTitle{ font-weight:900; font-size:16px; }
+    .artistMeta{ margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; }
+    .kpi{ display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
+    .kpi .pill{ font-weight:800; }
+    a { color: inherit; }
+  
+
+  .bar{display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-top:14px;}
+  .bar .field{min-width:220px; flex:1;}
+  .bar label{display:block; font-weight:900; margin-bottom:6px;}
+  input, select{width:100%; box-sizing:border-box; border-radius:12px; padding:10px; border:1px solid #2a3a5c; background: var(--card2); color:var(--text);}
+  .albumGrid{display:grid; grid-template-columns: repeat(3, 1fr); gap:14px; margin-top:14px;}
+  @media (max-width: 1100px){ .albumGrid{grid-template-columns: repeat(2, 1fr);} }
+  @media (max-width: 720px){ .albumGrid{grid-template-columns: 1fr;} }
+  .albumCard{background:var(--card2); border:1px solid var(--border); border-radius:16px; padding:14px; cursor:pointer; transition:transform .08s ease, border-color .12s ease;}
+  .albumCard:hover{transform: translateY(-1px); border-color:#35507e;}
+  .albumTitle{font-size:18px; font-weight:900; margin:0 0 8px;}
+  .albumMeta{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
+  .pill.ok{border-color: rgba(124,255,178,.35);}
+  .pill.warn{border-color: rgba(255,204,102,.35);}
+  .rightBtns{display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; margin-top:12px;}
+  .empty{padding:18px; border:1px dashed var(--border); border-radius:16px; color:var(--muted); margin-top:14px;}
+
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <div class="muted" id="who">Signed in…</div>
+        <h1 style="margin:6px 0 0;" id="title">Artist</h1>
+        <div class="muted" id="subtitle">Albums + status</div>
+      </div>
+      <div class="row" style="gap:10px; flex-wrap:wrap;">
+        <a class="btn" href="./home.html">Home</a>
+        <a class="btn" href="./artists.html">Artists</a>
+        <button class="btn" id="btnEditArtist">Edit Artist</button>
+        <button class="btn primary" id="btnNewAlbum">+ New Album</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px;">
+      <h2 style="margin:0 0 10px;">Artist DNA Preview</h2>
+      <div class="row" style="gap:10px; flex-wrap:wrap;">
+        <span class="pill" id="pMain">main: —</span>
+        <span class="pill" id="pSec">secondary: —</span>
+        <span class="pill" id="pVoice">voice: —</span>
+        <span class="pill" id="pLane">lane: —</span>
+      </div>
+      <div class="muted" style="margin-top:10px;" id="pMust">must include: —</div>
+      <div class="muted" style="margin-top:6px;" id="pNever">never include: —</div>
+      <div class="muted" style="margin-top:6px;" id="pAnchor">suno voice anchor: —</div>
+    </div>
+
+    <div class="card" style="margin-top:14px;">
+      <div class="row" style="justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+        <h2 style="margin:0;">Albums</h2>
+        <div class="row" style="gap:8px; flex-wrap:wrap;">
+          <span class="pill" id="countAlbums">albums: —</span>
+          <span class="pill" id="countReady">ready: —</span>
+        </div>
+      </div>
+
+      <div class="bar">
+        <div class="field">
+          <label for="q">Search</label>
+          <input id="q" placeholder="Search album title…" />
+        </div>
+        <div class="field" style="max-width:260px;">
+          <label for="status">Status</label>
+          <select id="status">
+            <option value="all">All</option>
+            <option value="draft">Draft</option>
+            <option value="approved">Approved</option>
+            <option value="in_progress">In progress</option>
+            <option value="ready">Ready</option>
+            <option value="distributed">Distributed</option>
+          </select>
+        </div>
+        <div class="field" style="max-width:260px;">
+          <label for="sort">Sort</label>
+          <select id="sort">
+            <option value="updated_desc">Recently updated</option>
+            <option value="title_asc">Title A–Z</option>
+            <option value="title_desc">Title Z–A</option>
+            <option value="created_desc">Newest</option>
+            <option value="created_asc">Oldest</option>
+          </select>
+        </div>
+        <div class="field" style="max-width:160px; flex:0;">
+          <label>&nbsp;</label>
+          <button class="btn" id="btnRefresh">Refresh</button>
+        </div>
+      </div>
+
+      <div id="albumsGrid" class="albumGrid"></div>
+      <div id="empty" class="empty" style="display:none;">No albums match your filters.</div>
+
+      <div class="rightBtns">
+        <button class="btn" id="btnBackToHome">Back</button>
+      </div>
+    </div>
+  </div>
+
+<script type="module">
+  import { supabase, requireSessionOrRedirect } from "./app.js";
+
+  const $ = (id) => document.getElementById(id);
+  const ARTISTS = "artists";
+  const ALBUMS = "albums";
+
+  const session = await requireSessionOrRedirect();
+  $("who").textContent = `Signed in: ${session.user.email}`;
+
+  const params = new URLSearchParams(window.location.search);
+  const artist_id = params.get("id");
+  if (!artist_id) {
+    alert("Missing artist id. Use artist-view.html?id=...");
+  }
+
+  let artist = null;
+  let albums = [];
+
+  function safe(v) {
+    return (v ?? "").toString();
+  }
+
+  function normStatus(s) {
+    const v = (s||"").toLowerCase().trim();
+    if (!v) return "draft";
+    return v;
+  }
+
+  function renderArtist() {
+    if (!artist) return;
+    $("title").textContent = artist.name;
+    $("subtitle").textContent = `${safe(artist.main_genre)}${artist.secondary_genre ? " / " + safe(artist.secondary_genre) : ""}`;
+
+    $("pMain").textContent = `main: ${artist.main_genre || "—"}`;
+    $("pSec").textContent = `secondary: ${artist.secondary_genre || "—"}`;
+    $("pVoice").textContent = `voice: ${artist.voice_identity || "—"}`;
+    $("pLane").textContent = `lane: ${artist.default_lane || "—"}`;
+    $("pMust").textContent = `must include: ${artist.must_include || "—"}`;
+    $("pNever").textContent = `never include: ${artist.never_include || "—"}`;
+    $("pAnchor").textContent = `suno voice anchor: ${artist.suno_voice_anchor || "—"}`;
+
+    $("btnEditArtist").onclick = () => {
+      window.location.href = `./artist-edit.html?id=${encodeURIComponent(artist.id)}`;
+    };
+    $("btnNewAlbum").onclick = () => {
+      window.location.href = `./album-new.html?artist_id=${encodeURIComponent(artist.id)}`;
+    };
+  }
+
+  function applyFilters() {
+    const q = ($("q").value || "").toLowerCase().trim();
+    const st = $("status").value;
+    const sort = $("sort").value;
+
+    let out = albums.filter(a => {
+      const title = (a.title||"").toLowerCase();
+      if (q && !title.includes(q)) return false;
+      if (st !== "all") {
+        const s = normStatus(a.status);
+        if (s !== st) return false;
+      }
+      return true;
+    });
+
+    // counts
+    $("countAlbums").textContent = `albums: ${albums.length}`;
+    const readyCount = albums.filter(a => (a.is_ready_for_distribution || a.ready_for_distro || normStatus(a.status)==="ready")).length;
+    $("countReady").textContent = `ready: ${readyCount}`;
+
+    // sort
+    const byTitle = (x,y) => (x.title||"").localeCompare(y.title||"");
+    const byCreated = (x,y) => new Date(x.created_at||0) - new Date(y.created_at||0);
+    const byUpdated = (x,y) => new Date(x.updated_at||x.created_at||0) - new Date(y.updated_at||y.created_at||0);
+
+    if (sort==="title_asc") out.sort(byTitle);
+    if (sort==="title_desc") out.sort((a,b)=>byTitle(b,a));
+    if (sort==="created_asc") out.sort(byCreated);
+    if (sort==="created_desc") out.sort((a,b)=>byCreated(b,a));
+    if (sort==="updated_desc") out.sort((a,b)=>byUpdated(b,a));
+    if (sort==="updated_asc") out.sort(byUpdated);
+
+    renderAlbums(out);
+  }
+
+  function renderAlbums(list) {
+    const grid = $("albumsGrid");
+    grid.innerHTML = "";
+    $("empty").style.display = list.length ? "none" : "";
+
+    for (const a of list) {
+      const card = document.createElement("div");
+      card.className = "albumCard";
+
+      const st = normStatus(a.status);
+      const stPill = document.createElement("span");
+      stPill.className = "pill " + (st==="ready" || st==="distributed" ? "ok" : "warn");
+      stPill.textContent = "status: " + st;
+
+      const ready = (a.is_ready_for_distribution || a.ready_for_distro) ? "ready ✅" : "not ready";
+      const readyPill = document.createElement("span");
+      readyPill.className = "pill " + ((a.is_ready_for_distribution || a.ready_for_distro) ? "ok" : "");
+      readyPill.textContent = ready;
+
+      const meta = document.createElement("div");
+      meta.className = "albumMeta";
+      meta.appendChild(stPill);
+      meta.appendChild(readyPill);
+
+      const h = document.createElement("div");
+      h.className = "albumTitle";
+      h.textContent = a.title || "(untitled)";
+
+      const desc = document.createElement("div");
+      desc.className = "muted";
+      const theme = a.theme || a.album_theme || "";
+      const mood = a.mood || a.album_mood || "";
+      const parts = [];
+      if (theme) parts.push("theme: " + theme);
+      if (mood) parts.push("mood: " + mood);
+      desc.textContent = parts.length ? parts.join(" • ") : "—";
+
+      card.appendChild(h);
+      card.appendChild(desc);
+      card.appendChild(meta);
+
+      card.onclick = () => {
+        window.location.href = `./album-edit.html?id=${encodeURIComponent(a.id)}`;
+      };
+
+      grid.appendChild(card);
+    }
+  }
+
+  async function loadAll() {
+    // artist
+    const ar = await supabase.from(ARTISTS).select("*").eq("id", artist_id).single();
+    if (ar.error) throw ar.error;
+    artist = ar.data;
+    renderArtist();
+
+    // albums
+    const res = await supabase.from(ALBUMS).select("*").eq("artist_id", artist_id);
+    if (res.error) throw res.error;
+    albums = res.data || [];
+    applyFilters();
+  }
+
+  $("btnRefresh").onclick = loadAll;
+  $("btnBackToHome").onclick = () => window.location.href = "./home.html";
+  $("q").addEventListener("input", applyFilters);
+  $("status").addEventListener("change", applyFilters);
+  $("sort").addEventListener("change", applyFilters);
+
+  try {
+    await loadAll();
+  } catch(e) {
+    console.error(e);
+    alert("Failed to load artist/albums. Check console.");
+  }
+</script>
+</body>
+</html>
