@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SVS System – Distribution (Bandcamp)</title>
+  <style>
+:root{
+  --bg:#0b0f19; --card:#121a2a; --card2:#0f1626; --border:#23304a;
+  --muted:#92a4c7; --text:#e8eefc; --primary:#2f6fed; --danger:#d14b4b;
+  --chip:#1c273f;
+}
+body { font-family: Arial, sans-serif; background:var(--bg); color:var(--text); margin:0; }
+.wrap { max-width: 1400px; margin: 0 auto; padding: 24px; }
+.top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+.muted { color:var(--muted); font-size: 14px; }
+.btn { padding:10px 12px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); cursor:pointer; font-weight:800; }
+.btn.primary { background:var(--primary); border:none; }
+.btn.secondary { background:#1c273f; border:1px solid #2a3a5c; }
+.btn.danger { background:var(--danger); border:none; }
+.btn.copy { background:#16315f; border:1px solid #2a3a5c; }
+.card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-top:14px; }
+.grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; }
+@media (max-width: 980px){ .grid { grid-template-columns: 1fr; } }
+label { font-size:12px; color:var(--muted); display:block; margin:8px 0 6px; }
+input, select, textarea {
+  padding:12px; border-radius:12px; border:1px solid #2a3a5c;
+  background:var(--card2); color:var(--text); width:100%;
+  box-sizing:border-box;
+}
+textarea { min-height: 220px; resize: vertical; }
+.row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+.divider{ height:1px; background:#22304a; margin:14px 0; }
+.chips { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+.chip { font-size:12px; padding:6px 10px; border-radius:999px; border:1px solid #2a3a5c; background:var(--chip); color:var(--text); }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+.list{ max-height: 420px; overflow:auto; border:1px solid #2a3a5c; border-radius:14px; background:var(--card2); }
+.item{ padding:12px; border-bottom:1px solid #22304a; cursor:pointer; }
+.item:last-child{ border-bottom:none; }
+.item:hover{ background:#111b2f; }
+.item.active{ background:#142042; }
+.itemTop{ display:flex; justify-content:space-between; gap:10px; align-items:center; }
+.itemTitle{ font-weight:900; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1 style="margin:0;">Distribution – Bandcamp</h1>
+        <div id="who" class="muted"></div>
+      </div>
+      <div class="row">
+        <button id="btnHome" class="btn secondary">Home</button>
+        <button id="btnAlbums" class="btn secondary">Albums</button>
+        <button id="btnLogout" class="btn danger">Logout</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between;">
+        <div>
+          <div id="statusLine" class="muted">Loading…</div>
+          <div class="chips" id="chips"></div>
+        </div>
+        <div class="row">
+          <button id="btnCopyOutput" class="btn copy">Copy Output</button>
+          <button id="btnBuild" class="btn primary">Build Prompt</button>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="grid">
+        <div>
+          <label for="release_date">Release date (not saved)</label>
+          <input id="release_date" type="date" />
+          <div class="muted" style="margin-top:6px;">Used inside the prompt only.</div>
+        </div>
+        <div>
+          <label for="filter_ready">Filter</label>
+          <select id="filter_ready">
+            <option value="ready" selected>Albums ready (all tracks have lyrics)</option>
+            <option value="all">All albums</option>
+          </select>
+          <div class="muted" style="margin-top:6px;">If you’re testing, use “All albums”.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2 style="margin:0 0 10px;">Albums</h2>
+        <div class="muted" style="margin-bottom:10px;">Click an album to load artist + songs.</div>
+        <div id="list" class="list"></div>
+      </div>
+
+      <div class="card">
+        <h2 style="margin:0 0 10px;">Prompt Output (copy/paste to ChatGPT)</h2>
+        <textarea id="output" class="mono" placeholder="Select an album then click Build Prompt…"></textarea>
+        <div class="row" style="margin-top:10px;">
+          <button id="btnClear" class="btn">Clear</button>
+          <button id="btnCopy" class="btn copy">Copy</button>
+        </div>
+        <div class="divider"></div>
+        <h3 style="margin:0 0 10px;">Working Results (paste from ChatGPT) — NOT SAVED</h3>
+        <textarea id="working" class="mono" style="min-height:180px;"></textarea>
+        <div class="row" style="margin-top:10px;">
+          <button id="btnCopyWorking" class="btn copy">Copy Working</button>
+          <button id="btnClearWorking" class="btn">Clear Working</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { supabase, requireSessionOrRedirect } from "./app.js";
+    const $ = (id) => document.getElementById(id);
+
+    const session = await requireSessionOrRedirect();
+    $("who").textContent = `Signed in: ${session.user.email}`;
+
+    const ALBUMS = "albums";
+    const SONGS = "songs";
+    const ARTISTS = "artists";
+
+    let albums = [];
+    let selectedAlbum = null;
+    let selectedArtist = null;
+    let selectedSongs = [];
+
+    function safe(v){ return (v===null||v===undefined) ? "" : String(v); }
+    function trimOrNone(v){ const t=safe(v).trim(); return t ? t : "(none)"; }
+
+    function setChips(){
+      const chips = $("chips");
+      chips.innerHTML = "";
+      const bits = [];
+      if (selectedArtist?.name) bits.push("artist: " + selectedArtist.name);
+      if (selectedAlbum?.title) bits.push("album: " + selectedAlbum.title);
+      if (selectedSongs?.length) bits.push("tracks: " + selectedSongs.length);
+      for (const b of bits){
+        const s = document.createElement("span");
+        s.className = "chip";
+        s.textContent = b;
+        chips.appendChild(s);
+      }
+    }
+
+    function renderList(){
+      const box = $("list");
+      box.innerHTML = "";
+      if (!albums.length){
+        box.innerHTML = '<div class="item"><div class="muted">No albums found.</div></div>';
+        return;
+      }
+      for (const a of albums){
+        const div = document.createElement("div");
+        div.className = "item";
+        div.dataset.id = a.id;
+        div.innerHTML = `
+          <div class="itemTop">
+            <div class="itemTitle">${safe(a.title) || "(untitled album)"}</div>
+            <div class="muted">${safe(a.status || "")}</div>
+          </div>
+          <div class="muted" style="margin-top:6px;">artist_id: ${a.artist_id}</div>
+        `;
+        div.onclick = async () => {
+          document.querySelectorAll(".item").forEach(x => x.classList.remove("active"));
+          div.classList.add("active");
+          await selectAlbum(a);
+        };
+        box.appendChild(div);
+      }
+    }
+
+    async function selectAlbum(a){
+      selectedAlbum = a;
+      $("statusLine").textContent = "Loading artist + songs…";
+
+      const { data: ar } = await supabase.from(ARTISTS).select("*").eq("id", a.artist_id).single();
+      selectedArtist = ar || null;
+
+      const { data: s } = await supabase.from(SONGS).select("*").eq("album_id", a.id).order("track_number", {ascending:true});
+      selectedSongs = s || [];
+
+      setChips();
+      $("statusLine").textContent = "Ready ✅";
+    }
+
+    function artistDNABlock(ar){
+      if (!ar) return "- (No artist loaded)";
+      const lines = [];
+      const mg = safe(ar.main_genre).trim();
+      const sg = safe(ar.secondary_genre).trim();
+      if (mg || sg) lines.push(`- Genres: ${[mg, sg].filter(Boolean).join(" / ")}`);
+      if (safe(ar.voice_identity).trim()) lines.push(`- Voice Identity: ${ar.voice_identity}`);
+      if (safe(ar.suno_voice_anchor).trim()) lines.push(`- Suno Voice Anchor: ${ar.suno_voice_anchor}`);
+      if (safe(ar.must_include).trim()) lines.push(`- Must Include: ${ar.must_include}`);
+      if (safe(ar.never_include).trim()) lines.push(`- Never Include: ${ar.never_include}`);
+      if (safe(ar.default_perso).trim()) lines.push(`- Persona: ${ar.default_perso}`);
+      if (safe(ar.default_lane).trim()) lines.push(`- Lane: ${ar.default_lane}`);
+      return lines.length ? lines.join("\n") : "- (No Artist DNA set yet)";
+    }
+
+    function buildPrompt(){
+      if (!selectedAlbum) return alert("Select an album first.");
+      const ar = selectedArtist;
+      const a = selectedAlbum;
+
+      const date = $("release_date").value || "(set date)";
+
+      const albumTheme = trimOrNone(a.theme || a.album_theme);
+      const albumMood  = trimOrNone(a.mood || a.album_mood);
+      const albumStyle = trimOrNone(a.style || a.album_style);
+      const notes = trimOrNone(a.notes);
+
+      const songBlock = selectedSongs.length
+        ? selectedSongs.map(s => `- Title: ${safe(s.title)}\n- Lyrics:\n${safe(s.lyrics)}`).join("\n\n")
+        : "(No songs found for this album.)";
+
+      const out = [];
+      out.push("Create Bandcamp release copy.");
+      out.push("");
+      out.push("Return these sections (keep it clean, no extra talk):");
+      out.push("ALBUM_COVER_DESCRIPTION:");
+      out.push("BANDCAMP_ALBUM_ABOUT:");
+      out.push("BANDCAMP_GENRE:");
+      out.push("FOLLOWERS_MESSAGE:");
+      out.push("TRACKS:");
+      out.push("");
+      out.push("Album info:");
+      out.push(`- Artist: ${safe(ar?.name) || "(unknown)"}`);
+      out.push(`- Album Title: ${safe(a.title)}`);
+      out.push(`- Release Date: ${date}`);
+      out.push(`- Lane: ${safe(ar?.default_lane)}`);
+      out.push(`- Persona: ${safe(ar?.default_perso)}`);
+      out.push(`- Theme: ${albumTheme}`);
+      out.push(`- Mood: ${albumMood}`);
+      out.push(`- Style: ${albumStyle}`);
+      out.push(`- Notes: ${notes}`);
+      out.push("");
+      out.push("Artist DNA (must follow):");
+      out.push(artistDNABlock(ar));
+      out.push("");
+      out.push("Songs:");
+      out.push(songBlock);
+      out.push("");
+      out.push("Rules for ALBUM_COVER_DESCRIPTION:");
+      out.push("- Describe a square (1:1) album cover.");
+      out.push(`- Include baked-in text EXACTLY:`);
+      out.push(`  - Artist name: "${safe(ar?.name) || "(unknown)"}"`);
+      out.push(`  - Album title: "${safe(a.title)}"`);
+      out.push("- Mention typography style (font vibe), placement, color, glow/shadow, safe margins.");
+      out.push("- Match the theme/mood/style.");
+      out.push("- End the cover description with this exact line:");
+      out.push("Please generate the image for me as 1 x 1");
+      out.push("");
+      out.push("Rules for BANDCAMP_ALBUM_ABOUT:");
+      out.push("- 5–10 sentences, story-driven, matches lane/persona, no cringe.");
+      out.push("");
+      out.push("Rules for BANDCAMP_GENRE:");
+      out.push("- One realistic Bandcamp genre label.");
+      out.push("");
+      out.push("Rules for FOLLOWERS_MESSAGE:");
+      out.push("- Short friendly message to followers, invite them to listen/support/share.");
+      out.push("");
+      out.push("Rules for TRACKS:");
+      out.push("- For each track: Title + ABOUT (2–4 sentences) + LYRICS (paste exactly as provided).");
+
+      $("output").value = out.join("\n");
+      $("statusLine").textContent = "Prompt built ✅";
+    }
+
+    async function loadAlbums(){
+      $("statusLine").textContent = "Loading albums…";
+      selectedAlbum = null; selectedArtist = null; selectedSongs = [];
+      $("output").value = "";
+      setChips();
+
+      const { data, error } = await supabase.from(ALBUMS).select("*").order("updated_at", {ascending:false});
+      if (error) {
+        $("statusLine").textContent = "Error: " + error.message;
+        albums = [];
+        renderList();
+        return;
+      }
+      const all = data || [];
+
+      const filter = $("filter_ready").value;
+      if (filter === "all") {
+        albums = all;
+      } else {
+        albums = [];
+        for (const a of all) {
+          const { data: s } = await supabase.from(SONGS).select("id,lyrics,lyrics_done").eq("album_id", a.id);
+          const tracks = s || [];
+          if (!tracks.length) continue;
+          const ok = tracks.every(t => !!t.lyrics_done || (safe(t.lyrics).trim().length > 0));
+          if (ok) albums.push(a);
+        }
+      }
+
+      $("statusLine").textContent = `Found ${albums.length} album(s).`;
+      renderList();
+
+      if (albums.length) {
+        setTimeout(async () => {
+          const first = document.querySelector(".item");
+          if (first) first.classList.add("active");
+          await selectAlbum(albums[0]);
+        }, 0);
+      }
+    }
+
+    $("filter_ready").onchange = loadAlbums;
+    $("btnBuild").onclick = buildPrompt;
+
+    $("btnClear").onclick = () => $("output").value = "";
+    const copyOut = async () => {
+      const t = $("output").value || "";
+      if (!t.trim()) return alert("Nothing to copy.");
+      await navigator.clipboard.writeText(t);
+      $("statusLine").textContent = "Output copied ✅";
+    };
+    $("btnCopy").onclick = copyOut;
+    $("btnCopyOutput").onclick = copyOut;
+
+    $("btnCopyWorking").onclick = async () => {
+      const t = $("working").value || "";
+      if (!t.trim()) return alert("Working box is empty.");
+      await navigator.clipboard.writeText(t);
+      $("statusLine").textContent = "Working copied ✅";
+    };
+    $("btnClearWorking").onclick = () => $("working").value = "";
+
+    $("btnHome").onclick = () => window.location.href = "./home.html";
+    $("btnAlbums").onclick = () => window.location.href = "./albums.html";
+    $("btnLogout").onclick = async () => {
+      await supabase.auth.signOut();
+      window.location.href = "./index.html";
+    };
+
+    await loadAlbums();
+  </script>
+</body>
+</html>
