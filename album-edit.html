@@ -8,7 +8,7 @@
     :root{
       --bg:#0b0f19; --card:#121a2a; --card2:#0f1626; --border:#23304a;
       --muted:#92a4c7; --text:#e8eefc; --primary:#2f6fed; --danger:#d14b4b;
-      --chip:#1c273f;
+      --chip:#1c273f; --ok:#7CFFB2; --warn:#ffcc66;
     }
     body { font-family: Arial, sans-serif; background:var(--bg); color:var(--text); margin:0; }
     .wrap { max-width: 1300px; margin: 0 auto; padding: 24px; }
@@ -19,6 +19,7 @@
     .btn.secondary { background:#1c273f; border:1px solid #2a3a5c; }
     .btn.danger { background:var(--danger); border:none; }
     .btn.copy { background:#16315f; border:1px solid #2a3a5c; }
+    .btn.small { padding:8px 10px; font-size:12px; border-radius:10px; }
     .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-top:14px; }
     .grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; }
     @media (max-width: 980px){ .grid { grid-template-columns: 1fr; } }
@@ -32,6 +33,12 @@
     .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
     .chips { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
     .chip { font-size:12px; padding:6px 10px; border-radius:999px; border:1px solid #2a3a5c; background:var(--chip); color:var(--text); }
+    .pill{
+      display:inline-block; padding:4px 10px; border-radius:999px;
+      border:1px solid #2a3a5c; background:var(--card2); font-size:12px;
+    }
+    .pill.ok{ border-color:#1f6b45; }
+    .pill.warn{ border-color:#6b4c1d; }
     table { width:100%; border-collapse: collapse; margin-top:10px; }
     th, td { border-bottom:1px solid #22304a; padding:10px; text-align:left; vertical-align: top; }
     th { color:var(--muted); font-size:12px; }
@@ -41,16 +48,32 @@
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
     .sectionTitle { margin: 0 0 10px; }
     .hint { font-size:12px; color:var(--muted); margin-top:6px; line-height:1.4; }
-
     .checkCell { text-align:center; }
     input[type="checkbox"]{ width:18px; height:18px; accent-color: var(--primary); }
-
     .linkIcon {
       font-size:18px; cursor:pointer; user-select:none;
       padding: 6px 10px; border-radius:10px; border:1px solid #2a3a5c; background:#0f1626;
       display:inline-flex; align-items:center; justify-content:center;
     }
     .linkIcon[aria-disabled="true"]{ opacity:0.35; cursor:not-allowed; }
+
+    /* Modal */
+    .modalOverlay{
+      position:fixed; inset:0; background:rgba(0,0,0,0.55);
+      display:none; align-items:center; justify-content:center;
+      padding:16px; z-index:9999;
+    }
+    .modal{
+      width:min(980px, 100%);
+      background:var(--card); border:1px solid var(--border);
+      border-radius:16px; padding:16px;
+    }
+    .modalHead{ display:flex; justify-content:space-between; gap:10px; align-items:flex-start; flex-wrap:wrap; }
+    .modalGrid{ display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; }
+    @media (max-width: 900px){ .modalGrid{ grid-template-columns: 1fr; } }
+    .inlineChecks{ display:flex; gap:14px; flex-wrap:wrap; align-items:center; margin-top:10px; }
+    .inlineChecks label{ margin:0; display:flex; gap:8px; align-items:center; color:var(--text); font-size:13px; }
+    .rightActions{ display:flex; gap:10px; flex-wrap:wrap; }
   </style>
 </head>
 <body>
@@ -73,6 +96,7 @@
           <div class="chips" id="chips"></div>
         </div>
         <div class="row">
+          <button id="btnGoProduction" class="btn secondary">Production</button>
           <button id="btnCopyPrompt" class="btn copy">Copy Prompt</button>
           <button id="btnSave" class="btn primary">Save</button>
           <button id="btnDelete" class="btn danger">Delete</button>
@@ -117,18 +141,35 @@
       <h2 class="sectionTitle" style="margin-top:18px;">ChatGPT Prompt (stored)</h2>
       <textarea id="prompt" class="mono"></textarea>
 
-      <h2 class="sectionTitle" style="margin-top:18px;">Working Results (paste from ChatGPT)</h2>
+      <h2 class="sectionTitle" style="margin-top:18px;">Working Results (paste from ChatGPT) — NOT SAVED</h2>
       <div class="grid">
         <div style="grid-column: 1 / -1;">
           <label for="working_tracks">TRACKS_JSON</label>
-          <textarea id="working_tracks" class="mono"></textarea>
-          <div class="hint">Click “Apply Tracks → Songs” to create songs.</div>
+          <textarea id="working_tracks" class="mono" placeholder='Paste JSON array of tracks. Example:
+[
+  {
+    "track_number": 1,
+    "title": "Stand in His Strength",
+    "suno_prompt": "…",
+    "lyrics": "…",
+    "keywords": "faith, authority",
+    "scripture": "Ephesians 6:10",
+    "youtube_long_url": "https://www.youtube.com/watch?v=…",
+    "youtube_long_published_at": "2026-02-20",
+    "longform_done": true,
+    "long_packaged": true,
+    "lyrics_done": true,
+    "is_legacy_published": true
+  }
+]'></textarea>
+          <div class="hint">Scratchpad only (not stored). “Apply Tracks → Songs” replaces current songs in this album.</div>
         </div>
       </div>
 
       <div class="row" style="margin-top:10px;">
         <button id="btnApplyTracks" class="btn secondary">Apply Tracks → Songs</button>
-        <div class="muted">Creates songs (title + suno_prompt when provided).</div>
+        <button id="btnClearWorking" class="btn">Clear Working</button>
+        <div class="muted">Imports titles + Suno prompt + lyrics + links + done flags (only if your DB columns exist).</div>
       </div>
 
       <h2 class="sectionTitle" style="margin-top:18px;">Songs (final)</h2>
@@ -141,12 +182,89 @@
             <th class="mini">Keywords</th>
             <th class="mini">Scripture</th>
             <th class="tiny">Lyrics ✅</th>
-            <th class="tiny">Suno 🔗</th>
+            <th class="tiny">Long ✅</th>
+            <th class="tiny">YT 🔗</th>
             <th class="mini">Actions</th>
           </tr>
         </thead>
         <tbody id="songsBody"></tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- Song Edit Modal -->
+  <div id="modalOverlay" class="modalOverlay" role="dialog" aria-modal="true" aria-label="Edit Song">
+    <div class="modal">
+      <div class="modalHead">
+        <div>
+          <h2 style="margin:0;" id="modalTitle">Edit Song</h2>
+          <div class="muted" id="modalSub"></div>
+          <div class="row" style="margin-top:8px;">
+            <span class="pill" id="legacyPill">legacy: —</span>
+          </div>
+        </div>
+        <div class="rightActions">
+          <button id="btnModalProduction" class="btn secondary">Open Production</button>
+          <button id="btnModalClose" class="btn">Close</button>
+        </div>
+      </div>
+
+      <div class="modalBody">
+        <div class="modalGrid">
+          <div>
+            <label for="m_track">Track #</label>
+            <input id="m_track" type="number" min="1" max="99" />
+          </div>
+          <div>
+            <label for="m_title">Title</label>
+            <input id="m_title" />
+          </div>
+
+          <div style="grid-column: 1 / -1;">
+            <label for="m_suno">Suno Prompt</label>
+            <textarea id="m_suno" class="mono" style="min-height:120px;"></textarea>
+          </div>
+
+          <div style="grid-column: 1 / -1;">
+            <label for="m_lyrics">Lyrics</label>
+            <textarea id="m_lyrics" class="mono" style="min-height:160px;"></textarea>
+          </div>
+
+          <div>
+            <label for="m_keywords">Keywords</label>
+            <input id="m_keywords" placeholder="optional" />
+          </div>
+          <div>
+            <label for="m_scripture">Scripture</label>
+            <input id="m_scripture" placeholder="optional" />
+          </div>
+
+          <div>
+            <label for="m_yt_url">YouTube Long URL</label>
+            <input id="m_yt_url" placeholder="https://www.youtube.com/watch?v=…" />
+          </div>
+          <div>
+            <label for="m_yt_date">YouTube Long Published Date</label>
+            <input id="m_yt_date" type="date" />
+          </div>
+        </div>
+
+        <div class="inlineChecks">
+          <label><input id="m_lyrics_done" type="checkbox"> Lyrics done</label>
+          <label><input id="m_long_done" type="checkbox"> Long done</label>
+          <label><input id="m_long_packaged" type="checkbox"> Long packaged</label>
+          <label><input id="m_legacy" type="checkbox"> Legacy published</label>
+        </div>
+
+        <div class="row" style="justify-content:flex-end; margin-top:14px;">
+          <button id="btnModalDelete" class="btn danger">Delete Song</button>
+          <button id="btnModalSave" class="btn primary">Save Song</button>
+        </div>
+
+        <div class="hint">
+          <b>Legacy mode:</b> song stays visible, but shows “legacy” and can be edited.
+        </div>
+      </div>
     </div>
   </div>
 
@@ -168,17 +286,15 @@
     let album = null;
     let artist = null;
     let songs = [];
+    let currentSong = null;
 
     function safeText(v){ return (v === null || v === undefined) ? "" : String(v); }
-
-    function parseTracksInput(text){
-      const t = (text || "").trim();
-      if (!t) return null;
-      try { const v = JSON.parse(t); if (Array.isArray(v)) return v; } catch {}
-      const lines = t.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-      if (lines.length) return lines;
-      const parts = t.split(",").map(s => s.trim()).filter(Boolean);
-      return parts.length ? parts : null;
+    function escAttr(s){
+      return safeText(s).replaceAll("&","&amp;").replaceAll('"','&quot;').replaceAll("<","&lt;").replaceAll(">","&gt;");
+    }
+    function hasLyricsText(song){
+      const lyr = (song?.lyrics ?? "").toString().trim();
+      return lyr.length > 0;
     }
 
     function setChips(){
@@ -198,19 +314,9 @@
       }
     }
 
-    function escAttr(s){
-      return safeText(s).replaceAll("&","&amp;").replaceAll('"','&quot;').replaceAll("<","&lt;").replaceAll(">","&gt;");
-    }
-
-    function hasLyricsText(song){
-      const lyr = (song?.lyrics ?? "").toString().trim();
-      return lyr.length > 0;
-    }
-
     // ✅ AUTO STATUS: approved -> producing when ALL songs have lyrics + suno_share_url
     async function maybeAutoSetProducing(){
       if (!album || !songs) return;
-
       const current = (album.status || "").toLowerCase();
       if (current !== "approved") return;
 
@@ -223,10 +329,7 @@
       if (!allDone) return;
 
       const { error } = await supabase.from(ALBUMS).update({ status: "producing" }).eq("id", id);
-      if (error) {
-        console.warn("Auto status update failed:", error.message);
-        return;
-      }
+      if (error) return;
 
       album.status = "producing";
       $("status").value = "producing";
@@ -238,48 +341,52 @@
       const body = $("songsBody");
       body.innerHTML = "";
       if (!songs.length){
-        body.innerHTML = "<tr><td colspan='8' class='muted'>No songs yet. Apply tracks.</td></tr>";
+        body.innerHTML = "<tr><td colspan='9' class='muted'>No songs yet. Apply tracks.</td></tr>";
         return;
       }
-      songs.sort((a,b) => a.track_number - b.track_number);
+      songs.sort((a,b) => (a.track_number ?? 0) - (b.track_number ?? 0));
 
       for (const s of songs){
         const tr = document.createElement("tr");
         tr.dataset.songId = s.id;
 
-        const checked = hasLyricsText(s) ? "checked" : "";
-        const url = (s.suno_share_url || "").trim();
-        const linkDisabled = url ? "" : "aria-disabled='true'";
+        const lyricsOk = hasLyricsText(s);
+        const longDone = !!s.longform_done;
+        const ytUrl = (s.youtube_long_url || "").trim();
+        const ytDisabled = ytUrl ? "" : "aria-disabled='true'";
+        const legacy = !!s.is_legacy_published;
 
         tr.innerHTML = `
-          <td class="tiny"><b>${s.track_number}</b></td>
+          <td class="tiny"><b>${s.track_number ?? ""}</b></td>
           <td><input data-title value="${escAttr(s.title)}"></td>
           <td><textarea data-suno class="mono" style="min-height:90px;">${safeText(s.suno_prompt || "")}</textarea></td>
           <td><input data-keywords value="${escAttr(s.keywords)}" placeholder="optional"></td>
           <td><input data-scripture value="${escAttr(s.scripture)}" placeholder="optional"></td>
-          <td class="checkCell"><input type="checkbox" data-lyrics-done ${checked} disabled></td>
+          <td class="checkCell"><input type="checkbox" ${lyricsOk ? "checked" : ""} disabled></td>
+          <td class="checkCell"><input type="checkbox" ${longDone ? "checked" : ""} disabled></td>
           <td class="checkCell">
-            <span class="linkIcon" data-link ${linkDisabled} title="${url ? "Open Suno" : "No Suno link yet"}">🔗</span>
+            <span class="linkIcon" data-yt ${ytDisabled} title="${ytUrl ? escAttr(ytUrl) : "No YouTube link yet"}">🔗</span>
           </td>
           <td>
-            <button class="btn secondary" data-lyrics>Edit Lyrics</button>
-            <button class="btn secondary" data-suno-pack>Suno Pack</button>
+            <div class="row">
+              <button class="btn secondary small" data-open>Open</button>
+              <button class="btn secondary small" data-prod>Production</button>
+              <span class="pill ${legacy ? "warn" : "ok"}" title="${legacy ? "Legacy published" : "Active"}">${legacy ? "legacy" : "active"}</span>
+            </div>
           </td>
         `;
         body.appendChild(tr);
 
-        tr.querySelector("[data-lyrics]").onclick = () => {
-          window.location.href = `./song-edit.html?id=${encodeURIComponent(s.id)}&album_id=${encodeURIComponent(id)}`;
+        tr.querySelector("[data-open]").onclick = () => openSongModal(s.id);
+
+        tr.querySelector("[data-prod]").onclick = () => {
+          window.location.href = `./production.html?album_id=${encodeURIComponent(id)}&song_id=${encodeURIComponent(s.id)}`;
         };
 
-        tr.querySelector("[data-suno-pack]").onclick = () => {
-          window.location.href = `./song-suno.html?id=${encodeURIComponent(s.id)}&album_id=${encodeURIComponent(id)}`;
-        };
-
-        const linkEl = tr.querySelector("[data-link]");
-        linkEl.onclick = () => {
-          if (!url) return;
-          window.open(url, "_blank", "noopener,noreferrer");
+        const ytEl = tr.querySelector("[data-yt]");
+        ytEl.onclick = () => {
+          if (!ytUrl) return;
+          window.open(ytUrl, "_blank", "noopener,noreferrer");
         };
       }
     }
@@ -291,8 +398,8 @@
       if (error) { $("statusLine").textContent = "Error: " + error.message; return; }
       album = a;
 
-      const { data: art, error: e2 } = await supabase.from(ARTISTS).select("id,name").eq("id", album.artist_id).single();
-      if (!e2) artist = art;
+      const { data: art } = await supabase.from(ARTISTS).select("id,name").eq("id", album.artist_id).single();
+      artist = art || null;
 
       const { data: s, error: e3 } = await supabase.from(SONGS).select("*").eq("album_id", id).order("track_number", { ascending: true });
       songs = e3 ? [] : (s || []);
@@ -307,41 +414,18 @@
       $("total_tracks").value = album.total_tracks || 12;
       $("notes").value = album.notes || "";
       $("prompt").value = album.chatgpt_prompt || "";
-      $("working_tracks").value = album.working_tracklist ? JSON.stringify(album.working_tracklist, null, 2) : "";
+
+      // Working scratchpad is intentionally NOT loaded from DB.
+      $("working_tracks").value = "";
 
       $("statusLine").textContent = `Album ID: ${album.id}`;
       setChips();
       renderSongs();
 
-      // ✅ AFTER songs load + render, auto status update if complete
       await maybeAutoSetProducing();
     }
 
-    function normalizeTracks(arr){
-      if (!Array.isArray(arr)) return [];
-      if (arr.every(x => typeof x === "string")) {
-        return arr.map((title, idx) => ({
-          track_number: idx + 1,
-          title: String(title).replace(/^"+|"+$/g,"").trim(),
-          suno_prompt: null, keywords: null, scripture: null,
-        })).filter(t => t.title);
-      }
-      return arr.map((x, idx) => {
-        const track_number = Number(x.track_number || (idx+1));
-        return {
-          track_number,
-          title: safeText(x.title).trim(),
-          suno_prompt: (x.suno_prompt ? safeText(x.suno_prompt).trim() : null),
-          keywords: (x.keywords ? safeText(x.keywords).trim() : null),
-          scripture: (x.scripture ? safeText(x.scripture).trim() : null),
-        };
-      }).filter(t => t.title);
-    }
-
     async function saveAlbum(){
-      const raw = parseTracksInput($("working_tracks").value);
-      const tracks = raw ? normalizeTracks(raw) : null;
-
       const payload = {
         status: $("status").value,
         title: $("titleInput").value.trim() || null,
@@ -351,14 +435,14 @@
         lead_type: $("lead_type").value || "solo",
         total_tracks: Number($("total_tracks").value || 12),
         notes: $("notes").value.trim() || null,
-        chatgpt_prompt: $("prompt").value || null,
-        working_tracklist: tracks && tracks.length ? tracks : null,
+        chatgpt_prompt: $("prompt").value || null
       };
 
       $("statusLine").textContent = "Saving…";
       const { error } = await supabase.from(ALBUMS).update(payload).eq("id", id);
       if (error) { $("statusLine").textContent = "Error: " + error.message; return; }
 
+      // Save quick edits from table (title/keywords/scripture/suno_prompt)
       const rows = [...document.querySelectorAll("#songsBody tr[data-song-id]")];
       for (const r of rows){
         const sid = r.dataset.songId;
@@ -368,6 +452,7 @@
         const suno_prompt = (r.querySelector("[data-suno]")?.value || "").trim() || null;
         if (!title) continue;
 
+        // Try with suno_prompt; fallback if column missing
         let upd = await supabase.from(SONGS).update({ title, keywords, scripture, suno_prompt }).eq("id", sid);
         if (upd.error && String(upd.error.message || "").toLowerCase().includes("suno_prompt")) {
           await supabase.from(SONGS).update({ title, keywords, scripture }).eq("id", sid);
@@ -387,52 +472,202 @@
       window.location.href = "./albums.html";
     }
 
+    function normalizeTracks(arr){
+      // Accept array of objects with extra fields; accept array of strings as titles.
+      if (!Array.isArray(arr)) return [];
+
+      if (arr.every(x => typeof x === "string")) {
+        return arr.map((title, idx) => ({
+          track_number: idx + 1,
+          title: String(title).replace(/^"+|"+$/g,"").trim()
+        })).filter(t => t.title);
+      }
+
+      return arr.map((x, idx) => {
+        const track_number = Number(x.track_number || (idx+1));
+        return {
+          track_number,
+          title: safeText(x.title).trim(),
+          suno_prompt: x.suno_prompt ? safeText(x.suno_prompt).trim() : null,
+          lyrics: x.lyrics ? safeText(x.lyrics) : null,
+          keywords: x.keywords ? safeText(x.keywords).trim() : null,
+          scripture: x.scripture ? safeText(x.scripture).trim() : null,
+
+          // Optional “done + publish” fields (only inserted if your DB supports them)
+          lyrics_done: x.lyrics_done,
+          longform_done: x.longform_done,
+          long_packaged: x.long_packaged,
+          is_legacy_published: x.is_legacy_published,
+          youtube_long_url: x.youtube_long_url ? safeText(x.youtube_long_url).trim() : null,
+          youtube_long_published_at: x.youtube_long_published_at ? safeText(x.youtube_long_published_at).trim() : null,
+        };
+      }).filter(t => t.title);
+    }
+
+    async function insertWithFallback(rows){
+      // Try inserting rows; if Supabase says a column doesn't exist, remove it and retry.
+      let working = rows.map(r => ({...r}));
+
+      for (let attempts=0; attempts<8; attempts++){
+        const res = await supabase.from(SONGS).insert(working);
+        if (!res.error) return { ok:true };
+
+        const msg = String(res.error.message || "");
+        const m = msg.match(/column\s+\"([^\"]+)\"\s+of\s+relation/i);
+        if (!m) return { ok:false, error: msg };
+
+        const bad = m[1];
+        working = working.map(r => {
+          const c = {...r};
+          delete c[bad];
+          return c;
+        });
+      }
+      return { ok:false, error:"Insert failed after fallbacks." };
+    }
+
     async function applyTracksToSongs(){
-      const raw = parseTracksInput($("working_tracks").value);
-      if (!raw) return alert("Paste valid JSON or a list of titles into TRACKS_JSON.");
+      const rawText = $("working_tracks").value;
+      const raw = (() => {
+        const t = (rawText || "").trim();
+        if (!t) return null;
+        try {
+          const v = JSON.parse(t);
+          if (Array.isArray(v)) return v;
+        } catch {}
+        return null;
+      })();
+
+      if (!raw) return alert("Paste a valid JSON ARRAY into TRACKS_JSON.");
 
       const tracks = normalizeTracks(raw);
-      if (!tracks.length) return alert("No track titles found.");
+      if (!tracks.length) return alert("No valid tracks found.");
 
-      $("statusLine").textContent = "Updating songs…";
+      $("statusLine").textContent = "Replacing songs…";
 
+      // Delete existing songs in album
       await supabase.from(SONGS).delete().eq("album_id", id);
 
-      const rowsWithSuno = tracks.map(t => ({
+      // Build insert rows
+      const rows = tracks.map(t => ({
         album_id: id,
         track_number: t.track_number,
         title: t.title,
         suno_prompt: t.suno_prompt || null,
-        keywords: t.keywords,
-        scripture: t.scripture
+        lyrics: t.lyrics || null,
+        keywords: t.keywords || null,
+        scripture: t.scripture || null,
+        lyrics_done: t.lyrics_done,
+        longform_done: t.longform_done,
+        long_packaged: t.long_packaged,
+        is_legacy_published: t.is_legacy_published,
+        youtube_long_url: t.youtube_long_url || null,
+        youtube_long_published_at: t.youtube_long_published_at || null
       }));
 
-      let ins = await supabase.from(SONGS).insert(rowsWithSuno);
+      const ins = await insertWithFallback(rows);
+      if (!ins.ok) { $("statusLine").textContent = "Error: " + ins.error; return; }
 
-      if (ins.error && String(ins.error.message || "").toLowerCase().includes("suno_prompt")) {
-        const rowsNoSuno = tracks.map(t => ({
-          album_id: id,
-          track_number: t.track_number,
-          title: t.title,
-          keywords: t.keywords,
-          scripture: t.scripture
-        }));
-        const ins2 = await supabase.from(SONGS).insert(rowsNoSuno);
-        if (ins2.error) { $("statusLine").textContent = "Error: " + ins2.error.message; return; }
-      } else if (ins.error) {
-        $("statusLine").textContent = "Error: " + ins.error.message;
-        return;
+      $("statusLine").textContent = "Songs imported ✅";
+      await loadAlbum();
+    }
+
+    // Modal helpers
+    function openModal(){ $("modalOverlay").style.display = "flex"; }
+    function closeModal(){ $("modalOverlay").style.display = "none"; currentSong = null; }
+    function findSong(songId){ return songs.find(s => String(s.id) === String(songId)); }
+
+    function fillModal(s){
+      currentSong = s;
+
+      $("modalTitle").textContent = `Edit Song: ${s.title || ""}`;
+      $("modalSub").textContent = `Song ID: ${s.id}`;
+      const legacy = !!s.is_legacy_published;
+      $("legacyPill").textContent = legacy ? "legacy: YES" : "legacy: NO";
+      $("legacyPill").className = "pill " + (legacy ? "warn" : "ok");
+
+      $("m_track").value = s.track_number ?? "";
+      $("m_title").value = s.title ?? "";
+      $("m_suno").value = s.suno_prompt ?? "";
+      $("m_lyrics").value = s.lyrics ?? "";
+      $("m_keywords").value = s.keywords ?? "";
+      $("m_scripture").value = s.scripture ?? "";
+      $("m_yt_url").value = s.youtube_long_url ?? "";
+      $("m_yt_date").value = s.youtube_long_published_at ?? "";
+
+      $("m_lyrics_done").checked = !!s.lyrics_done || hasLyricsText(s);
+      $("m_long_done").checked = !!s.longform_done;
+      $("m_long_packaged").checked = !!s.long_packaged;
+      $("m_legacy").checked = !!s.is_legacy_published;
+    }
+
+    async function openSongModal(songId){
+      const s = findSong(songId);
+      if (!s) return;
+      fillModal(s);
+      openModal();
+    }
+
+    async function saveSongFromModal(){
+      if (!currentSong) return;
+
+      const payload = {
+        track_number: Number($("m_track").value || currentSong.track_number || 1),
+        title: ($("m_title").value || "").trim() || null,
+        suno_prompt: ($("m_suno").value || "").trim() || null,
+        lyrics: ($("m_lyrics").value || "").trim() || null,
+        keywords: ($("m_keywords").value || "").trim() || null,
+        scripture: ($("m_scripture").value || "").trim() || null,
+
+        youtube_long_url: ($("m_yt_url").value || "").trim() || null,
+        youtube_long_published_at: ($("m_yt_date").value || "").trim() || null,
+
+        lyrics_done: $("m_lyrics_done").checked,
+        longform_done: $("m_long_done").checked,
+        long_packaged: $("m_long_packaged").checked,
+        is_legacy_published: $("m_legacy").checked
+      };
+
+      async function updateWithFallback(obj){
+        let working = {...obj};
+        for (let attempts=0; attempts<8; attempts++){
+          const res = await supabase.from(SONGS).update(working).eq("id", currentSong.id);
+          if (!res.error) return { ok:true };
+          const msg = String(res.error.message || "");
+          const m = msg.match(/column\s+\"([^\"]+)\"\s+of\s+relation/i);
+          if (!m) return { ok:false, error: msg };
+          delete working[m[1]];
+        }
+        return { ok:false, error:"Update failed after fallbacks." };
       }
 
-      await supabase.from(ALBUMS).update({ working_tracklist: tracks }).eq("id", id);
+      $("statusLine").textContent = "Saving song…";
+      const up = await updateWithFallback(payload);
+      if (!up.ok) { $("statusLine").textContent = "Error: " + up.error; return; }
 
-      $("statusLine").textContent = "Songs updated ✅";
+      $("statusLine").textContent = "Song saved ✅";
+      closeModal();
+      await loadAlbum();
+    }
+
+    async function deleteSongFromModal(){
+      if (!currentSong) return;
+      const ok = confirm("Delete this song?");
+      if (!ok) return;
+
+      $("statusLine").textContent = "Deleting song…";
+      const { error } = await supabase.from(SONGS).delete().eq("id", currentSong.id);
+      if (error) { $("statusLine").textContent = "Error: " + error.message; return; }
+
+      $("statusLine").textContent = "Song deleted ✅";
+      closeModal();
       await loadAlbum();
     }
 
     $("btnSave").onclick = saveAlbum;
     $("btnDelete").onclick = deleteAlbum;
     $("btnApplyTracks").onclick = applyTracksToSongs;
+    $("btnClearWorking").onclick = () => $("working_tracks").value = "";
 
     $("btnCopyPrompt").onclick = async () => {
       const p = $("prompt").value;
@@ -441,11 +676,25 @@
       $("statusLine").textContent = "Prompt copied ✅";
     };
 
+    $("btnGoProduction").onclick = () => {
+      window.location.href = `./production.html?album_id=${encodeURIComponent(id)}`;
+    };
+
     $("btnBack").onclick = () => window.location.href = "./albums.html";
     $("btnLogout").onclick = async () => {
       await supabase.auth.signOut();
       window.location.href = "./index.html";
     };
+
+    $("btnModalClose").onclick = closeModal;
+    $("modalOverlay").onclick = (e) => { if (e.target === $("modalOverlay")) closeModal(); };
+
+    $("btnModalProduction").onclick = () => {
+      if (!currentSong) return;
+      window.location.href = `./production.html?album_id=${encodeURIComponent(id)}&song_id=${encodeURIComponent(currentSong.id)}`;
+    };
+    $("btnModalSave").onclick = saveSongFromModal;
+    $("btnModalDelete").onclick = deleteSongFromModal;
 
     await loadAlbum();
   </script>
