@@ -620,7 +620,7 @@ ${buildSongContextBlock()}
     if (__el_btnOpenLyricsBuilder) __el_btnOpenLyricsBuilder.onclick = () => {
       if (!currentSong) return;
       // Use existing lyric builder page
-      window.location.href = `./song-lyrics-builder.html?album_id=${encodeURIComponent(albumId)}&song_id=${encodeURIComponent(currentSong.id)}`;
+      window.location.href = `./song-lyrics-builder.html?album_id=${encodeURIComponent(album_id)}&song_id=${encodeURIComponent(currentSong.id)}`;
     };
 
     function artistDNASummary(){
