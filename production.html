@@ -518,7 +518,8 @@ ${buildSongContextBlock()}
     if (_tgl) _tgl.onchange = setEditMode;
 
     // Open Lyrics Builder (existing page)
-    $("btnOpenLyricsBuilder").onclick = () => {
+    const __el_btnOpenLyricsBuilder = $("btnOpenLyricsBuilder");
+    if (__el_btnOpenLyricsBuilder) __el_btnOpenLyricsBuilder.onclick = () => {
       if (!currentSong) return;
       // Use existing lyric builder page
       window.location.href = `./song-lyrics-builder.html?album_id=${encodeURIComponent(albumId)}&song_id=${encodeURIComponent(currentSong.id)}`;
@@ -584,14 +585,17 @@ ${buildSongContextBlock()}
       $("song_edit_prompt").value = out.join("\n");
     }
 
-    $("btnBuildSongEdit").onclick = buildSongEditPrompt;
-    $("btnCopySongEdit").onclick = async () => {
+    const __el_btnBuildSongEdit = $("btnBuildSongEdit");
+    if (__el_btnBuildSongEdit) __el_btnBuildSongEdit.onclick = buildSongEditPrompt;
+    const __el_btnCopySongEdit = $("btnCopySongEdit");
+    if (__el_btnCopySongEdit) __el_btnCopySongEdit.onclick = async () => {
       const t = $("song_edit_prompt").value || "";
       if (!t.trim()) return alert("Nothing to copy.");
       await navigator.clipboard.writeText(t);
       $("statusLine").textContent = "Song edit prompt copied ✅";
     };
-    $("btnClearSongEdit").onclick = () => $("song_edit_prompt").value = "";
+    const __el_btnClearSongEdit = $("btnClearSongEdit");
+    if (__el_btnClearSongEdit) __el_btnClearSongEdit.onclick = () => $("song_edit_prompt").value = "";
 
     // --- Updated video prompt builder ---
     function buildLongPrompt(isMusicVideo){
@@ -688,31 +692,40 @@ ${buildSongContextBlock()}
       $("statusLine").textContent = "Prompt built ✅";
     }
 
-    $("btnBuild").onclick = buildPrompt;
-    $("btnClearOutput").onclick = () => $("output").value = "";
+    const __el_btnBuild = $("btnBuild");
+    if (__el_btnBuild) __el_btnBuild.onclick = buildPrompt;
+    const __el_btnClearOutput = $("btnClearOutput");
+    if (__el_btnClearOutput) __el_btnClearOutput.onclick = () => $("output").value = "";
 
-    $("btnCopyOutput").onclick = async () => {
+    const __el_btnCopyOutput = $("btnCopyOutput");
+    if (__el_btnCopyOutput) __el_btnCopyOutput.onclick = async () => {
       const t = $("output").value || "";
       if (!t.trim()) return alert("Nothing to copy.");
       await navigator.clipboard.writeText(t);
       $("statusLine").textContent = "Output copied ✅";
     };
 
-    $("btnCopyWorking").onclick = async () => {
+    const __el_btnCopyWorking = $("btnCopyWorking");
+    if (__el_btnCopyWorking) __el_btnCopyWorking.onclick = async () => {
       const t = $("working_results").value || "";
       if (!t.trim()) return alert("Working box is empty.");
       await navigator.clipboard.writeText(t);
       $("statusLine").textContent = "Working copied ✅";
     };
-    $("btnClearWorking").onclick = () => $("working_results").value = "";
+    const __el_btnClearWorking = $("btnClearWorking");
+    if (__el_btnClearWorking) __el_btnClearWorking.onclick = () => $("working_results").value = "";
 
-    $("btnSaveSong").onclick = saveSong;
+    const __el_btnSaveSong = $("btnSaveSong");
+    if (__el_btnSaveSong) __el_btnSaveSong.onclick = saveSong;
     const _ss = $("songSelect");
     if (_ss) _ss.onchange = (e) => selectSong(e.target.value);
 
-    $("btnHome").onclick = () => window.location.href = "./home.html";
-    $("btnAlbum").onclick = () => window.location.href = `./album-edit.html?id=${encodeURIComponent(album_id)}`;
-    $("btnLogout").onclick = async () => {
+    const __el_btnHome = $("btnHome");
+    if (__el_btnHome) __el_btnHome.onclick = () => window.location.href = "./home.html";
+    const __el_btnAlbum = $("btnAlbum");
+    if (__el_btnAlbum) __el_btnAlbum.onclick = () => window.location.href = `./album-edit.html?id=${encodeURIComponent(album_id)}`;
+    const __el_btnLogout = $("btnLogout");
+    if (__el_btnLogout) __el_btnLogout.onclick = async () => {
       await supabase.auth.signOut();
       window.location.href = "./index.html";
     };
