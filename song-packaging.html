@@ -1,343 +1,291 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Song Packaging</title>
   <style>
-    :root{
-      --bg:#0b0f19; --panel:#101a2b; --panel2:#0f1726; --line:#20304a;
-      --text:#e6edf7; --muted:#a9b8d0; --btn:#1e3a8a; --btn2:#0f254f; --good:#22c55e;
-      --radius:16px;
-    }
-    *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial;}
-    body{margin:0;background:radial-gradient(1200px 600px at 20% 0%, #16213a 0%, var(--bg) 55%); color:var(--text);}
-    a{color:#9cc3ff;text-decoration:none}
-    a:hover{text-decoration:underline}
-    .topbar{display:flex;gap:10px;align-items:center;justify-content:flex-end;padding:16px 18px;position:sticky;top:0;background:linear-gradient(180deg, rgba(11,15,25,0.92) 0%, rgba(11,15,25,0.65) 100%);backdrop-filter: blur(8px);border-bottom:1px solid rgba(255,255,255,0.06);}
-    .btn{border:1px solid rgba(255,255,255,0.10);background:linear-gradient(180deg,var(--btn2),rgba(15,37,79,0.25));color:var(--text);padding:10px 14px;border-radius:12px;cursor:pointer;font-weight:700}
-    .btn.primary{background:linear-gradient(180deg,#2563eb,#1d4ed8);border-color:rgba(255,255,255,0.16)}
-    .wrap{max-width:1200px;margin:0 auto;padding:18px}
-    h1{margin:10px 0 14px;font-size:28px}
-    .card{background:linear-gradient(180deg, rgba(16,26,43,0.9), rgba(13,20,34,0.85));border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius);padding:16px}
-    .grid{display:grid;grid-template-columns:1.1fr 0.9fr;gap:14px}
+    :root{--bg:#0b1220;--card:#0f1a2f;--line:rgba(255,255,255,.08);--text:#e8eefc;--mut:#a8b4d6;--btn:#1e3a8a;--btn2:#0b3b2b}
+    *{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:radial-gradient(1200px 600px at 20% -10%,rgba(59,130,246,.25),transparent 60%),radial-gradient(900px 500px at 90% 0%,rgba(16,185,129,.18),transparent 55%),var(--bg);color:var(--text)}
+    .top{display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid var(--line)}
+    .top h1{margin:0;font-size:22px;letter-spacing:.2px}
+    .nav{display:flex;gap:10px;align-items:center}
+    .pill{padding:9px 12px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--text);border-radius:999px;text-decoration:none;font-weight:600;font-size:13px}
+    .pill.red{background:rgba(239,68,68,.16);border-color:rgba(239,68,68,.28)}
+    .wrap{max-width:1200px;margin:22px auto;padding:0 18px}
+    .grid{display:grid;grid-template-columns:1.15fr .85fr;gap:18px}
+    .card{background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02));border:1px solid var(--line);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    .card .hd{padding:16px 16px 0 16px} .card .hd h2{margin:0 0 6px 0;font-size:18px}
+    .card .bd{padding:16px}
+    label{display:block;font-size:12px;color:var(--mut);margin:10px 0 6px}
+    input[type=text], textarea, select{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(0,0,0,.22);color:var(--text);outline:none}
+    textarea{min-height:140px;resize:vertical}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .btnbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .btn{padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--text);cursor:pointer;font-weight:700}
+    .btn.primary{background:rgba(59,130,246,.25);border-color:rgba(59,130,246,.35)}
+    .btn.copy{background:rgba(16,185,129,.18);border-color:rgba(16,185,129,.35)}
+    .mut{color:var(--mut);font-size:12px;line-height:1.35}
+    .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .chip{font-size:12px;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.03)}
+    .toast{position:fixed;right:16px;bottom:16px;z-index:999;background:rgba(0,0,0,.75);border:1px solid var(--line);color:var(--text);padding:10px 12px;border-radius:12px;display:none;max-width:min(520px,calc(100vw - 32px))}
+    .toast.ok{border-color:rgba(16,185,129,.45)} .toast.bad{border-color:rgba(239,68,68,.45)}
     @media(max-width:980px){.grid{grid-template-columns:1fr}}
-    label{display:block;font-size:12px;color:var(--muted);margin:10px 0 6px}
-    select,input[type="text"],textarea{width:100%;padding:12px 12px;border-radius:12px;border:1px solid rgba(255,255,255,0.10);background:rgba(9,13,22,0.65);color:var(--text);outline:none}
-    textarea{min-height:220px;resize:vertical;white-space:pre-wrap}
-    .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-    .pill{display:inline-flex;gap:8px;align-items:center;border:1px solid rgba(255,255,255,0.10);background:rgba(9,13,22,0.55);padding:8px 10px;border-radius:999px;color:var(--muted);font-size:12px}
-    .good{color:var(--good);font-weight:900}
-    .muted{color:var(--muted)}
-    .small{font-size:12px;color:var(--muted)}
-    .sep{height:1px;background:rgba(255,255,255,0.08);margin:14px 0}
-    .check{display:flex;gap:10px;align-items:center;margin-top:10px}
-    .check input{width:18px;height:18px}
   </style>
 </head>
 <body>
-  <div class="topbar">
-    <button class="btn" id="btnBack">Back</button>
-    <button class="btn" id="btnAlbum">Album</button>
-    <button class="btn primary" id="btnCopy">Copy Output</button>
+  <div class="top">
+    <div>
+      <h1>Song Packaging</h1>
+      <div class="mut" id="who">Loading…</div>
+    </div>
+    <div class="nav">
+      <a class="pill" id="btnHome" href="./home.html">Home</a>
+      <a class="pill" id="btnAlbum" href="#">Album</a>
+      <a class="pill red" href="./index.html">Logout</a>
+    </div>
   </div>
 
   <div class="wrap">
-    <h1>Song Packaging</h1>
-    <div class="card" style="margin-bottom:14px">
-      <div class="row" id="metaRow">
-        <span class="pill">loading…</span>
-      </div>
-      <div class="small" style="margin-top:8px">
-        Generates prompts only (nothing saved). Use Album page checkboxes to mark long/short packaged.
+    <div class="card" style="margin-bottom:16px">
+      <div class="bd">
+        <div class="btnbar" style="justify-content:space-between">
+          <div>
+            <div class="mut">This page generates prompts only (nothing saved). Use Album Edit checkboxes to mark Long/Short done.</div>
+            <div class="chips" id="metaChips"></div>
+          </div>
+          <div class="btnbar">
+            <button class="btn copy" id="btnCopy">Copy Output</button>
+          </div>
+        </div>
       </div>
     </div>
 
     <div class="grid">
       <div class="card">
-        <div class="row" style="justify-content:space-between">
-          <div style="font-weight:900">Prompt Builder</div>
+        <div class="hd"><h2>Prompt Builder</h2></div>
+        <div class="bd">
           <div class="row">
-            <button class="btn" id="btnBuild">Generate</button>
-            <button class="btn" id="btnClear">Clear</button>
+            <div>
+              <label>Mode</label>
+              <select id="mode">
+                <option value="long">YouTube Long (Full video)</option>
+                <option value="short">Shorts / TikTok (Shorts only)</option>
+              </select>
+            </div>
+            <div>
+              <label>Options</label>
+              <div style="display:flex;gap:10px;align-items:center;margin-top:10px">
+                <input id="useArtistImg" type="checkbox" />
+                <label for="useArtistImg" style="margin:0;color:var(--text);font-size:13px">Include artist image (thumbnail prompt)</label>
+              </div>
+              <div class="mut" style="margin-top:8px">Shorts do not have thumbnails (checkbox is ignored in Shorts mode).</div>
+            </div>
           </div>
+
+          <div class="btnbar" style="margin-top:14px">
+            <button class="btn primary" id="btnBuild">Generate Prompt</button>
+            <button class="btn" id="btnRebuild">Rebuild (same mode)</button>
+          </div>
+
+          <label style="margin-top:14px">Prompt Output (Copy this into ChatGPT)</label>
+          <textarea id="out" placeholder="Click Generate Prompt…" spellcheck="false"></textarea>
         </div>
-
-        <div class="sep"></div>
-
-        <label>Mode</label>
-        <select id="mode">
-          <option value="long">Longform (YouTube video)</option>
-          <option value="short">Shorts (YouTube + TikTok)</option>
-        </select>
-
-        <div class="check">
-          <input type="checkbox" id="includeArtistImage" />
-          <label for="includeArtistImage" style="margin:0">Include artist image (thumbnail prompt)</label>
-        </div>
-        <div class="small">Shorts do not have thumbnails (checkbox is ignored in Shorts mode).</div>
-
-        <label style="margin-top:14px">Prompt Output (copy this into ChatGPT)</label>
-        <textarea id="out" placeholder="Click Generate…"></textarea>
       </div>
 
       <div class="card">
-        <div style="font-weight:900;margin-bottom:6px">What gets included</div>
-        <div class="small">
-          • Artist DNA (genres + voice identity + must/never include + Suno voice anchor)<br/>
-          • Artist links (from Artist page)<br/>
-          • Default playlists (if enabled for artist)<br/>
-          • Song title + Suno prompt + lyrics (and Scripture only if Gospel/Christian artist)<br/>
-          • Generates either Longform packaging OR Shorts packaging (not both)
-        </div>
-        <div class="sep"></div>
-        <div class="small muted">
-          Tip: If you switch Mode, click <b>Generate</b> again to rebuild.
+        <div class="hd"><h2>Song Data (read-only)</h2></div>
+        <div class="bd">
+          <label>Title</label>
+          <input id="title" type="text" readonly />
+
+          <div class="row">
+            <div>
+              <label>Keywords</label>
+              <input id="keywords" type="text" readonly />
+            </div>
+            <div>
+              <label>Scripture (only gospel/christian)</label>
+              <input id="scripture" type="text" readonly />
+            </div>
+          </div>
+
+          <label>Suno Prompt</label>
+          <textarea id="suno" readonly></textarea>
+
+          <label>Lyrics</label>
+          <textarea id="lyrics" readonly></textarea>
+
+          <label>Artist playlists (optional)</label>
+          <textarea id="playlists" readonly placeholder="No default playlists for this artist."></textarea>
         </div>
       </div>
     </div>
   </div>
 
-<script>
-  const SONGS = "songs";
-  const ALBUMS = "albums";
-  const ARTISTS = "artists";
+  <div id="toast" class="toast"></div>
 
-  const $ = (id)=>document.getElementById(id);
-  const safe = (v)=> (v===null||v===undefined) ? "" : String(v);
+  <script type="module">
+    import { requireSessionOrRedirect, readId, supabase } from "./app.js";
 
-  function getCfg(){
-    const raw = localStorage.getItem("SUPABASE_CONFIG");
-    if(!raw) throw new Error("Missing Supabase config in localStorage.");
-    return JSON.parse(raw);
-  }
+    const $ = (id) => document.getElementById(id);
 
-  function isGospelArtist(artist){
-    const mg = (artist?.main_genre||"").toLowerCase();
-    const sg = (artist?.secondary_genre||"").toLowerCase();
-    const lane = (artist?.default_lane||"").toLowerCase();
-    return mg.includes("gospel") || mg.includes("christ") || mg.includes("christian") ||
-           sg.includes("gospel") || sg.includes("christ") || sg.includes("christian") ||
-           lane.includes("gospel") || lane.includes("worship") || lane.includes("praise");
-  }
+    let albumId = null;
+    let songId = null;
+    let song = null;
+    let artist = null;
+    let album = null;
+    let playlistsText = "";
 
-  function artistLinksBlock(ar){
-    const links = [];
-    const add = (label, val)=>{ if(val) links.push(`${label}: ${val}`); };
-    add("YouTube", ar?.youtube_handle || ar?.youtube_url);
-    add("Spotify", ar?.spotify_url);
-    add("Bandcamp", ar?.bandcamp_url);
-    add("Apple Music", ar?.apple_url);
-    add("Website", ar?.website_url);
-    add("Instagram", ar?.instagram_url);
-    add("TikTok", ar?.tiktok_url);
-    add("Facebook", ar?.facebook_url);
-    return `Links:\n- ${links.length?links.join("\n- "):"None"}`;
-  }
+    const toast = (msg, ok=true) => {
+      const t = $("toast");
+      t.textContent = msg;
+      t.className = "toast " + (ok ? "ok" : "bad");
+      t.style.display = "block";
+      setTimeout(() => (t.style.display = "none"), 2200);
+    };
 
-  // globals loaded
-  let song = null;
-  let album = null;
-  let artist = null;
-  let currentArtistPlaylistsText = "None";
-
-  async function init(){
-    const cfg = getCfg();
-    if (!window.supabase || !window.supabase.createClient){
-      throw new Error("Supabase library not loaded");
-    }
-    const sb = window.supabase.createClient(cfg.url, cfg.anon);
-const params = new URLSearchParams(location.search);
-    const albumId = params.get("album_id");
-    const songId = params.get("song_id");
-
-    if(!songId){
-      $("metaRow").innerHTML = `<span class="pill">Missing <b>song_id</b> in URL</span>`;
-      return;
+    function isGospelArtist(a){
+      const mg = (a?.main_genre || "").toLowerCase();
+      const sg = (a?.secondary_genre || "").toLowerCase();
+      const lane = (a?.default_lane || "").toLowerCase();
+      const any = `${mg} ${sg} ${lane}`;
+      return any.includes("gospel") || any.includes("christ") || any.includes("worship") || any.includes("christian");
     }
 
-    // load song
-    const { data: s, error: se } = await sb.from(SONGS).select("*").eq("id", songId).single();
-    if(se){ $("metaRow").innerHTML = `<span class="pill">Song load error: ${safe(se.message)}</span>`; return; }
-    song = s;
+    function buildPromptLong(){
+      const includeArtistImg = !!$("useArtistImg").checked;
+      const gospel = isGospelArtist(artist);
 
-    // load album if provided or from song
-    const aId = albumId || song.album_id;
-    if(aId){
-      const { data: a, error: ae } = await sb.from(ALBUMS).select("*").eq("id", aId).single();
-      if(!ae) album = a;
+      const artistBlock = `ARTIST\n- name: ${artist?.name || "(unknown)"}\n- lane: ${artist?.default_lane || "(none)"}\n- persona/voice identity: ${artist?.voice_identity || artist?.default_perso || "(none)"}\n- main genre: ${artist?.main_genre || "(none)"}\n- secondary genre: ${artist?.secondary_genre || "(none)"}\n- must include: ${artist?.must_include || "(none)"}\n- never include: ${artist?.never_include || "(none)"}\n- suno voice anchor: ${artist?.suno_voice_anchor || "(none)"}`;
+
+      const songBlock = `SONG\n- title: ${song?.title || ""}\n- keywords: ${song?.keywords || ""}\n- scripture: ${gospel ? (song?.scripture || "(optional)") : "(not gospel/christian)"}\n- suno prompt (for this song): ${song?.suno_prompt || ""}`;
+
+      const playlistNote = playlistsText
+        ? `PLAYLISTS (artist defaults)\n${playlistsText}\n\nIn your response, also tell me which playlist this song fits best (or "Album playlist" if none).`
+        : `PLAYLISTS\nNo artist default playlists. In your response, also tell me if this should go to an Album playlist or a new mood playlist.`;
+
+      const thumbRule = includeArtistImg
+        ? "Thumbnail: INCLUDE artist reference image. Make it bold, high contrast, mobile readable."
+        : "Thumbnail: Do NOT include artist reference image. Make it bold, high contrast, mobile readable.";
+
+      return `You are helping me package a SINGLE YouTube long-form video for my music channel.\n\n${artistBlock}\n\n${songBlock}\n\nLYRICS (paste as-is):\n${song?.lyrics || "(no lyrics found)"}\n\n${playlistNote}\n\nRETURN ONLY these sections (clean, no extra talk):\nYOUTUBE_TITLE:\nYOUTUBE_DESCRIPTION_WITH_HASHTAGS:\nYOUTUBE_TAGS_UNDER_500_CHARS (comma-separated):\nPINNED_COMMENT:\nTHUMBNAIL_PROMPT_1280x720 (SEO, readable, eye-catching):\n${thumbRule}\n\nIMPORTANT:\n- Do NOT include the 'Song Details: BPM/Key/Genre/Mood' line.\n- If this is not a gospel/christian artist, do NOT add scripture verses and do NOT mention Bible references.\n- Keep tags genre-accurate based on the Suno prompt and artist genres.\n`;
     }
 
-    // load artist
-    const artistId = (album && album.artist_id) ? album.artist_id : song.artist_id;
-    if(artistId){
-      const { data: ar, error: arErr } = await sb.from(ARTISTS).select("*").eq("id", artistId).single();
-      if(!arErr) artist = ar;
+    function buildPromptShort(){
+      const gospel = isGospelArtist(artist);
 
-      // load playlists if enabled
-      currentArtistPlaylistsText = "None";
-      if(!arErr && artist?.default_playlist_enabled){
-        const { data: pls, error: pe } = await sb
+      const artistBlock = `ARTIST\n- name: ${artist?.name || "(unknown)"}\n- lane: ${artist?.default_lane || "(none)"}\n- persona/voice identity: ${artist?.voice_identity || artist?.default_perso || "(none)"}\n- main genre: ${artist?.main_genre || "(none)"}\n- secondary genre: ${artist?.secondary_genre || "(none)"}`;
+
+      const songBlock = `SONG\n- title: ${song?.title || ""}\n- keywords: ${song?.keywords || ""}\n- scripture: ${gospel ? (song?.scripture || "(optional)") : "(not gospel/christian)"}\n- suno prompt: ${song?.suno_prompt || ""}`;
+
+      const playlistNote = playlistsText
+        ? `PLAYLISTS (artist defaults)\n${playlistsText}\n\nIn your response, also tell me which playlist this short should link back to (or "Album playlist" if none).`
+        : `PLAYLISTS\nNo artist default playlists. In your response, also tell me if this short should link back to an Album playlist or a mood playlist.`;
+
+      return `You are helping me package a SINGLE Shorts/TikTok post for this song.\n\n${artistBlock}\n\n${songBlock}\n\nLYRICS (paste as-is):\n${song?.lyrics || "(no lyrics found)"}\n\n${playlistNote}\n\nRETURN ONLY these sections (clean, no extra talk):\nSHORTS_TITLE:\nSHORTS_DESCRIPTION_WITH_HASHTAGS:\nSHORTS_TAGS_UNDER_500_CHARS (comma-separated):\nPINNED_COMMENT (YouTube Shorts):\nTIKTOK_DESCRIPTION_WITH_HASHTAGS:\n\nIMPORTANT:\n- Shorts do NOT need a thumbnail prompt.\n- Do NOT include the 'Song Details: BPM/Key/Genre/Mood' line.\n- If this is not a gospel/christian artist, do NOT add scripture verses and do NOT mention Bible references.\n- Keep tags genre-accurate based on the Suno prompt and artist genres.\n`;
+    }
+
+    function rebuild(){
+      if (!song || !artist) return;
+      const mode = $("mode").value;
+      $("out").value = (mode === "short") ? buildPromptShort() : buildPromptLong();
+      toast("Prompt generated.");
+    }
+
+    async function loadPlaylistsForArtist(artistId){
+      try{
+        const { data, error } = await supabase
           .from("artist_playlists")
           .select("title,description,sort_order")
           .eq("artist_id", artistId)
           .order("sort_order", { ascending: true });
-        if(!pe && pls && pls.length){
-          currentArtistPlaylistsText = pls.map(p => p.description ? `${p.title} — ${p.description}` : `${p.title}`).join(" | ");
-        }
+
+        if (error) { console.warn("playlist load", error.message); return ""; }
+        if (!data || !data.length) return "";
+        return data.map((p,i)=>`${i+1}. ${p.title}${p.description ? ` — ${p.description}` : ""}`).join("\n");
+      } catch(e){
+        console.warn(e);
+        return "";
       }
     }
 
-    // meta pills
-    const pills = [];
-    pills.push(`<span class="pill"><b>song</b>: ${safe(song.title||"(untitled)")}</span>`);
-    if(album) pills.push(`<span class="pill"><b>album</b>: ${safe(album.title)}</span>`);
-    if(artist) pills.push(`<span class="pill"><b>artist</b>: ${safe(artist.name)}</span>`);
-    if(artist?.default_playlist_enabled) pills.push(`<span class="pill"><span class="good">playlists enabled</span></span>`);
-    $("metaRow").innerHTML = pills.join("");
+    async function init(){
+      const session = await requireSessionOrRedirect();
+      $("who").textContent = `Signed in: ${session.user.email}`;
 
-    // nav buttons
-    $("btnBack").onclick = ()=> (history.length>1 ? history.back() : (location.href="home.html"));
-    $("btnAlbum").onclick = ()=> {
-      if(album?.id) location.href = `album-edit.html?id=${album.id}`;
-      else location.href = "albums.html";
-    };
+      const params = new URLSearchParams(window.location.search);
+      albumId = readId(params.get("album_id"));
+      songId = readId(params.get("song_id"));
 
-    $("btnCopy").onclick = ()=>{
-      const t = $("out");
-      t.select(); document.execCommand("copy");
-    };
+      if (!albumId || !songId){
+        toast("Missing album_id or song_id in URL.", false);
+        return;
+      }
 
-    $("btnClear").onclick = ()=> $("out").value = "";
-    $("btnBuild").onclick = ()=> buildPrompt();
+      $("btnAlbum").href = `./album-edit.html?id=${albumId}`;
 
-    // rebuild when mode changes (optional – you asked to click Generate again, so we don't auto)
-  }
+      const { data: s, error: se } = await supabase
+        .from("songs")
+        .select("id,album_id,artist_id,title,track_no,keywords,scripture,suno_prompt,lyrics")
+        .eq("id", songId)
+        .single();
+      if (se) { toast(se.message, false); return; }
+      song = s;
 
-  function buildPrompt(){
-    if(!song || !artist){
-      $("out").value = "Missing song/artist data.";
-      return;
-    }
+      const { data: a, error: ae } = await supabase
+        .from("albums")
+        .select("id,title,artist_id,status")
+        .eq("id", albumId)
+        .single();
+      if (!ae) album = a;
 
-    const mode = $("mode").value;
-    const useArtistImage = $("includeArtistImage").checked;
-    const gospelOk = isGospelArtist(artist);
+      const { data: ar, error: are } = await supabase
+        .from("artists")
+        .select("id,name,default_lane,default_perso,main_genre,secondary_genre,voice_identity,must_include,never_include,suno_voice_anchor")
+        .eq("id", song.artist_id)
+        .single();
+      if (are) { toast(are.message, false); return; }
+      artist = ar;
 
-    // Build base artist DNA
-    const dna = [
-      `ARTIST`,
-      `- Name: ${safe(artist.name)}`,
-      `- Main genre: ${safe(artist.main_genre)}`,
-      `- Secondary genre: ${safe(artist.secondary_genre)}`,
-      `- Voice identity: ${safe(artist.voice_identity)}`,
-      `- Suno voice anchor: ${safe(artist.suno_voice_anchor)}`,
-      `- Must include: ${safe(artist.must_include)}`,
-      `- Never include: ${safe(artist.never_include)}`,
-      `- Default playlists (if any): ${safe(currentArtistPlaylistsText||"None")}`,
-      ``,
-      artistLinksBlock(artist),
-    ].join("\n");
+      playlistsText = await loadPlaylistsForArtist(artist.id);
+      $("playlists").value = playlistsText;
 
-    const songBlock = [
-      `SONG`,
-      `- Title: ${safe(song.title)}`,
-      (song.keywords ? `- Keywords: ${safe(song.keywords)}` : `- Keywords: (none)`),
-      (gospelOk && song.scripture ? `- Scripture: ${safe(song.scripture)}` : `- Scripture: (omit)`),
-      ``,
-      `SUNO_PROMPT:`,
-      `${safe(song.suno_prompt||"(none)")}`,
-      ``,
-      `LYRICS:`,
-      `${safe(song.lyrics||"(none)")}`,
-    ].join("\n");
+      // hide scripture if not gospel artist
+      if (!isGospelArtist(artist)) {
+        $("scripture").value = "";
+      }
 
-    if(mode === "long"){
-      const thumbLine = useArtistImage ? "YES (use artist reference image in vidIQ thumbnail creation)" : "NO (thumbnail should be concept-only)";
-      const prompt = [
-        `Create YouTube LONGFORM packaging for ONE song.`,
-        ``,
-        `${dna}`,
-        ``,
-        `${songBlock}`,
-        ``,
-        `Return these sections ONLY (no extra talk):`,
-        `YOUTUBE_TITLE:`,
-        `YOUTUBE_DESCRIPTION:`,
-        `YOUTUBE_TAGS_UNDER_500_CHARS:`,
-        `PINNED_COMMENT:`,
-        `THUMBNAIL_PROMPT (1280x720, include baked-in text, SEO readable):`,
-        `PLAYLIST_RECOMMENDATION (pick best playlist: album playlist OR one of the default playlists above; explain in 1 line):`,
-        ``,
-        `Rules:`,
-        `- Title style must match the artist brand (emotional hook + title + artist).`,
-        `- Description must include hashtags and the artist links block.`,
-        `- Do NOT include "Song Details: BPM/Key/Genre/Mood" line.`,
-        `- If artist is not Gospel/Christian, do NOT include scripture in description.`,
-        `- Thumbnail: ${thumbLine}`,
-      ].join("\n");
-      $("out").value = prompt;
-      return;
-    }
+      $("title").value = song.title || "";
+      $("keywords").value = song.keywords || "";
+      $("scripture").value = isGospelArtist(artist) ? (song.scripture || "") : "";
+      $("suno").value = song.suno_prompt || "";
+      $("lyrics").value = song.lyrics || "";
 
-    // shorts mode
-    const shortsPrompt = [
-      `Create YouTube SHORTS + TikTok packaging for ONE song (short-form only).`,
-      ``,
-      `${dna}`,
-      ``,
-      `${songBlock}`,
-      ``,
-      `Return these sections ONLY (no extra talk):`,
-      `SHORTS_HOOK_OPTIONS (3):`,
-      `ON_SCREEN_TEXT_PLAN (3 lines max):`,
-      `LYRICS_RANGE_TO_USE (exact lines from provided lyrics):`,
-      `YOUTUBE_SHORT_TITLE:`,
-      `YOUTUBE_SHORT_DESCRIPTION_WITH_HASHTAGS:`,
-      `YOUTUBE_SHORT_TAGS_UNDER_500_CHARS:`,
-      `PINNED_COMMENT (short):`,
-      `TIKTOK_DESCRIPTION_WITH_HASHTAGS:`,
-      `PLAYLIST_RECOMMENDATION (if YouTube shorts will be added to a playlist, pick best):`,
-      ``,
-      `Rules:`,
-      `- SHORTS ONLY. Do not output longform sections.`,
-      `- No thumbnail prompt for shorts.`,
-      `- Do NOT include "Song Details: BPM/Key/Genre/Mood" line.`,
-      `- If artist is not Gospel/Christian, do NOT include scripture in description.`,
-    ].join("\n");
-    $("out").value = shortsPrompt;
-  }
+      const chips = [];
+      chips.push(`album: ${album?.title || ""}`);
+      chips.push(`artist: ${artist?.name || ""}`);
+      chips.push(`song: #${song.track_no || "?"} ${song.title || ""}`);
+      chips.push(`mode: ${$("mode").value}`);
+      $("metaChips").innerHTML = chips.map(c=>`<span class="chip">${c}</span>`).join("");
 
-  // load supabase script
-  (function(){
-    // load supabase-js only once
-    if (window.supabase && window.supabase.createClient){
-      init().catch(err=>{
-        $("metaRow").innerHTML = `<span class="pill">Error: ${safe(err.message||err)}</span>`;
-        console.error(err);
+      $("mode").addEventListener("change", ()=>{
+        const mode = $("mode").value;
+        $("metaChips").innerHTML = chips.slice(0,3).concat([`mode: ${mode}`]).map(c=>`<span class="chip">${c}</span>`).join("");
       });
-      return;
+
+      $("btnBuild").onclick = rebuild;
+      $("btnRebuild").onclick = rebuild;
+      $("btnCopy").onclick = async ()=>{
+        await navigator.clipboard.writeText($("out").value || "");
+        toast("Copied.");
+      };
+
+      // Build once by default
+      rebuild();
     }
-    const existing = document.getElementById("sbjs");
-    if (existing){
-      existing.addEventListener("load", ()=>init().catch(err=>{
-        $("metaRow").innerHTML = `<span class="pill">Error: ${safe(err.message||err)}</span>`;
-        console.error(err);
-      }));
-      return;
-    }
-    const s=document.createElement("script");
-    s.id="sbjs";
-    s.src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
-    s.onload=()=>init().catch(err=>{
-      $("metaRow").innerHTML = `<span class="pill">Error: ${safe(err.message||err)}</span>`;
-      console.error(err);
-    });
-    s.onerror=()=> {
-      $("metaRow").innerHTML = `<span class="pill">Error: Failed to load Supabase JS</span>`;
-    };
-    document.head.appendChild(s);
-  })();
-</script>
+
+    init();
+  </script>
 </body>
 </html>
