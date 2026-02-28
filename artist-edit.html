@@ -518,7 +518,7 @@
     $("btnAddPlaylist").onclick = () => addPlaylistRow();
 
 
-    await load();
+    (async () => { try { await load(); } catch (e) { console.error(e); } })();
   </script>
 </body>
 </html>
