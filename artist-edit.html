@@ -146,7 +146,25 @@
 
       <hr class="divider">
 
-      <h2 class="sectionTitle">About + Packaging Defaults</h2>
+      
+      <h2 class="sectionTitle">Default YouTube Playlist (Optional)</h2>
+      <div class="hint">If enabled, songs will be recommended into this default playlist during YouTube packaging. If disabled, playlists are album-based.</div>
+
+      <div class="grid" style="margin-top:10px;">
+        <div style="display:flex; gap:10px; align-items:center; padding:10px 0;">
+          <input type="checkbox" id="default_playlist_enabled" />
+          <label for="default_playlist_enabled" style="margin:0; font-weight:800;">This artist has a default playlist</label>
+        </div>
+      </div>
+
+      <label for="default_playlist_title">Default Playlist Title</label>
+      <input id="default_playlist_title" placeholder="e.g., SoulVibe Sanctuary • Soul Worship Anthems">
+
+      <label for="default_playlist_description">Default Playlist Description</label>
+      <textarea id="default_playlist_description" placeholder="Short playlist description (used for packaging prompts)."></textarea>
+
+      <hr class="divider">
+<h2 class="sectionTitle">About + Packaging Defaults</h2>
       <label for="artist_about">Artist About (insert into YouTube/Bandcamp)</label>
       <textarea id="artist_about" placeholder="2–5 sentences. This becomes your standard 'About the Artist' injection."></textarea>
 
@@ -335,6 +353,10 @@
           youtube_about: ($("youtube_about").value || "").trim() || null,
           thumb_use_artist_default: !!$("thumb_use_artist_default").checked,
           thumbnail_style_long: ($("thumbnail_style_long").value || "").trim() || null,
+
+          default_playlist_enabled: !!$("default_playlist_enabled").checked,
+          default_playlist_title: ($("default_playlist_title").value || "").trim() || null,
+          default_playlist_description: ($("default_playlist_description").value || "").trim() || null,
 
           blueprint,
 
