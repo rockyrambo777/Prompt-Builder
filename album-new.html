@@ -334,7 +334,7 @@ function norm(v){
       const total = Math.max(1, Math.min(50, Number($("total_tracks").value || 12)));
       const trackPlan = getTrackPlan();
 
-      const albumGenre = getGenre();
+      const albumGenre = [artist.main_genre, artist.secondary_genre].filter(Boolean).join(" / ") || "(not set)";
       const leadType = $("lead_type").value || "solo";
       const theme = norm($("theme").value);
       const mood = norm($("mood").value);
