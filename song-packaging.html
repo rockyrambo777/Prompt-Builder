@@ -92,8 +92,15 @@
           <label for="youtube_release_date">YouTube release date</label>
           <input id="youtube_release_date" type="date" />
 
+          <div style="height:10px;"></div>
+          <label class="row" style="gap:10px; align-items:center;">
+            <input type="checkbox" id="shorts_packaged">
+            <span>Short packaged ✅</span>
+          </label>
+
+
           <div class="muted" style="margin-top:10px;">
-            Tip: this page generates prompts only, but the checkbox/date will save to the database for tracking.
+            Tip: this page generates prompts only, but the packaging checkbox + long release date will save to the database for tracking.
           </div>
         </div>
 
@@ -210,6 +217,7 @@
     $("lyrics").value = safe(song.lyrics || "");
 
     $("long_packaged").checked = !!song.long_packaged;
+    $("shorts_packaged").checked = !!(song.shorts_packaged ?? song.short_packaged ?? false);
     $("youtube_release_date").value = safe(song.youtube_release_date || "");
 
     $("subline").textContent = album ? `Album: ${album.title}` : "Single";
@@ -245,6 +253,9 @@
     const patch = {
       long_packaged: $("long_packaged").checked,
       youtube_release_date: $("youtube_release_date").value || null,
+      // shorts packaged: try common column names
+      shorts_packaged: $("shorts_packaged").checked,
+      short_packaged: $("shorts_packaged").checked,
     };
     const r = await updateWithFallback(song.id, patch);
     if (r.error) {
@@ -276,11 +287,16 @@
     const prompt = `Create YouTube packaging copy for ONE song.
 
 Return these sections (clean, no extra talk):
-YOUTUBE_TITLE:
-YOUTUBE_DESCRIPTION:
-YOUTUBE_TAGS: (comma separated, UNDER 500 chars)
-PINNED_COMMENT:
+LONG_YOUTUBE_TITLE:
+LONG_YOUTUBE_DESCRIPTION:
+LONG_YOUTUBE_TAGS: (comma separated, UNDER 500 chars)
+LONG_PINNED_COMMENT:
 THUMBNAIL_DESCRIPTION: (for vidIQ / designer)
+SHORTS_TITLE:
+SHORTS_DESCRIPTION:
+SHORTS_TAGS: (comma separated, UNDER 500 chars)
+SHORTS_PINNED_COMMENT:
+TIKTOK_DESCRIPTION:
 PLAYLIST_SUGGESTION:
 
 Context:
@@ -312,7 +328,8 @@ Rules:
 - Do NOT include: **Song Details:** BPM • Key • Genre • Mood.
 - Description should be emoji-friendly, story-first, then lyrics in a code block.
 - Tags must match genre + vibe of this specific song.
-- Thumbnail description: bold, clear, readable, eye-catching, SEO-friendly, consistent with artist default thumbnail vibe.
+- Thumbnail description is ONLY for the long-form video (shorts do not need thumbnails here).
+- Shorts copy should be optimized for short-form (hooky first line, concise, clear CTA).
 - Playlist suggestion: if artist uses mood playlists, suggest the best mood playlist; otherwise suggest the album playlist.`;
 
     $("out").value = prompt;
