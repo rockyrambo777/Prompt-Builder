@@ -168,15 +168,68 @@
     }
   }
 
-  $("btnBack").onclick = ()=> {
-    if (document.referrer) window.history.back();
-    else window.location.href="./home.html";
-  };
-  $("btnHome").onclick = ()=> window.location.href="./home.html";
-  $("btnAlbum").onclick = ()=> {
-    if (!album_id) return alert("Missing album_id");
-    window.location.href = `./album-edit.html?id=${encodeURIComponent(album_id)}`;
-  };
+  $("btnBuild").onclick = () => {
+  if (!song) return;
+
+  const mode = document.getElementById("package_mode").value;
+  const isGospelArtist = isGospel(artist);
+
+  const baseContext =
+    "Create YouTube packaging copy for ONE song.\n\n" +
+    "Artist: " + (artist?.name || "") + "\n" +
+    "Genre: " + (artist?.main_genre || "") + "\n" +
+    "Lane: " + (artist?.default_lane || "") + "\n\n" +
+    "Song Title: " + (song?.title || "") + "\n\n" +
+    "Suno Prompt:\n" + (song?.suno_prompt || "") + "\n\n" +
+    "Lyrics:\n" + (song?.lyrics || "") + "\n\n" +
+    "IMPORTANT:\n" +
+    "- Only call this gospel/christian if the artist genre is gospel/christian.\n" +
+    "- Do NOT include Song Details (BPM/Key/etc).\n\n";
+
+  let output = "";
+
+  if (mode === "short") {
+    output =
+      baseContext +
+      "Return ONLY these sections for SHORTS:\n" +
+      "SHORTS_TITLE:\n" +
+      "SHORTS_DESCRIPTION:\n" +
+      "SHORTS_TAGS: (comma separated, under 500 chars)\n" +
+      "SHORTS_PINNED_COMMENT:\n" +
+      "TIKTOK_DESCRIPTION:\n";
+  }
+
+  else if (mode === "long") {
+    output =
+      baseContext +
+      "Return ONLY these sections for LONG FORM:\n" +
+      "LONG_YOUTUBE_TITLE:\n" +
+      "LONG_YOUTUBE_DESCRIPTION:\n" +
+      "LONG_YOUTUBE_TAGS: (comma separated, under 500 chars)\n" +
+      "LONG_PINNED_COMMENT:\n" +
+      "THUMBNAIL_DESCRIPTION:\n";
+  }
+
+  else { // both
+    output =
+      baseContext +
+      "Return LONG FORM package first, then SHORTS package.\n\n" +
+      "LONG_YOUTUBE_TITLE:\n" +
+      "LONG_YOUTUBE_DESCRIPTION:\n" +
+      "LONG_YOUTUBE_TAGS:\n" +
+      "LONG_PINNED_COMMENT:\n" +
+      "THUMBNAIL_DESCRIPTION:\n\n" +
+      "---\n\n" +
+      "SHORTS_TITLE:\n" +
+      "SHORTS_DESCRIPTION:\n" +
+      "SHORTS_TAGS:\n" +
+      "SHORTS_PINNED_COMMENT:\n" +
+      "TIKTOK_DESCRIPTION:\n";
+  }
+
+  document.getElementById("out").value = output;
+  document.getElementById("status").textContent = "Prompt built ✅";
+};
 
   $("btnLogout").onclick = async()=> {
     await supabase.auth.signOut();
