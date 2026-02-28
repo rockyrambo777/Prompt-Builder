@@ -272,8 +272,11 @@
 
   $("btnBuild").onclick = () => {
     if (!song) return;
+    const mode = ($("package_mode")?.value || "shorts").toLowerCase();
 
+    const g = isGospel(artist);
     const lane = safe(artist?.default_lane);
+    const persona = safe(artist?.default_persona || artist?.default_perso || "");
     const voiceAnchor = safe(artist?.suno_voice_anchor || "");
     const mustInclude = safe(artist?.must_include || "");
     const neverInclude = safe(artist?.never_include || "");
@@ -299,7 +302,7 @@
 - Must include (instruments / non-negotiables): ${mustInclude || "(none)"}
 - Never include: ${neverInclude || "(none)"}
 
-Artist about (use if provided):
+Artist about (use in description if provided):
 ${about || "(none)"}
 
 Links (use if relevant):
@@ -313,12 +316,12 @@ ${safe(song.suno_prompt)}
 Lyrics:
 ${safe(song.lyrics)}
 
-Rules (apply to all):
+Global rules:
 - Follow the artist genre & lane (ONLY call it gospel/christian if the artist genre is gospel/christian).
 - Do NOT include: **Song Details:** BPM • Key • Genre • Mood.
 - Tags must match genre + vibe of this specific song.`;
 
-    const longPrompt = `Create YouTube packaging copy for ONE LONG-FORM video (lyric video or music video).
+    const longPrompt = `Create YouTube packaging copy for ONE LONG-FORM video.
 
 Return these sections (clean, no extra talk):
 LONG_YOUTUBE_TITLE:
@@ -330,11 +333,11 @@ PLAYLIST_SUGGESTION:
 
 ${baseContext}
 
-Extra long-form rules:
+Long-form rules:
 - Description should be emoji-friendly, story-first, then lyrics in a code block.
-- Thumbnail description must be bold, clear, readable, eye-catching, SEO-friendly, consistent with the artist’s default thumbnail vibe.`;
+- THUMBNAIL_DESCRIPTION is required (eye-catching, readable, SEO-friendly, matches artist vibe).`;
 
-    const shortsPrompt = `Create SHORTS packaging copy for ONE song (short-form video).
+    const shortsPrompt = `Create short-form packaging copy for ONE song (YouTube Shorts + TikTok). Shorts ONLY.
 
 Return these sections (clean, no extra talk):
 SHORTS_TITLE:
@@ -346,23 +349,24 @@ PLAYLIST_SUGGESTION:
 
 ${baseContext}
 
-Extra shorts rules:
-- Shorts copy ONLY (do not include any long-form sections).
-- Start with a hooky first line. Keep it concise and punchy.
-- No thumbnail instructions (shorts do not need thumbnails here).
-- TikTok description: short, engaging, hashtag-friendly.`;
+Short-form rules:
+- Keep it hooky and concise (first line must grab attention).
+- NO thumbnail instructions here.
+- Shorts description can be shorter than long-form; include a clear CTA.`;
 
-    const mode = ($("package_mode")?.value || "shorts").toLowerCase();
-    let prompt = shortsPrompt;
-    if (mode === "long") prompt = longPrompt;
-    if (mode === "both") prompt = `${longPrompt}
+    if (mode === "long") {
+      $("out").value = longPrompt;
+    } else if (mode === "both") {
+      $("out").value = longPrompt + "
 
 ---
 
-${shortsPrompt}`;
-
-    $("out").value = prompt;
-    $("status").textContent = (mode === "both") ? "Prompts built (Long + Shorts) ✅" : `Prompt built (${mode}) ✅`;
+" + shortsPrompt;
+    } else {
+      // default: shorts only
+      $("out").value = shortsPrompt;
+    }
+    $("status").textContent = "Prompt built ✅";
   };
 
   loadAll().catch(e=>{
