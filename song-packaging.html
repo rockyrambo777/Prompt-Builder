@@ -89,7 +89,7 @@
         <div>
           <h2 style="margin:0 0 10px;">Status</h2>
           <label class="row" style="gap:10px; align-items:center;">
-            <input type="checkbox" id="long_packaged">
+            <input type="checkbox" id="long_packaged_removed">
             <span>Long packaged ✅</span>
           </label>
 
@@ -396,6 +396,24 @@ $("btnSaveMeta").onclick = async()=> {
     console.error(e);
     $("status").textContent = "Load error: " + (e.message || e);
   });
+
+document.addEventListener("DOMContentLoaded", () => {
+  const q = new URLSearchParams(location.search);
+  const album_id = q.get("album_id");
+  const btnBack = document.getElementById("btnBack");
+  const btnAlbum = document.getElementById("btnAlbum");
+  const btnHome = document.getElementById("btnHome");
+  if (btnHome) btnHome.onclick = () => location.href = "./home.html";
+  if (btnAlbum) btnAlbum.onclick = () => {
+    if (album_id) location.href = `./album-edit.html?id=${encodeURIComponent(album_id)}`;
+    else location.href = "./albums.html";
+  };
+  if (btnBack) btnBack.onclick = () => {
+    if (album_id) location.href = `./album-edit.html?id=${encodeURIComponent(album_id)}`;
+    else history.back();
+  };
+});
+
 </script>
 </body>
 </html>
