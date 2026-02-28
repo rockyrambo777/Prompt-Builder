@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Album Playlist Builder</title>
+  <style>
+    :root{
+      --bg:#070b12; --panel:#0f1624; --panel2:#0c1320;
+      --text:#e7eefc; --muted:#9bb0d0; --line:#1c2a44;
+      --btn:#2d7dff; --btn2:#1a2540; --danger:#d94b4b;
+      --chip:#101b30;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius:16px;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    body{ margin:0; background: radial-gradient(1200px 600px at 20% 0%, #13203a 0%, rgba(19,32,58,0) 55%) , var(--bg); color:var(--text); }
+    .wrap{ max-width:1100px; margin:26px auto; padding:0 18px 40px; }
+    .top{ display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:16px; }
+    h1{ font-size:28px; margin:0; letter-spacing:.2px; }
+    .muted{ color:var(--muted); font-size:13px; }
+    .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .btn{
+      border:1px solid var(--line); background:var(--btn2); color:var(--text);
+      padding:10px 14px; border-radius:12px; cursor:pointer; font-weight:600;
+    }
+    .btn.primary{ background: linear-gradient(180deg, #2d7dff, #1d5fe0); border-color: rgba(255,255,255,.08); }
+    .btn.danger{ background: #2a1a1a; border-color:#3b1f1f; color:#ffbcbc; }
+    .btn:disabled{ opacity:.55; cursor:not-allowed; }
+    .card{ background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,0) 45%), var(--panel);
+      border:1px solid var(--line); border-radius: var(--radius); padding:18px; box-shadow: var(--shadow); }
+    .grid{ display:grid; grid-template-columns: 1fr 1fr; gap:14px; }
+    @media (max-width: 960px){ .grid{ grid-template-columns: 1fr; } }
+    label{ display:block; font-size:12px; color:var(--muted); margin:0 0 6px; }
+    input, textarea, select{
+      width:100%; padding:12px 12px; border-radius:12px;
+      border:1px solid var(--line); background: var(--panel2);
+      color:var(--text); outline:none;
+    }
+    textarea{ min-height: 210px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size:12.5px; line-height:1.35; }
+    .chips{ display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+    .chip{ background:var(--chip); border:1px solid var(--line); color:var(--text);
+      border-radius:999px; padding:6px 10px; font-size:12px; }
+    .note{ border-left:3px solid #2d7dff; padding:10px 12px; background: rgba(45,125,255,.08); border-radius:12px; }
+    .ok{ color:#7CFFB2; font-weight:700; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1>Album Playlist Builder</h1>
+        <div id="who" class="muted"></div>
+      </div>
+      <div class="row">
+        <button id="btnBack" class="btn">Back</button>
+        <button id="btnAlbum" class="btn">Album</button>
+        <button id="btnLogout" class="btn danger">Logout</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between;">
+        <div>
+          <div id="statusLine" class="muted">Loading...</div>
+          <div class="chips" id="chips"></div>
+        </div>
+        <div class="row">
+          <button id="btnBuild" class="btn primary">Build ChatGPT Prompt</button>
+          <button id="btnCopy" class="btn">Copy Prompt</button>
+        </div>
+      </div>
+
+      <div style="height:12px"></div>
+
+      <div class="grid">
+        <div>
+          <div class="note" id="defaultNote" style="display:none;">
+            <div class="ok">Artist has a Default Playlist ✅</div>
+            <div class="muted" style="margin-top:6px">
+              Use the default playlist (or ask ChatGPT which fits best) — you may not need an album playlist.
+            </div>
+          </div>
+
+          <div style="height:12px"></div>
+
+          <label>Working Results (paste ChatGPT output here) — not saved</label>
+          <textarea id="working" placeholder="Paste ChatGPT results here (optional). This is NOT saved."></textarea>
+        </div>
+
+        <div>
+          <label>ChatGPT Prompt Output (copy into ChatGPT)</label>
+          <textarea id="prompt" placeholder="Click 'Build ChatGPT Prompt'..."></textarea>
+          <div class="muted" style="margin-top:8px">
+            ChatGPT should return: Playlist Title + Playlist Description + Tags (under 500 chars).
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const SUPABASE_URL = localStorage.getItem("SUPABASE_URL") || localStorage.getItem("supabaseUrl") || "";
+  const SUPABASE_ANON_KEY = localStorage.getItem("SUPABASE_KEY") || localStorage.getItem("supabaseKey") || "";
+
+  function $(id){ return document.getElementById(id); }
+  function safe(v){ return (v ?? "").toString(); }
+
+  async function supa(path, { method="GET", body=null } = {}){
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) throw new Error("Missing Supabase config in localStorage.");
+    const url = SUPABASE_URL.replace(/\/$/,"") + "/rest/v1/" + path;
+    const headers = {
+      "apikey": SUPABASE_ANON_KEY,
+      "Authorization": "Bearer " + SUPABASE_ANON_KEY,
+      "Content-Type": "application/json",
+      "Prefer": "return=representation"
+    };
+    const res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : null });
+    if (!res.ok){
+      const t = await res.text();
+      throw new Error(`${res.status} ${res.statusText} :: ${t}`);
+    }
+    return res.json();
+  }
+
+  const params = new URLSearchParams(location.search);
+  const albumId = params.get("album_id");
+
+  let album=null, artist=null, songs=[];
+
+  function setChips(){
+    const chips = $("chips");
+    chips.innerHTML = "";
+    const mk = (t)=>{ const d=document.createElement("div"); d.className="chip"; d.textContent=t; chips.appendChild(d); };
+    if (artist) mk(`artist: ${artist.name}`);
+    if (artist) mk(`genre: ${safe(artist.main_genre)} / ${safe(artist.secondary_genre)}`.replace(" / "," / ").trim());
+    if (album) mk(`album: ${album.title}`);
+    if (songs) mk(`tracks: ${songs.length}`);
+  }
+
+  async function load(){
+    if (!albumId){ $("statusLine").textContent = "Missing album_id in URL."; return; }
+
+    $("statusLine").textContent = "Loading album...";
+    const a = await supa(`albums?id=eq.${encodeURIComponent(albumId)}&select=*`);
+    album = a?.[0] || null;
+    if (!album){ $("statusLine").textContent = "Album not found."; return; }
+
+    const ar = await supa(`artists?id=eq.${encodeURIComponent(album.artist_id)}&select=*`);
+    artist = ar?.[0] || null;
+
+    const s = await supa(`songs?album_id=eq.${encodeURIComponent(albumId)}&select=id,title,track_number&order=track_number.asc`);
+    songs = s || [];
+
+    $("statusLine").textContent = "Ready ✅";
+    setChips();
+
+    // Default playlist note
+    const hasDefault = !!artist?.default_playlist_enabled;
+    if (hasDefault) $("defaultNote").style.display = "";
+
+    // Nav buttons
+    $("btnAlbum").onclick = ()=> location.href = `./album-edit.html?id=${encodeURIComponent(albumId)}`;
+    $("btnBack").onclick = ()=> history.length > 1 ? history.back() : $("btnAlbum").click();
+    $("btnLogout").onclick = ()=> location.href = "./index.html"; // match your app behavior
+  }
+
+  function buildPrompt(){
+    if (!album || !artist) return;
+
+    const hasDefault = !!artist.default_playlist_enabled;
+    const defaultTitle = safe(artist.default_playlist_title);
+    const defaultDesc  = safe(artist.default_playlist_description);
+
+    const genreLine = `${safe(artist.main_genre)} / ${safe(artist.secondary_genre)}`.replace(/^\s*\/\s*$/,"").trim();
+
+    const prompt = [
+`Create a YouTube playlist package for this album.
+
+Return these sections (keep it clean, no extra talk):
+PLAYLIST_TITLE:
+PLAYLIST_DESCRIPTION:
+PLAYLIST_TAGS_UNDER_500_CHARS:
+PLACEMENT_ADVICE:
+
+Album info:
+- Artist: ${safe(artist.name)}
+- Album Title: ${safe(album.title)}
+- Artist Genres: ${genreLine || "(none)"}
+- Album Theme: ${safe(album.theme) || "(none)"}
+- Album Mood: ${safe(album.mood) || "(none)"}
+- Album Style: ${safe(album.style) || "(none)"}
+- Tracks count: ${songs.length}
+
+Artist playlist defaults:
+- Has Default Playlist: ${hasDefault ? "YES" : "NO"}
+- Default Playlist Title: ${defaultTitle || "(none)"}
+- Default Playlist Description: ${defaultDesc || "(none)"}
+
+Rules:
+- Playlist title must be short, searchable, and match the artist genre.
+- Description must be 6–10 lines: vibe + what listeners get + invite to subscribe.
+- Tags must be comma-separated and under 500 characters.
+- PLACEMENT_ADVICE: If artist has a default playlist, say whether this album should go in that default playlist or needs its own album playlist — explain in 2–3 sentences.
+`
+    ].join("\n");
+
+    $("prompt").value = prompt.trim();
+  }
+
+  $("btnBuild").onclick = buildPrompt;
+  $("btnCopy").onclick = async ()=> {
+    const t = $("prompt").value.trim();
+    if (!t) return alert("Nothing to copy yet.");
+    await navigator.clipboard.writeText(t);
+    $("statusLine").textContent = "Prompt copied ✅";
+  };
+
+  load().catch(err=>{
+    console.error(err);
+    $("statusLine").textContent = "Error: " + err.message;
+    alert(err.message);
+  });
+</script>
+</body>
+</html>
