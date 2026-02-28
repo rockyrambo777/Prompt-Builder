@@ -73,6 +73,11 @@
         <div class="row" id="chips" style="gap:8px; flex-wrap:wrap;"></div>
         <div class="row" style="gap:10px; flex-wrap:wrap;">
           <button class="btn" id="btnCopy">Copy Prompt</button>
+          <select id="package_mode" class="btn" style="min-width:210px;">
+            <option value="shorts">Build SHORTS prompt only</option>
+            <option value="long">Build LONG prompt only</option>
+            <option value="both">Build BOTH (Long + Shorts)</option>
+          </select>
           <button class="btn primary" id="btnBuild">Build Prompt</button>
           <button class="btn" id="btnSaveMeta">Save</button>
         </div>
@@ -265,11 +270,10 @@
     $("status").textContent="Saved ✅";
   };
 
-  $("btnBuild").onclick = ()=> {
+  $("btnBuild").onclick = () => {
     if (!song) return;
-    const g = isGospel(artist);
+
     const lane = safe(artist?.default_lane);
-    const persona = safe(artist?.default_persona || artist?.default_perso || "");
     const voiceAnchor = safe(artist?.suno_voice_anchor || "");
     const mustInclude = safe(artist?.must_include || "");
     const neverInclude = safe(artist?.never_include || "");
@@ -282,24 +286,10 @@
       artist?.bandcamp_url ? `Bandcamp: ${artist.bandcamp_url}` : "",
       artist?.spotify_url ? `Spotify: ${artist.spotify_url}` : "",
       artist?.website_url ? `Website: ${artist.website_url}` : "",
-    ].filter(Boolean).join("\n");
+    ].filter(Boolean).join("
+");
 
-    const prompt = `Create YouTube packaging copy for ONE song.
-
-Return these sections (clean, no extra talk):
-LONG_YOUTUBE_TITLE:
-LONG_YOUTUBE_DESCRIPTION:
-LONG_YOUTUBE_TAGS: (comma separated, UNDER 500 chars)
-LONG_PINNED_COMMENT:
-THUMBNAIL_DESCRIPTION: (for vidIQ / designer)
-SHORTS_TITLE:
-SHORTS_DESCRIPTION:
-SHORTS_TAGS: (comma separated, UNDER 500 chars)
-SHORTS_PINNED_COMMENT:
-TIKTOK_DESCRIPTION:
-PLAYLIST_SUGGESTION:
-
-Context:
+    const baseContext = `Context:
 - Artist: ${safe(artist?.name)}
 - Main genre: ${mainGenre}
 - Secondary genre: ${secondaryGenre}
@@ -309,7 +299,7 @@ Context:
 - Must include (instruments / non-negotiables): ${mustInclude || "(none)"}
 - Never include: ${neverInclude || "(none)"}
 
-Artist about (use in description if provided):
+Artist about (use if provided):
 ${about || "(none)"}
 
 Links (use if relevant):
@@ -323,17 +313,56 @@ ${safe(song.suno_prompt)}
 Lyrics:
 ${safe(song.lyrics)}
 
-Rules:
+Rules (apply to all):
 - Follow the artist genre & lane (ONLY call it gospel/christian if the artist genre is gospel/christian).
 - Do NOT include: **Song Details:** BPM • Key • Genre • Mood.
+- Tags must match genre + vibe of this specific song.`;
+
+    const longPrompt = `Create YouTube packaging copy for ONE LONG-FORM video (lyric video or music video).
+
+Return these sections (clean, no extra talk):
+LONG_YOUTUBE_TITLE:
+LONG_YOUTUBE_DESCRIPTION:
+LONG_YOUTUBE_TAGS: (comma separated, UNDER 500 chars)
+LONG_PINNED_COMMENT:
+THUMBNAIL_DESCRIPTION: (for vidIQ / designer)
+PLAYLIST_SUGGESTION:
+
+${baseContext}
+
+Extra long-form rules:
 - Description should be emoji-friendly, story-first, then lyrics in a code block.
-- Tags must match genre + vibe of this specific song.
-- Thumbnail description is ONLY for the long-form video (shorts do not need thumbnails here).
-- Shorts copy should be optimized for short-form (hooky first line, concise, clear CTA).
-- Playlist suggestion: if artist uses mood playlists, suggest the best mood playlist; otherwise suggest the album playlist.`;
+- Thumbnail description must be bold, clear, readable, eye-catching, SEO-friendly, consistent with the artist’s default thumbnail vibe.`;
+
+    const shortsPrompt = `Create SHORTS packaging copy for ONE song (short-form video).
+
+Return these sections (clean, no extra talk):
+SHORTS_TITLE:
+SHORTS_DESCRIPTION:
+SHORTS_TAGS: (comma separated, UNDER 500 chars)
+SHORTS_PINNED_COMMENT:
+TIKTOK_DESCRIPTION:
+PLAYLIST_SUGGESTION:
+
+${baseContext}
+
+Extra shorts rules:
+- Shorts copy ONLY (do not include any long-form sections).
+- Start with a hooky first line. Keep it concise and punchy.
+- No thumbnail instructions (shorts do not need thumbnails here).
+- TikTok description: short, engaging, hashtag-friendly.`;
+
+    const mode = ($("package_mode")?.value || "shorts").toLowerCase();
+    let prompt = shortsPrompt;
+    if (mode === "long") prompt = longPrompt;
+    if (mode === "both") prompt = `${longPrompt}
+
+---
+
+${shortsPrompt}`;
 
     $("out").value = prompt;
-    $("status").textContent="Prompt built ✅";
+    $("status").textContent = (mode === "both") ? "Prompts built (Long + Shorts) ✅" : `Prompt built (${mode}) ✅`;
   };
 
   loadAll().catch(e=>{
