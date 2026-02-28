@@ -163,6 +163,10 @@
       <label for="default_playlist_description">Default Playlist Description</label>
       <textarea id="default_playlist_description" placeholder="Short playlist description (used for packaging prompts)."></textarea>
 
+      <label for="default_playlists">Default Playlists (multiple)</label>
+      <textarea id="default_playlists" class="mono" placeholder="One playlist per line: Title || Description\nExample: Worship Moments || Gentle worship set for prayer and reflection."></textarea>
+      <div class="hint">Used by YouTube + Song Packaging prompts. Format each line as <span class="mono">Title || Description</span>. Description is optional.</div>
+      
       <hr class="divider">
 <h2 class="sectionTitle">About + Packaging Defaults</h2>
       <label for="artist_about">Artist About (insert into YouTube/Bandcamp)</label>
@@ -249,6 +253,48 @@
       throw new Error("Blueprint JSON is invalid. Fix JSON or leave blank.");
     }
 
+    function parsePlaylistsFromText(raw){
+      const lines = (raw || "").split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+      const out = [];
+      for (const line of lines){
+        const parts = line.split("||");
+        const title = (parts[0] || "").trim();
+        const description = (parts.slice(1).join("||") || "").trim();
+        if (!title) continue;
+        out.push({ title, description: description || null });
+      }
+      return out;
+    }
+
+    function formatPlaylistsForText(list){
+      const arr = Array.isArray(list) ? list : [];
+      return arr
+        .map(p => {
+          if (!p) return "";
+          const title = (typeof p === "string" ? p : (p.title || "")).trim();
+          const description = (typeof p === "string" ? "" : (p.description || "")).trim();
+          if (!title) return "";
+          return description ? `${title} || ${description}` : title;
+        })
+        .filter(Boolean)
+        .join("\n");
+    }
+
+    function extractBlueprintPlaylists(data){
+      const arr = data?.blueprint?.youtube_default_playlists;
+      if (!Array.isArray(arr)) return [];
+      return arr
+        .map(p => {
+          if (!p) return null;
+          if (typeof p === "string") return { title: p.trim(), description: null };
+          const title = (p.title || "").trim();
+          const description = (p.description || "").trim();
+          if (!title) return null;
+          return { title, description: description || null };
+        })
+        .filter(Boolean);
+    }
+    
     function updateCompleteness(){
       const required = [
         ["name", $("name").value],
@@ -309,6 +355,19 @@
       $("thumb_use_artist_default").checked = !!data.thumb_use_artist_default;
       $("thumbnail_style_long").value = safe(data.thumbnail_style_long);
 
+     $("default_playlist_enabled").checked = !!data.default_playlist_enabled;
+      $("default_playlist_title").value = safe(data.default_playlist_title);
+      $("default_playlist_description").value = safe(data.default_playlist_description);
+
+      const loadedPlaylists = extractBlueprintPlaylists(data);
+      if (!loadedPlaylists.length && (safe(data.default_playlist_title).trim() || safe(data.default_playlist_description).trim())) {
+        loadedPlaylists.push({
+          title: safe(data.default_playlist_title).trim() || "Default Playlist",
+          description: safe(data.default_playlist_description).trim() || null,
+        });
+      }
+      $("default_playlists").value = formatPlaylistsForText(loadedPlaylists);
+      
       $("blueprint").value = data.blueprint ? JSON.stringify(data.blueprint, null, 2) : "{}";
 
       $("spotify_url").value = safe(data.spotify_url);
@@ -333,7 +392,14 @@
         $("statusLine").textContent = "Saving…";
 
         const blueprint = parseBlueprint();
+        const playlists = parsePlaylistsFromText($("default_playlists").value);
 
+        blueprint.youtube_default_playlists = playlists;
+
+        const firstPlaylist = playlists[0] || null;
+        const playlistsEnabled = !!$("default_playlist_enabled").checked && playlists.length > 0;
+
+        
         const payload = {
           name,
           channel_hand: normalizeHandle($("channel_hand").value),
@@ -354,10 +420,10 @@
           thumb_use_artist_default: !!$("thumb_use_artist_default").checked,
           thumbnail_style_long: ($("thumbnail_style_long").value || "").trim() || null,
 
-          default_playlist_enabled: !!$("default_playlist_enabled").checked,
-          default_playlist_title: ($("default_playlist_title").value || "").trim() || null,
-          default_playlist_description: ($("default_playlist_description").value || "").trim() || null,
-
+          default_playlist_enabled: playlistsEnabled,
+          default_playlist_title: (firstPlaylist?.title || ($("default_playlist_title").value || "").trim()) || null,
+          default_playlist_description: (firstPlaylist?.description || ($("default_playlist_description").value || "").trim()) || null,
+          
           blueprint,
 
           spotify_url: normalizeUrl($("spotify_url").value),
