@@ -6,17 +6,93 @@
   <title>Import Existing Song</title>
   <link rel="stylesheet" href="./styles.css" />
   <style>
-    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 12px;}
-    .tab{padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);cursor:pointer}
-    .tab.active{background:rgba(59,130,246,.22);border-color:rgba(59,130,246,.45)}
-    .pane{display:none}
-    .pane.active{display:block}
-    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
-    textarea{min-height:420px}
-    .topbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
-    .chips{display:flex;gap:8px;flex-wrap:wrap}
-    .chip{padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);font-size:12px}
-  </style>
+  :root{
+    --card: rgba(255,255,255,.06);
+    --card2: rgba(255,255,255,.08);
+    --border: rgba(255,255,255,.10);
+    --border2: rgba(255,255,255,.14);
+    --blue: rgba(59,130,246,.9);
+    --blueSoft: rgba(59,130,246,.22);
+    --shadow: 0 12px 30px rgba(0,0,0,.35);
+  }
+  .topbar{
+    display:flex;justify-content:space-between;align-items:flex-start;
+    gap:12px;flex-wrap:wrap;
+    position:sticky;top:0;z-index:20;
+    padding:14px 0 10px;
+    background: linear-gradient(180deg, rgba(6,10,18,0.92), rgba(6,10,18,0.78) 60%, rgba(6,10,18,0));
+    backdrop-filter: blur(10px);
+  }
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{
+    padding:7px 12px;border-radius:999px;
+    background:var(--card);
+    border:1px solid var(--border);
+    font-size:12px;
+  }
+
+  .panel{box-shadow: var(--shadow);}
+  .grid2{gap:12px}
+
+  .tabs{
+    display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 10px;
+    padding:8px;border-radius:16px;background:var(--card);
+    border:1px solid var(--border);
+  }
+  .tab{
+    padding:10px 12px;border-radius:12px;
+    background:transparent;border:1px solid transparent;
+    cursor:pointer; color:rgba(255,255,255,.88);
+    transition: transform .08s ease, background .12s ease, border-color .12s ease;
+    display:flex;align-items:center;gap:8px;
+  }
+  .tab:hover{transform: translateY(-1px); background: rgba(255,255,255,.06); border-color: var(--border);}
+  .tab.active{background:var(--blueSoft); border-color:rgba(59,130,246,.45); color:#fff}
+  .tab small{opacity:.75}
+  .pane{display:none}
+  .pane.active{display:block}
+  .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
+  textarea{
+    min-height:360px;
+    border-radius:16px;
+  }
+
+  .split{
+    display:grid;
+    grid-template-columns: 1fr;
+    gap:12px;
+  }
+  @media (min-width: 980px){
+    .split{
+      grid-template-columns: 1fr 1fr;
+      align-items:start;
+    }
+    textarea{min-height:520px;}
+  }
+
+  .helper{
+    display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+    margin-top:8px;
+    color: rgba(255,255,255,.72);
+    font-size: 12px;
+  }
+  .helper .dot{
+    width:6px;height:6px;border-radius:999px;background:rgba(59,130,246,.9);display:inline-block
+  }
+
+  .footerBar{
+    position:sticky;bottom:0;z-index:20;
+    margin-top:12px;
+    padding:12px;
+    border-radius:18px;
+    background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.04));
+    border:1px solid var(--border);
+    backdrop-filter: blur(10px);
+    display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;
+  }
+  .statusOk{color: rgba(34,197,94,.95)}
+  .statusErr{color: rgba(248,113,113,.95)}
+</style>
 </head>
 <body>
   <div class="page">
@@ -74,18 +150,28 @@
       </div>
 
       <div class="tabs" role="tablist" aria-label="Import tabs">
-        <button class="tab active" data-tab="suno">Suno Prompt</button>
-        <button class="tab" data-tab="lyrics">Lyrics</button>
-        <button class="tab" data-tab="bulk">Bulk (3-block paste)</button>
+        <button class="tab active" data-tab="suno">Suno Prompt <small>(paste)</small></button>
+        <button class="tab" data-tab="lyrics">Lyrics <small>(paste)</small></button>
+        <button class="tab" data-tab="bulk">One Paste <small>(auto-split)</small></button>
       </div>
 
       <div class="pane active" id="pane-suno">
-        <label for="suno_prompt">Suno Prompt</label>
-        <textarea id="suno_prompt" class="mono" placeholder="Paste the full Suno prompt for this song…"></textarea>
-        <div class="muted" style="margin-top:6px;">Tip: prompts must include instruments (your Artist DNA will keep voice anchored).</div>
+        <div class="split">
+          <div>
+            <label for="suno_prompt">Suno Prompt</label>
+            <textarea id="suno_prompt" class="mono" placeholder="Paste the full Suno prompt for this song…"></textarea>
+            <div class="helper"><span class="dot"></span><span>Tip: prompts should include instruments. Voice stays anchored by Artist DNA.</span></div>
+          </div>
+          <div>
+            <label for="lyrics">Lyrics</label>
+            <textarea id="lyrics_focus" class="mono" placeholder="Paste / refine the full lyrics…"></textarea>
+            <div class="helper"><span class="dot"></span><span>Clean lyrics paste (no role labels). Keep section headings if you have them.</span></div>
+          </div>
+        </div>
       </div>
 
       <div class="pane" id="pane-lyrics">
+ id="pane-lyrics">
         <label for="lyrics">Lyrics</label>
         <textarea id="lyrics" class="mono" placeholder="Paste the full lyrics…"></textarea>
       </div>
@@ -105,11 +191,11 @@ LYRICS:
         </div>
       </div>
 
-      <div class="row" style="gap:10px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap;">
-        <button class="btn" id="btnClear">Clear</button>
-        <button class="btn" id="btnCopyJson">Copy JSON</button>
-        <button class="btn primary" id="btnSave2">Save Imported Song</button>
-      </div>
+      <div class="footerBar">
+  <button class="btn" id="btnClear">Clear</button>
+  <button class="btn" id="btnCopyJson">Copy JSON</button>
+  <button class="btn primary" id="btnSave2">Save Imported Song</button>
+</div>
 
       <div class="muted" id="status" style="margin-top:10px;"></div>
     </div>
@@ -182,6 +268,15 @@ LYRICS:
   }
   try { await loadContext(); } catch(e){ console.error(e); $("status").textContent = "Error loading album/artist."; }
 
+  // Keep the focused lyrics editor (lyrics_focus) in sync with main lyrics textarea.
+  const syncLyricsToFocus = () => { if ($("lyrics_focus")) $("lyrics_focus").value = $("lyrics").value || ""; };
+  const syncFocusToLyrics = () => { $("lyrics").value = $("lyrics_focus").value || ""; };
+  if ($("lyrics")) $("lyrics").addEventListener("input", syncLyricsToFocus);
+  if ($("lyrics_focus")) $("lyrics_focus").addEventListener("input", syncFocusToLyrics);
+  // Initialize
+  syncLyricsToFocus();
+
+
   function parseBulk(text){
     const get = (label) => {
       const re = new RegExp(`^${label}:\s*([\s\S]*?)(?=\n[A-Z_]+\s*:\s*|$)`, "mi");
@@ -201,7 +296,7 @@ LYRICS:
     if (p.title) $("title").value = p.title;
     if (p.suno_prompt) $("suno_prompt").value = p.suno_prompt;
     if (p.lyrics) $("lyrics").value = p.lyrics;
-    $("status").textContent = "Applied ✅";
+    $("status").textContent = "Applied ✅"; syncLyricsToFocus();
   };
 
   $("btnClear").onclick = () => {
@@ -228,7 +323,7 @@ LYRICS:
   $("btnCopyJson").onclick = async () => {
     const payload = buildPayload();
     await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
-    $("status").textContent = "Copied JSON ✅";
+    $("status").className="muted statusOk"; $("status").textContent = "Copied JSON ✅";
   };
 
   async function insertWithFallbackOne(obj){
@@ -253,10 +348,10 @@ LYRICS:
       if (!confirm("No lyrics and no Suno prompt pasted. Save anyway?")) return;
     }
 
-    $("status").textContent = "Saving…";
+    $("status").className="muted"; $("status").textContent = "Saving…";
     const res = await insertWithFallbackOne(payload);
-    if (!res.ok) { $("status").textContent = "Error: " + res.error; return; }
-    $("status").textContent = "Saved ✅ (song created)";
+    if (!res.ok) { $("status").className = "muted statusErr"; $("status").textContent = "Error: " + res.error; return; }
+    $("status").className = "muted statusOk"; $("status").textContent = "Saved ✅ (song created)";
   }
 
   $("btnSave").onclick = save;
