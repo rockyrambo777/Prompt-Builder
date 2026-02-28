@@ -79,6 +79,7 @@
             <option value="both">Build BOTH (Long + Shorts)</option>
           </select>
           <button class="btn primary" id="btnBuild">Build Prompt</button>
+          <button class="btn" id="btnRebuild">Rebuild</button>
           <button class="btn" id="btnSaveMeta">Save</button>
         </div>
       </div>
@@ -87,17 +88,7 @@
 
       <div class="grid2">
         <div>
-          <h2 style="margin:0 0 10px;">Status</h2>
-          <label class="row" style="gap:10px; align-items:center;">
-            <input type="checkbox" id="long_packaged_removed">
-            <span>Long packaged ✅</span>
-          </label>
-
-          <div style="height:10px;"></div>
-          <label for="youtube_long_published_at_input">YouTube release date</label>
-          <input id="youtube_long_published_at_input" type="date" />
-          <div style="height:14px;"></div>
-          <h2 style="margin:8px 0 10px;">Options</h2>
+          <h2 style="margin:0 0 10px;">Options</h2>
           <label class="row" style="gap:10px; align-items:center;">
             <input type="checkbox" id="include_artist_image">
             <span>Include artist image (thumbnail prompt)</span>
@@ -106,17 +97,6 @@
             Shorts do not have thumbnails (checkbox is ignored in Shorts mode).
           </div>
 
-
-          <div style="height:10px;"></div>
-          <label class="row" style="gap:10px; align-items:center;">
-            <input type="checkbox" id="shorts_packaged">
-            <span>Short packaged ✅</span>
-          </label>
-
-
-          <div class="muted" style="margin-top:10px;">
-            Tip: this page generates prompts only, but the packaging checkbox + long release date will save to the database for tracking.
-          </div>
         </div>
 
         <div>
@@ -192,7 +172,11 @@ const safe = (v)=> (v??"").toString();
     }
   }
 
-  $("btnBuild").onclick = () => {
+  $("btnRebuild").onclick = () => {
+  buildPrompt(true);
+};
+
+$("btnBuild").onclick = () => {
   if (!song) return;
 
   const mode = document.getElementById("package_mode").value; // short | long | both
@@ -276,6 +260,7 @@ const safe = (v)=> (v??"").toString();
   };
 
   let song=null, album=null, artist=null;
+  applyArtistOptions(artist);
 
   async function loadAll(){
     await requireSessionOrRedirect();
@@ -308,7 +293,6 @@ const safe = (v)=> (v??"").toString();
     $("suno_prompt").value = safe(song.suno_prompt || "");
     $("lyrics").value = safe(song.lyrics || "");
 
-    $("long_packaged").checked = !!song.long_packaged;
     // Options: include artist image in thumbnail prompt (remember per artist)
     try {
       const key = `pkg_include_artist_image:${encodeURIComponent(artist?.id || "")}`;
@@ -324,8 +308,7 @@ const safe = (v)=> (v??"").toString();
       };
     } catch (e) { /* ignore */ }
 
-    $("shorts_packaged").checked = !!(song.short_packaged ?? song.shorts_done ?? song.short_done ?? false);
-    $("youtube_long_published_at_input").value = safe(song.youtube_long_published_at_input || "");
+    null.checked = !!(song.short_packaged ?? song.shorts_done ?? song.short_done ?? false);
 
     $("subline").textContent = album ? `Album: ${album.title}` : "Single";
     setChips([
@@ -357,35 +340,17 @@ const safe = (v)=> (v??"").toString();
   }
 
   
-$("btnSaveMeta").onclick = async()=> {
-  if (!song) return;
-  $("status").textContent="Saving…";
-  const patch = {
-    long_packaged: !!$("long_packaged").checked,
-    short_packaged: !!$("shorts_packaged").checked,
-  };
-
-  // Optional: store planned long publish date into existing DB column if present
-  const d = $("youtube_long_published_at_input")?.value || "";
-  if (d) {
-    patch.youtube_long_published_at = d; // postgres will coerce 'YYYY-MM-DD'
-  } else {
-    patch.youtube_long_published_at = null;
+$("btnSaveMeta").onclick = () => {
+  try {
+    const key = `pkg_include_artist_image:${encodeURIComponent(currentArtistId || "")}`;
+    localStorage.setItem(key, $("include_artist_image").checked ? "1" : "0");
+    $("status").textContent = "Saved ✅";
+    alert("Saved ✅");
+  } catch (e) {
+    console.error(e);
+    $("status").textContent = "Save error";
+    alert("Save error");
   }
-
-  const { error } = await supabase
-    .from(SONGS)
-    .update(patch)
-    .eq("id", song.id)
-    .select("id")
-    .maybeSingle();
-
-  if (error) {
-    console.error(error);
-    $("status").textContent = "Save error: " + (error.message || JSON.stringify(error));
-    return;
-  }
-  $("status").textContent="Saved ✅";
 };
 
 // (removed duplicate btnBuild handler)
