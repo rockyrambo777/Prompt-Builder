@@ -407,7 +407,7 @@
 
     const params = new URLSearchParams(window.location.search);
     const album_id = params.get("album_id") || params.get("id");
-    const song_id_param = params.get("song_id");
+    const song_id_param = params.get("song_id") || params.get("id");  // FIXED: Added fallback to "id" for song (matches navigation from album-edit.html)
 
     if (!album_id) {
       alert("Missing album_id");
@@ -561,80 +561,7 @@
       $("meta_youtube_published").checked = !!s.youtube_published;
       $("meta_youtube_url").value = s.youtube_url || "";
       $("meta_youtube_published_at").value = s.youtube_published_at || "";
-      $("meta_ditto_released").checked = !!s.ditto_released;
-      $("meta_ditto_url").value = s.ditto_url || "";
-      $("meta_ditto_release_date").value = s.ditto_release_date || "";
-      $("meta_bandcamp_released").checked = !!s.bandcamp_released;
-      $("meta_bandcamp_track_url").value = s.bandcamp_track_url || "";
-      $("meta_bandcamp_release_date").value = s.bandcamp_release_date || "";
-      updateMetaKPIs();
-
-      setEditMode();
-      setDNAPreview();
-    }
-
-    function selectSong(songId){
-      const s = songs.find(x => String(x.id) === String(songId));
-      if (!s) return;
-      fillSongForm(s);
-      const p = new URLSearchParams(window.location.search);
-      p.set("song_id", s.id);
-      history.replaceState({}, "", `${location.pathname}?${p.toString()}`);
-    }
-
-    async function loadData(){
-      $("statusLine").textContent = "Loading…";
-
-      const { data: a, error: e1 } = await supabase.from(ALBUMS).select("*").eq("id", album_id).single();
-      if (e1) { $("statusLine").textContent = "Error: " + e1.message; return; }
-      album = a;
-
-      const { data: ar, error: e2 } = await supabase.from(ARTISTS).select("*").eq("id", album.artist_id).single();
-      artist = e2 ? null : ar;
-
-      const { data: s, error: e3 } = await supabase.from(SONGS).select("*").eq("album_id", album_id).order("track_number", { ascending: true });
-      if (e3) {
-        songs = [];
-        $("statusLine").textContent = "Songs load error: " + e3.message;
-      } else {
-        songs = s || [];
-        $("statusLine").textContent = `Album loaded. Songs: ${songs.length}`;
-      }
-      setChips();
-      buildSongSelect();
-    }
-
-
-    async function saveMeta(){
-      if (!currentSong) return;
-      const payload = {
-        track_number: Number($("meta_track_number").value || currentSong.track_number || 1),
-        release_notes: ($("meta_notes").value || "").trim() || null,
-
-        youtube_published: !!$("meta_youtube_published").checked,
-        youtube_url: ($("meta_youtube_url").value || "").trim() || null,
-        youtube_published_at: ($("meta_youtube_published_at").value || "").trim() || null,
-
-        ditto_released: !!$("meta_ditto_released").checked,
-        ditto_url: ($("meta_ditto_url").value || "").trim() || null,
-        ditto_release_date: ($("meta_ditto_release_date").value || "").trim() || null,
-
-        bandcamp_released: !!$("meta_bandcamp_released").checked,
-        bandcamp_track_url: ($("meta_bandcamp_track_url").value || "").trim() || null,
-        bandcamp_release_date: ($("meta_bandcamp_release_date").value || "").trim() || null,
-      };
-
-      $("metaStatus").textContent = "Saving…";
-
-      async function updateWithFallback(obj){
-        let working = { ...obj };
-        for (let attempts = 0; attempts < 12; attempts++){
-          const res = await supabase.from(SONGS).update(working).eq("id", currentSong.id);
-          if (!res.error) return { ok:true };
-          const msg = String(res.error.message || "");
-          const m = msg.match(/column\s+\"([^\"]+)\"\s+of\s+relation/i)
-                 || msg.match(/column\s+\"([^\"]+)\"\s+does\s+not\s+exist/i)
-                 || msg.match(/could not find the \'([^\']+)\' column of \'songs\' in the schema cache/i);
+      $...(truncated 3226 characters)...a cache/i);
           if (!m) return { ok:false, error: msg };
           delete working[m[1]];
         }
