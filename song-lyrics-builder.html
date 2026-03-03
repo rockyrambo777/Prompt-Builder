@@ -53,7 +53,27 @@ input[type="checkbox"], input[type="radio"]{ width:18px; height:18px; accent-col
 .pill.ok{ border-color:#1f6b45; }
 .pill.warn{ border-color:#6b4c1d; }
 .pill.bad{ border-color:#6b2a2a; }
-.hint { font-size:12px; color:var(--muted); margin-top:6px; line-height:1.4; }</style>
+.hint { font-size:12px; color:var(--muted); margin-top:6px; line-height:1.4; }.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: #16315f;
+  color: #fff;
+  padding: 14px 18px;
+  border-radius: 12px;
+  border: 1px solid #2a3a5c;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  font-weight: 800;
+  z-index: 9999;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.25s ease;
+  max-width: min(520px, calc(100vw - 48px));
+}
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}</style>
 </head>
 <body>
   <div class="wrap">
@@ -147,11 +167,51 @@ input[type="checkbox"], input[type="radio"]{ width:18px; height:18px; accent-col
     </div>
   </div>
 
+  <div id="toast" class="toast"></div>
+
   <script type="module">
     import { supabase, requireSessionOrRedirect } from "./app.js";
     const $ = (id) => document.getElementById(id);
 
-    const session = await requireSessionOrRedirect();
+    
+
+function showToast(message){
+  const t = $("toast");
+  if (!t) return;
+  t.textContent = message;
+  t.classList.add("show");
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => t.classList.remove("show"), 3000);
+}
+
+async function copyToClipboard(text){
+  // Modern API (works on https / secure contexts)
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch(e) {}
+
+  // Fallback
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "fixed";
+    ta.style.left = "-9999px";
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return ok;
+  } catch(e) {
+    return false;
+  }
+}
+
+function openChatGPT(){
+  window.open("https://chat.openai.com/", "_blank", "noopener");
+}
+const session = await requireSessionOrRedirect();
     $("who").textContent = `Signed in: ${session.user.email}`;
 
     const SONGS = "songs";
@@ -289,13 +349,17 @@ input[type="checkbox"], input[type="radio"]{ width:18px; height:18px; accent-col
     }
 
     $("btnBuildPrompt").onclick = buildPrompt;
-    $("btnCopyOut").onclick = async () => {
-      const t = $("output").value || "";
-      if (!t.trim()) return alert("Nothing to copy.");
-      await navigator.clipboard.writeText(t);
-      $("statusLine").textContent = "Copied ✅";
-    };
-    $("btnCopyPrompt").onclick = $("btnCopyOut").onclick;
+    
+$("btnCopyOut").onclick = async () => {
+  const t = $("output").value || "";
+  if (!t.trim()) return alert("Nothing to copy.");
+  const ok = await copyToClipboard(t);
+  if (!ok) return alert("Copy failed. Please copy manually.");
+  $("statusLine").textContent = "Prompt copied ✅ — Opening ChatGPT...";
+  showToast("Prompt copied ✅ — Paste into ChatGPT now. Opening ChatGPT…");
+  setTimeout(openChatGPT, 400);
+};
+$("btnCopyPrompt").onclick = $("btnCopyOut").onclick;
     $("btnClearOut").onclick = () => $("output").value = "";
 
     $("btnSaveSong").onclick = saveSong;
