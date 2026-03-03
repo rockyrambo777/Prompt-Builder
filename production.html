@@ -87,6 +87,10 @@
         </div>
         <div class="row">
 <button id="btnEditMeta" class="btn secondary">Edit Release & Links</button>
+        
+        <button id="btnTrackDown" class="btn secondary">Track −</button>
+        <button id="btnTrackUp" class="btn secondary">Track +</button>
+        <button id="btnDeleteSong" class="btn danger">Delete Track</button>
         <button id="btnSaveSong" class="btn primary">Save Song</button>
         </div>
       </div>
@@ -138,6 +142,7 @@
             </div>
             <div>
               <label for="track_number">Track #</label>
+              <div class="hint">Quick tip: use <b>Track −</b>/<b>Track +</b> at the top to change order fast.</div>
               <input id="track_number" placeholder="e.g. 1">
             </div>
           </div>
@@ -690,7 +695,58 @@
     await loadData();
     }
 
+    async function quickTrackDelta(delta){
+      if (!currentSong) return alert("Select a song first.");
+      const cur = Number(currentSong.track_number || $("track_number").value || 1);
+      const next = Math.max(1, cur + delta);
+
+      $("statusLine").textContent = "Updating track #…";
+
+      const payload = { track_number: next };
+
+      async function updateWithFallback(obj){
+        let working = { ...obj };
+        for (let attempts = 0; attempts < 8; attempts++){
+          const res = await supabase.from(SONGS).update(working).eq("id", currentSong.id);
+          if (!res.error) return { ok:true };
+          const msg = String(res.error.message || "");
+          const m = msg.match(/column\s+\"([^\"]+)\"\s+of\s+relation/i);
+          if (!m) return { ok:false, error: msg };
+          delete working[m[1]];
+        }
+        return { ok:false, error: "Update failed." };
+      }
+
+      const up = await updateWithFallback(payload);
+      if (!up.ok) { $("statusLine").textContent = "Error: " + up.error; return; }
+
+      $("statusLine").textContent = `Track # updated to ${next} ✅`;
+      showToast?.(`Track # updated to ${next} ✅`);
+      await loadData();
+      // reselect the same song
+      $("songSelect").value = currentSong.id;
+      selectSong(currentSong.id);
+    }
+
+    async function deleteCurrentSong(){
+      if (!currentSong) return alert("Select a song first.");
+      const name = currentSong.title || "(untitled)";
+      const tno = currentSong.track_number ? `#${currentSong.track_number} ` : "";
+      const ok = confirm(`Delete this track?\n\n${tno}${name}\n\nThis cannot be undone.`);
+      if (!ok) return;
+
+      $("statusLine").textContent = "Deleting…";
+      const { error } = await supabase.from(SONGS).delete().eq("id", currentSong.id);
+      if (error){ $("statusLine").textContent = "Delete error: " + error.message; return; }
+
+      showToast?.("Track deleted ✅");
+      $("statusLine").textContent = "Track deleted ✅";
+      currentSong = null;
+      await loadData();
+    }
+
     function buildArtistDNABlock(){
+
       const lines = [];
       const mg = (artist?.main_genre || "").trim();
       const sg = (artist?.secondary_genre || "").trim();
@@ -1161,6 +1217,13 @@ if (__el_btnCopyEditPrompt) __el_btnCopyEditPrompt.onclick = async () => {
 
     const __el_btnSaveSong = $("btnSaveSong");
     if (__el_btnSaveSong) __el_btnSaveSong.onclick = saveSong;
+
+    const __el_btnTrackUp = $("btnTrackUp");
+    if (__el_btnTrackUp) __el_btnTrackUp.onclick = () => quickTrackDelta(+1);
+    const __el_btnTrackDown = $("btnTrackDown");
+    if (__el_btnTrackDown) __el_btnTrackDown.onclick = () => quickTrackDelta(-1);
+    const __el_btnDeleteSong = $("btnDeleteSong");
+    if (__el_btnDeleteSong) __el_btnDeleteSong.onclick = deleteCurrentSong;
 
     const __el_btnEditMeta = $("btnEditMeta");
     if (__el_btnEditMeta) __el_btnEditMeta.onclick = () => {
