@@ -126,7 +126,13 @@
   <div id="toast" class="toast"></div>
 
   <script type="module">
-    import { requireSessionOrRedirect, readId, supabase } from "./app.js";
+    import { requireSessionOrRedirect, supabase } from "./app.js";
+
+    const readId = (v) => {
+      if (!v) return null;
+      const id = String(v).trim();
+      return id.length ? id : null;
+    };
 
     const $ = (id) => document.getElementById(id);
 
@@ -144,6 +150,36 @@
       t.style.display = "block";
       setTimeout(() => (t.style.display = "none"), 2200);
     };
+
+    async function safeCopy(text){
+      const t = (text || "").toString();
+      // Try modern clipboard API first
+      try{
+        if (navigator.clipboard && window.isSecureContext){
+          await navigator.clipboard.writeText(t);
+          return true;
+        }
+      } catch(e){}
+      // Fallback for non-secure contexts
+      try{
+        const ta = document.createElement("textarea");
+        ta.value = t;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        ta.style.top = "0";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        const ok = document.execCommand("copy");
+        document.body.removeChild(ta);
+        return ok;
+      } catch(e){
+        return false;
+      }
+    }
+
+
 
     function isGospelArtist(a){
       const mg = (a?.main_genre || "").toLowerCase();
@@ -228,10 +264,6 @@
         console.warn(e);
         return "";
       }
-    } catch(e){
-        console.warn(e);
-        return "";
-      }
     }
 
     async function init(){
@@ -305,8 +337,12 @@
       $("btnBuild").onclick = rebuild;
       $("btnRebuild").onclick = rebuild;
       $("btnCopy").onclick = async ()=>{
-        await navigator.clipboard.writeText($("out").value || "");
-        toast("Copied.");
+        const txt = $("out").value || "";
+        if (!txt.trim()) return toast("Nothing to copy.", false);
+        const ok = await safeCopy(txt);
+        if (!ok) { toast("Copy failed ❌", false); return; }
+        toast("Prompt copied ✅ — Paste into ChatGPT now. Opening ChatGPT…");
+        setTimeout(()=>{ window.open("https://chat.openai.com/", "_blank"); }, 400);
       };
 
       // Build once by default
