@@ -1169,12 +1169,11 @@ UPDATED_LYRICS:
       if (out) out.value = prompt;
       $("statusLine").textContent = "Edit prompt built ✅";
     };
-
     const __el_btnCopyEditPrompt = $("btnCopyEditPrompt");
     if (__el_btnCopyEditPrompt) __el_btnCopyEditPrompt.onclick = async () => {
       const t = $("edit_prompt_out")?.value || "";
       if (!t.trim()) return alert("Nothing to copy.");
-      
+
       try {
         await navigator.clipboard.writeText(t);
       } catch(e){
@@ -1188,23 +1187,14 @@ UPDATED_LYRICS:
         document.body.removeChild(ta);
       }
 
-      const msg = "Edit prompt copied ✅ — Paste into ChatGPT now. Opening ChatGPT…";
-      $("statusLine").textContent = msg.replace("…","...");
+      const msg = "Edit prompt copied ✅ — Paste into ChatGPT now.";
+      $("statusLine").textContent = msg;
       showToast(msg);
 
+      // Optional: open ChatGPT in a new tab (may be blocked by popup settings)
       const w = window.open("https://chat.openai.com/", "_blank", "noopener,noreferrer");
-      if (!w) {
-        // Popup blocked
-        showToast("Popup blocked ❌ Allow popups, then click again. Or use this link: chat.openai.com");
-      }
-};
-    if (__el_btnCopyEditPrompt) __el_btnCopyEditPrompt.onclick = async () => {
-      const t = $("edit_prompt_out")?.value || "";
-      if (!t.trim()) return alert("Nothing to copy.");
-      await navigator.clipboard.writeText(t);
-      $("statusLine").textContent = "Edit prompt copied ✅";
+      if (!w) showToast("Popup blocked ❌ Allow popups, then click again. Or open chat.openai.com");
     };
-
 
     const __el_btnCopyWorking = $("btnCopyWorking");
     if (__el_btnCopyWorking) __el_btnCopyWorking.onclick = async () => {
