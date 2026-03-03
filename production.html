@@ -78,243 +78,6 @@
         <button id="btnLogout" class="btn danger">Logout</button>
       </div>
     </div>
-
-    <div class="card">
-      <div class="row" style="justify-content:space-between;">
-        <div>
-          <div id="statusLine" class="muted">Loading…</div>
-          <div class="chips" id="chips"></div>
-        </div>
-        <div class="row">
-<button id="btnEditMeta" class="btn secondary">Edit Release & Links</button>
-          <button id="btnSaveSong" class="btn primary">Save &amp; Close</button>
-        </div>
-      </div>
-
-      <div class="divider"></div>
-
-      <div class="grid">
-        <div>
-          <label>Song</label>
-          <div id="songLabel" class="pill" style="width:100%; display:block;">—</div>
-          <div class="hint">Opened from Album Studio. Use <span class="mono">production.html?album_id=…&song_id=…</span></div>
-        </div>
-
-        <div>
-          <label>Artist DNA (auto injected)</label>
-          <div class="row" style="gap:8px; flex-wrap:wrap;">
-            <span class="pill" id="dnaGenre">genre: —</span>
-            <span class="pill" id="dnaVoice">voice: —</span>
-            <span class="pill" id="dnaLane">lane: —</span>
-            <span class="pill" id="dnaLegacy">legacy: —</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="cols">
-      <div>
-
-        <div class="card">
-          <h2 style="margin:0 0 10px;">Song Editor</h2>
-
-          <div class="row" style="justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
-            <label class="row" style="gap:10px; align-items:center; margin:0;">
-              <input type="checkbox" id="editSongToggle">
-              <span>Edit song (tempo / lyrics / Suno prompt)</span>
-            </label>
-
-            <button id="btnOpenLyricsBuilder" class="btn secondary">Build Lyrics + Suno</button>
-          </div>
-
-          <div class="hint" id="editHint" style="margin-top:8px;">
-            If the song has no lyrics, use Build Lyrics + Suno. Editing unlocks once lyrics exist.
-          </div>
-
-          <div class="grid" style="margin-top:14px;">
-            <div>
-              <label for="title">Title</label>
-              <input id="title" placeholder="Song title">
-            </div>
-            <div>
-              <label for="track_number">Track #</label>
-              <input id="track_number" placeholder="e.g. 1">
-            </div>
-          </div>
-
-          <div class="grid">
-            <div>
-              <label for="keywords">Keywords (optional)</label>
-              <input id="keywords" placeholder="faith, authority, bold praise">
-            </div>
-            <div>
-              <label for="scripture">Scripture (optional)</label>
-              <input id="scripture" placeholder="Ephesians 6:10">
-            </div>
-          </div>
-
-          <label for="suno_prompt">Suno Prompt</label>
-          <textarea id="suno_prompt" class="mono" placeholder="Song prompt…"></textarea>
-
-          <label for="lyrics" style="margin-top:10px;">Lyrics</label>
-          <textarea id="lyrics" class="mono" placeholder="Lyrics…"></textarea>
-
-          <div class="divider" style="margin:14px 0;"></div>
-
-          <div class="grid">
-            <div>
-              <label for="revision_goal">Revision goal</label>
-              <select id="revision_goal">
-                <option value="">(optional)</option>
-                <option value="tempo">Change tempo</option>
-                <option value="lyrics">Change lyrics</option>
-                <option value="arrangement">Change arrangement</option>
-                <option value="energy">Change energy</option>
-                <option value="instrumentation">Change instruments</option>
-              </select>
-            </div>
-            <div>
-              <label for="tempo_direction">Tempo direction</label>
-              <select id="tempo_direction">
-                <option value="">(optional)</option>
-                <option value="slower">Slightly slower</option>
-                <option value="faster">Slightly faster</option>
-                <option value="much_slower">Much slower</option>
-                <option value="much_faster">Much faster</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="grid">
-            <div>
-              <label for="energy_direction">Energy direction</label>
-              <select id="energy_direction">
-                <option value="">(optional)</option>
-                <option value="more_energy">More energy</option>
-                <option value="less_energy">Less energy</option>
-                <option value="more_dramatic">More dramatic</option>
-                <option value="more_groove">More groove</option>
-              </select>
-            </div>
-            <div>
-              <label for="instrumentation_notes">Instrumentation notes</label>
-              <input id="instrumentation_notes" placeholder="Add more drums, heavier bass, etc.">
-            </div>
-          </div>
-
-          <label for="edit_notes">Edit notes</label>
-          <textarea id="edit_notes" class="mono" placeholder="What should change? Keep it short and clear."></textarea>
-          <div class="row" style="justify-content:flex-end; margin-top:10px; gap:10px; flex-wrap:wrap;">
-            <button id="btnBuildEditPrompt" class="btn primary">Build Song Edit Prompt</button>
-            <button id="btnCopyEditPrompt" class="btn secondary">Create (Copy + Open ChatGPT)</button>
-          </div>
-          <label for="edit_prompt_out" style="margin-top:10px;">Edit Prompt Output (Copy into ChatGPT)</label>
-          <textarea id="edit_prompt_out" class="mono" style="min-height:150px;" placeholder="Click Build Song Edit Prompt…"></textarea>
-
-
-          <div class="hint" style="margin-top:10px;">
-            Reminder: songs should always include instruments. Voice stays anchored by Artist DNA, but each song can have a different beat/arrangement.
-          </div>
-        </div>
-
-      </div>
-
-      <div class="stickyBox">
-        <div class="card">
-          <h2 style="margin:0 0 10px;">Prompt Builder</h2>
-
-          
-          <div class="grid">
-            <div>
-              <label for="video_mode">Mode</label>
-              <select id="video_mode">
-                <option value="long_lyric" selected>Longform – Lyric Video (Flow)</option>
-                <option value="long_music">Longform – Music Video (Grok image-to-video)</option>
-                <option value="shorts">Shorts plan (10s) (Flow + Grok + Onscreen text)</option>
-              </select>
-            </div>
-            <div>
-              <label for="scene_count">Scenes (longform only)</label>
-              <select id="scene_count">
-                <option value="1" >1</option>
-<option value="2" >2</option>
-<option value="3" >3</option>
-<option value="4" >4</option>
-<option value="5" >5</option>
-<option value="6" >6</option>
-<option value="7" >7</option>
-<option value="8" >8</option>
-<option value="9" >9</option>
-<option value="10" >10</option>
-<option value="11" >11</option>
-<option value="12" selected>12</option>
-<option value="13" >13</option>
-<option value="14" >14</option>
-<option value="15" >15</option>
-<option value="16" >16</option>
-<option value="17" >17</option>
-<option value="18" >18</option>
-<option value="19" >19</option>
-<option value="20" >20</option>
-<option value="21" >21</option>
-<option value="22" >22</option>
-<option value="23" >23</option>
-<option value="24" >24</option>
-<option value="25" >25</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="checkRow" style="margin-top:10px;">
-            <label><input id="use_artist_image" type="checkbox" checked> Use artist reference image (Flow/Grok)</label>
-          </div>
-          <div class="hint">Shorts do <b>not</b> use scenes. Longform uses scenes 1–25.</div>
-          <div class="divider"></div>
-
-          <div class="row" style="justify-content:space-between; align-items:center;">
-            <div class="muted">Build a strict prompt for ChatGPT. Paste ChatGPT results into the Working box (not saved).</div>
-            <div class="row">
-              <button id="btnBuild" class="btn primary">Build Prompt</button>
-              <button id="btnClearOutput" class="btn">Clear</button>
-            </div>
-          </div>
-
-          <label for="output" style="margin-top:10px;">Prompt Output (Copy this into ChatGPT)</label>
-          <textarea id="output" class="mono" style="min-height:220px;" placeholder="Click Build Prompt…"></textarea>
-
-          <div class="row" style="margin-top:10px;">
-            <button id="btnCopyOutput" class="btn copy">Copy Output</button>
-          </div>
-
-          <div class="divider"></div>
-
-          <label for="working_results">Working Results (paste from ChatGPT) — NOT SAVED</label>
-          <textarea id="working_results" class="mono" style="min-height:180px;" placeholder="Paste ChatGPT output here (scenes/shorts plan)…"></textarea>
-
-          <div class="row" style="margin-top:10px;">
-            <button id="btnCopyWorking" class="btn copy">Copy Working</button>
-            <button id="btnClearWorking" class="btn">Clear Working</button>
-          </div>
-
-        
-        <div class="card" style="margin-top:14px;">
-          <h2 style="margin:0 0 10px;">YouTube Packaging</h2>
-
-          <div class="grid">
-            <div>
-              <label for="pkg_mode">Mode</label>
-              <select id="pkg_mode">
-                <option value="long" selected>YouTube Long (Full video)</option>
-                <option value="short">Shorts / TikTok (Shorts only)</option>
-              </select>
-            </div>
-            <div>
-              <label>Options</label>
-              <div class="checkRow" style="margin-top:10px;">
-                <label><input id="pkg_useArtistImg" type="checkbox"> Include artist image (thumbnail prompt)</label>
-              </div>
-              <div class="hint">Shorts do not have thumbnails (checkbox is ignored in Shorts mode).</div>
-            </div>
           </div>
 
           <div class="divider"></div>
@@ -322,8 +85,8 @@
           <div class="row" style="justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
             <div class="muted">Build a packaging prompt for ChatGPT (title + description + hashtags + pinned comment + thumbnail prompt).</div>
             <div class="row">
-              <button id="btnPkgBuild" class="btn primary">Build Packaging</button>
-              <button id="btnPkgCreate" class="btn secondary">Create (Copy + Open ChatGPT)</button>
+              <button id="btnPkgBuild" type="button" class="btn primary">Build Packaging</button>
+              <button id="btnPkgCreate" type="button" class="btn secondary">Create (Copy + Open ChatGPT)</button>
             </div>
           </div>
 
@@ -696,28 +459,25 @@ function pickInitialSong(){
 
 
     // Packaging buttons
-    const __el_btnPkgBuild = $("btnPkgBuild");
-    if (__el_btnPkgBuild) __el_btnPkgBuild.onclick = buildPackaging;
+    function bindPackagingButtons(){
+      const b1 = $("btnPkgBuild");
+      if (b1) b1.addEventListener("click", (e)=>{ e.preventDefault(); buildPackaging(); });
 
-    const __el_btnPkgCreate = $("btnPkgCreate");
-    if (__el_btnPkgCreate) __el_btnPkgCreate.onclick = async () => {
-      // Open tab immediately (best chance to avoid popup blockers)
-      const w = openChatGPTTab();
-      buildPackaging();
-      const txt = $("pkg_out").value || "";
-      const ok = await safeCopy(txt);
-      if (ok) {
-        showToast("Packaging prompt copied ✅ Paste into ChatGPT");
-      } else {
-        showToast("Copy failed ❌");
-      }
-      if (!w) {
-        showToast("ChatGPT tab blocked by browser. Allow popups for this site.");
-      }
-    };
-
-
-      selectSong(currentSong.id);
+      const b2 = $("btnPkgCreate");
+      if (b2) b2.addEventListener("click", async (e)=>{
+        e.preventDefault();
+        // Open tab immediately (best chance to avoid popup blockers)
+        const w = openChatGPTTab();
+        buildPackaging();
+        const txt = $("pkg_out").value || "";
+        const ok = await safeCopy(txt);
+        if (ok) showToast("Packaging prompt copied ✅ Paste into ChatGPT");
+        else showToast("Copy failed ❌");
+        if (!w) showToast("ChatGPT tab blocked — allow popups for this site.");
+      });
+    }
+    bindPackagingButtons();
+selectSong(currentSong.id);
       closeMetaModal();
     }
 
@@ -1206,7 +966,8 @@ ${buildSongContextBlock()}
     }
 
     function buildPackaging(){
-      if (!currentSong || !artist) return;
+      if (!currentSong){ showToast?.('Select a song first.'); return; }
+      if (!artist){ showToast?.('Artist not loaded yet.'); return; }
       const mode = $("pkg_mode")?.value || "long";
       $("pkg_out").value = (mode === "short") ? buildPackagingPromptShort() : buildPackagingPromptLong();
       $("statusLine").textContent = "Packaging prompt built ✅";
@@ -1341,17 +1102,11 @@ UPDATED_LYRICS:
       await navigator.clipboard.writeText(t);
       $("statusLine").textContent = "Edit prompt copied ✅";
     };
-
-
-    const __el_btnCopyWorking = $("btnCopyWorking");
-    if (__el_btnCopyWorking) __el_btnCopyWorking.onclick = async () => {
       const t = $("working_results").value || "";
       if (!t.trim()) return alert("Working box is empty.");
       await navigator.clipboard.writeText(t);
       $("statusLine").textContent = "Working copied ✅";
     };
-    const __el_btnClearWorking = $("btnClearWorking");
-    if (__el_btnClearWorking) __el_btnClearWorking.onclick = () => $("working_results").value = "";
 
     const __el_btnSaveSong = $("btnSaveSong");
     if (__el_btnSaveSong) __el_btnSaveSong.onclick = saveSong;
