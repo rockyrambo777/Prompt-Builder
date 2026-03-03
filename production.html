@@ -1120,15 +1120,6 @@ UPDATED_LYRICS:
       await navigator.clipboard.writeText(t);
       $("statusLine").textContent = "Edit prompt copied ✅";
     };
-      const t = $("working_results").value || "";
-      if (!t.trim()) return alert("Working box is empty.");
-      await navigator.clipboard.writeText(t);
-      $("statusLine").textContent = "Working copied ✅";
-    };
-
-    const __el_btnSaveSong = $("btnSaveSong");
-    if (__el_btnSaveSong) __el_btnSaveSong.onclick = saveSong;
-
     const __el_btnEditMeta = $("btnEditMeta");
     if (__el_btnEditMeta) __el_btnEditMeta.onclick = () => {
       if (!currentSong) return alert("Select a song first.");
@@ -1199,6 +1190,17 @@ UPDATED_LYRICS:
       // Packaging buttons may be inserted later; bind now and also after loadData.
       try{ bindPackagingButtons?.(); }catch(e){}
     });
+
+
+    // Save & Close (robust)
+    const __el_btnSaveSong = $("btnSaveSong");
+    if (__el_btnSaveSong){
+      __el_btnSaveSong.addEventListener("click", async (e)=>{
+        e.preventDefault();
+        const ok = await saveSong();
+        if (ok) goBackToAlbum();
+      });
+    }
 
 </script>
 </body>
