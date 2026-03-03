@@ -227,7 +227,7 @@
 
       const { data: s, error: se } = await supabase
         .from("songs")
-        .select("id,album_id,title,track_no,keywords,scripture,suno_prompt,lyrics")
+        .select("id,album_id,title,keywords,scripture,suno_prompt,lyrics")
         .eq("id", songId)
         .single();
       if (se) { toast(se.message, false); return; }
@@ -269,7 +269,7 @@
       const chips = [];
       chips.push(`album: ${album?.title || ""}`);
       chips.push(`artist: ${artist?.name || ""}`);
-      chips.push(`song: #${song.track_no || "?"} ${song.title || ""}`);
+      chips.push(`song: #? ${song.title || ""}`);
       chips.push(`mode: ${$("mode").value}`);
       $("metaChips").innerHTML = chips.map(c=>`<span class="chip">${c}</span>`).join("");
 
