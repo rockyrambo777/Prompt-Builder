@@ -95,9 +95,9 @@
 
       <div class="grid">
         <div>
-          <label for="songSelect">Song</label>
-          <select id="songSelect"></select>
-          <div class="hint">Tip: open a specific song directly with <span class="mono">production.html?album_id=…&song_id=…</span></div>
+          <label>Song</label>
+          <div id="songLabel" class="pill" style="width:100%; display:block;">—</div>
+          <div class="hint">Opened from Album Studio. Use <span class="mono">production.html?album_id=…&song_id=…</span></div>
         </div>
 
         <div>
@@ -504,19 +504,7 @@
       back.setAttribute("aria-hidden","true");
     }
 
-    function buildSongSelect(){
-      const sel = $("songSelect");
-      sel.innerHTML = "";
-      if (!songs.length) {
-        const opt = document.createElement("option");
-        opt.value = "";
-        opt.textContent = "(No songs found)";
-        sel.appendChild(opt);
-        currentSong = null;
-        $("statusLine").textContent = "No songs in this album yet.";
-        return;
-      }
-      for (const s of songs){
+          for (const s of songs){
         const opt = document.createElement("option");
         opt.value = s.id;
         const t = s.track_number ? `#${s.track_number} ` : "";
@@ -573,10 +561,33 @@
       setDNAPreview();
     }
 
+function setSongLabel(){
+  const el = $("songLabel");
+  if (!el) return;
+  if (!currentSong){ el.textContent = "—"; return; }
+  const t = currentSong.track_number ? `#${currentSong.track_number} ` : "";
+  el.textContent = `${t}${currentSong.title || "(untitled)"}`;
+}
+
+function pickInitialSong(){
+  if (!songs.length){
+    currentSong = null;
+    $("statusLine").textContent = "No songs in this album yet.";
+    setSongLabel();
+    return;
+  }
+  const chosen = (song_id_param && songs.find(x => String(x.id) === String(song_id_param)))
+    ? song_id_param
+    : songs[0].id;
+  selectSong(chosen);
+}
+
+
     function selectSong(songId){
       const s = songs.find(x => String(x.id) === String(songId));
       if (!s) return;
       fillSongForm(s);
+      setSongLabel();
       const p = new URLSearchParams(window.location.search);
       p.set("song_id", s.id);
       history.replaceState({}, "", `${location.pathname}?${p.toString()}`);
@@ -601,7 +612,7 @@
         $("statusLine").textContent = `Album loaded. Songs: ${songs.length}`;
       }
       setChips();
-      buildSongSelect();
+      pickInitialSong();
     }
 
 
@@ -658,7 +669,6 @@
     });
 
     await loadData();
-      $("songSelect").value = currentSong.id;
       selectSong(currentSong.id);
       closeMetaModal();
     }
@@ -1188,7 +1198,7 @@ UPDATED_LYRICS:
     const __el_btnMetaSave = $("btnMetaSave");
     if (__el_btnMetaSave) __el_btnMetaSave.onclick = saveMeta;
 
-    const _ss = $("songSelect");
+    const _ss = null;
     if (_ss) _ss.onchange = (e) => selectSong(e.target.value);
     const __el_editToggle = $("editSongToggle");
     if (__el_editToggle) __el_editToggle.onchange = () => setEditMode();
