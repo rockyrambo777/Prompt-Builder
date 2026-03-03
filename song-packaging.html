@@ -75,15 +75,9 @@
             </div>
             <div>
               <label>Options</label>
-              <div style="display:flex;gap:14px;align-items:center;margin-top:10px;flex-wrap:wrap">
-                <div style="display:flex;gap:10px;align-items:center">
-                  <input id="useArtistImg" type="checkbox" />
-                  <label for="useArtistImg" style="margin:0;color:var(--text);font-size:13px">Include artist image (thumbnail prompt)</label>
-                </div>
-                <div style="display:flex;gap:10px;align-items:center">
-                  <input id="buildAlbumPlaylist" type="checkbox" />
-                  <label for="buildAlbumPlaylist" style="margin:0;color:var(--text);font-size:13px">Build/Use album playlist (generate playlist plan)</label>
-                </div>
+              <div style="display:flex;gap:10px;align-items:center;margin-top:10px">
+                <input id="useArtistImg" type="checkbox" />
+                <label for="useArtistImg" style="margin:0;color:var(--text);font-size:13px">Include artist image (thumbnail prompt)</label>
               </div>
               <div class="mut" style="margin-top:8px">Shorts do not have thumbnails (checkbox is ignored in Shorts mode).</div>
             </div>
@@ -132,7 +126,13 @@
   <div id="toast" class="toast"></div>
 
   <script type="module">
-    import { requireSessionOrRedirect, readId, supabase } from "./app.js";
+    import { requireSessionOrRedirect, supabase } from "./app.js";
+
+    const readId = (v) => {
+      if (!v) return null;
+      const id = String(v).trim();
+      return id.length ? id : null;
+    };
 
     const $ = (id) => document.getElementById(id);
 
@@ -167,17 +167,15 @@
 
       const songBlock = `SONG\n- title: ${song?.title || ""}\n- keywords: ${song?.keywords || ""}\n- scripture: ${gospel ? (song?.scripture || "(optional)") : "(not gospel/christian)"}\n- suno prompt (for this song): ${song?.suno_prompt || ""}`;
 
-      const wantAlbumPlaylist = !!$("buildAlbumPlaylist")?.checked;
-
       const playlistNote = playlistsText
-        ? `DEFAULT_PLAYLIST (artist)\n${playlistsText}\n\nIn your response, also tell me which playlist this song fits best (or "Album playlist" if none).`
+        ? `PLAYLISTS (artist defaults)\n${playlistsText}\n\nIn your response, also tell me which playlist this song fits best (or "Album playlist" if none).`
         : `PLAYLISTS\nNo artist default playlists. In your response, also tell me if this should go to an Album playlist or a new mood playlist.`;
 
       const thumbRule = includeArtistImg
         ? "Thumbnail: INCLUDE artist reference image. Make it bold, high contrast, mobile readable."
         : "Thumbnail: Do NOT include artist reference image. Make it bold, high contrast, mobile readable.";
 
-      return `You are helping me package a SINGLE YouTube long-form video for my music channel.\n\n${artistBlock}\n\n${songBlock}\n\nLYRICS (paste as-is):\n${song?.lyrics || "(no lyrics found)"}\n\n${playlistNote}\n\nRETURN ONLY these sections (clean, no extra talk):\nYOUTUBE_TITLE:\nYOUTUBE_DESCRIPTION_WITH_HASHTAGS:\nYOUTUBE_TAGS_UNDER_500_CHARS (comma-separated):\nPINNED_COMMENT:\nTHUMBNAIL_PROMPT_1280x720 (SEO, readable, eye-catching):\n${thumbRule}\n${wantAlbumPlaylist ? "\nALBUM_PLAYLIST_BUILDER (only if needed):\n- PLAYLIST_TITLE\n- PLAYLIST_DESCRIPTION\n- TRACKLIST (ordered list of THIS album\'s songs)\n" : ""}\nIMPORTANT:\n- Do NOT include the 'Song Details: BPM/Key/Genre/Mood' line.\n- If this is not a gospel/christian artist, do NOT add scripture verses and do NOT mention Bible references.\n- Keep tags genre-accurate based on the Suno prompt and artist genres.\n`;
+      return `You are helping me package a SINGLE YouTube long-form video for my music channel.\n\n${artistBlock}\n\n${songBlock}\n\nLYRICS (paste as-is):\n${song?.lyrics || "(no lyrics found)"}\n\n${playlistNote}\n\nRETURN ONLY these sections (clean, no extra talk):\nYOUTUBE_TITLE:\nYOUTUBE_DESCRIPTION_WITH_HASHTAGS:\nYOUTUBE_TAGS_UNDER_500_CHARS (comma-separated):\nPINNED_COMMENT:\nTHUMBNAIL_PROMPT_1280x720 (SEO, readable, eye-catching):\n${thumbRule}\n\nIMPORTANT:\n- Do NOT include the 'Song Details: BPM/Key/Genre/Mood' line.\n- If this is not a gospel/christian artist, do NOT add scripture verses and do NOT mention Bible references.\n- Keep tags genre-accurate based on the Suno prompt and artist genres.\n`;
     }
 
     function buildPromptShort(){
@@ -187,13 +185,11 @@
 
       const songBlock = `SONG\n- title: ${song?.title || ""}\n- keywords: ${song?.keywords || ""}\n- scripture: ${gospel ? (song?.scripture || "(optional)") : "(not gospel/christian)"}\n- suno prompt: ${song?.suno_prompt || ""}`;
 
-      const wantAlbumPlaylist = !!$("buildAlbumPlaylist")?.checked;
-
       const playlistNote = playlistsText
-        ? `DEFAULT_PLAYLIST (artist)\n${playlistsText}\n\nIn your response, also tell me which playlist this short should link back to (or "Album playlist" if none).`
+        ? `PLAYLISTS (artist defaults)\n${playlistsText}\n\nIn your response, also tell me which playlist this short should link back to (or "Album playlist" if none).`
         : `PLAYLISTS\nNo artist default playlists. In your response, also tell me if this short should link back to an Album playlist or a mood playlist.`;
 
-      return `You are helping me package a SINGLE Shorts/TikTok post for this song.\n\n${artistBlock}\n\n${songBlock}\n\nLYRICS (paste as-is):\n${song?.lyrics || "(no lyrics found)"}\n\n${playlistNote}\n\nRETURN ONLY these sections (clean, no extra talk):\nSHORTS_TITLE:\nSHORTS_DESCRIPTION_WITH_HASHTAGS:\nSHORTS_TAGS_UNDER_500_CHARS (comma-separated):\nPINNED_COMMENT (YouTube Shorts):\nTIKTOK_DESCRIPTION_WITH_HASHTAGS:\n${wantAlbumPlaylist ? "\nALBUM_PLAYLIST_BUILDER (only if needed):\n- PLAYLIST_TITLE\n- PLAYLIST_DESCRIPTION\n- TRACKLIST (ordered list of THIS album\'s songs)\n" : ""}\nIMPORTANT:\n- Shorts do NOT need a thumbnail prompt.\n- Do NOT include the 'Song Details: BPM/Key/Genre/Mood' line.\n- If this is not a gospel/christian artist, do NOT add scripture verses and do NOT mention Bible references.\n- Keep tags genre-accurate based on the Suno prompt and artist genres.\n`;
+      return `You are helping me package a SINGLE Shorts/TikTok post for this song.\n\n${artistBlock}\n\n${songBlock}\n\nLYRICS (paste as-is):\n${song?.lyrics || "(no lyrics found)"}\n\n${playlistNote}\n\nRETURN ONLY these sections (clean, no extra talk):\nSHORTS_TITLE:\nSHORTS_DESCRIPTION_WITH_HASHTAGS:\nSHORTS_TAGS_UNDER_500_CHARS (comma-separated):\nPINNED_COMMENT (YouTube Shorts):\nTIKTOK_DESCRIPTION_WITH_HASHTAGS:\n\nIMPORTANT:\n- Shorts do NOT need a thumbnail prompt.\n- Do NOT include the 'Song Details: BPM/Key/Genre/Mood' line.\n- If this is not a gospel/christian artist, do NOT add scripture verses and do NOT mention Bible references.\n- Keep tags genre-accurate based on the Suno prompt and artist genres.\n`;
     }
 
     function rebuild(){
@@ -204,45 +200,35 @@
     }
 
     async function loadPlaylistsForArtist(artistId){
-      // Some Supabase/PostgREST setups throw 400 if a column (like sort_order) is missing or not exposed.
-      // We try with sort_order first, then fall back to title/description only.
-      try{
-        let { data, error } = await supabase
-          .from("artist_playlists")
-          .select("title,description,sort_order")
-          .eq("artist_id", artistId);
+  // Loads ONE default playlist for the artist (the first by sort_order, if available).
+  // Uses client-side sorting to avoid PostgREST 400s when ordering/columns differ.
+  try{
+    // Try with sort_order first
+    let { data, error } = await supabase
+      .from("artist_playlists")
+      .select("title,description,sort_order")
+      .eq("artist_id", artistId);
 
-        if (error){
-          // Fallback (no sort_order)
-          console.warn("playlist load (with sort_order) failed:", error);
-          const res2 = await supabase
-            .from("artist_playlists")
-            .select("title,description")
-            .eq("artist_id", artistId);
-          data = res2.data;
-          error = res2.error;
-        }
+    // If sort_order column isn't available in this schema/view, retry without it
+    if (error && (String(error.message || "").toLowerCase().includes("sort_order") || String(error.code||"") === "PGRST204")) {
+      ({ data, error } = await supabase
+        .from("artist_playlists")
+        .select("title,description")
+        .eq("artist_id", artistId));
+    }
 
-        if (error) {
-          console.warn("playlist load failed:", error);
-          return "";
-        }
-        if (!data || !data.length) return "";
+    if (error) { console.warn("playlist load", error.message); return ""; }
+    if (!data || !data.length) return "";
 
-        // Prefer lowest sort_order if present, else just take the first row returned.
-        let p0 = null;
-        if (data[0] && Object.prototype.hasOwnProperty.call(data[0], "sort_order")) {
-          const sorted = [...data].sort((a,b)=>(Number(a.sort_order||0)-Number(b.sort_order||0)));
-          p0 = sorted[0];
-        } else {
-          p0 = data[0];
-        }
-
-        return p0 ? (p0.description ? `${p0.title} — ${p0.description}` : `${p0.title}`) : "";
-      } catch(e){
-        console.warn(e);
-        return "";
-      }
+    const sorted = [...data].sort((a,b)=> (Number(a.sort_order||0) - Number(b.sort_order||0)));
+    const p0 = sorted[0] || data[0];
+    if (!p0) return "";
+    return p0.description ? `${p0.title} — ${p0.description}` : `${p0.title}`;
+  } catch(e){
+    console.warn(e);
+    return "";
+  }
+}
     }
 
     async function init(){
@@ -262,23 +248,27 @@
 
       const { data: s, error: se } = await supabase
         .from("songs")
-        .select("id,album_id,artist_id,title,track_no,keywords,scripture,suno_prompt,lyrics")
+        .select("id,album_id,title,track_no,keywords,scripture,suno_prompt,lyrics")
         .eq("id", songId)
         .single();
       if (se) { toast(se.message, false); return; }
       song = s;
+
+      // Ensure albumId matches the song
+      albumId = song.album_id;
 
       const { data: a, error: ae } = await supabase
         .from("albums")
         .select("id,title,artist_id,status")
         .eq("id", albumId)
         .single();
-      if (!ae) album = a;
+      if (ae) { toast(ae.message, false); return; }
+      album = a;
 
       const { data: ar, error: are } = await supabase
         .from("artists")
         .select("id,name,default_lane,default_perso,main_genre,secondary_genre,voice_identity,must_include,never_include,suno_voice_anchor")
-        .eq("id", song.artist_id)
+        .eq("id", album.artist_id)
         .single();
       if (are) { toast(are.message, false); return; }
       artist = ar;
