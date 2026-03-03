@@ -172,8 +172,7 @@ formatTracksForPrompt(songs),
 `- PLAYLIST_DESCRIPTION: a full YouTube-ready description (8–14 short lines), emoji-friendly, describes mood + style, and naturally mentions 3–6 track titles.`,
 `- HASHTAGS: 8–15 hashtags in ONE line, ready to copy/paste, total under 500 characters, include genre/lane + key themes from Suno prompts.`,
 `- Do NOT output tags in comma-separated format—hashtags only.`
-      ].join("
-");
+      ].join("\n");
 
       $("out").value = prompt;
       $("status").textContent = "Built ✅";
