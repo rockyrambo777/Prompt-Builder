@@ -273,21 +273,9 @@
           <div class="divider"></div>
 
           <label for="working_results">
-      <div class="card" id="ytPackagingCard" style="margin-top:14px;">
-        <h2 style="margin:0 0 10px;">YouTube Packaging</h2>
-
-        <div class="grid">
-          <div>
-            <label for="pkg_mode">Mode</label>
-            <select id="pkg_mode">
-              <option value="long" selected>YouTube Long (Full video)</option>
-              <option value="short">Shorts / TikTok (Shorts only)</option>
-            </select>
-          </div>
-          <div>
+<div>
             <label>Options</label>
             <div class="checkRow" style="margin-top:10px;">
-              <label><input id="pkg_useArtistImg" type="checkbox" checked> Include artist image (thumbnail prompt)</label>
             </div>
             <div class="hint">Shorts do not have thumbnails (checkbox is ignored in Shorts mode).</div>
           </div>
@@ -296,12 +284,8 @@
         <div class="divider"></div>
 
         <div class="row" style="justify-content:flex-end; gap:10px; flex-wrap:wrap;">
-          <button id="btnPkgBuild" type="button" class="btn primary">Build Packaging</button>
-          <button id="btnPkgCreate" type="button" class="btn secondary">Create (Copy + Open ChatGPT)</button>
         </div>
 
-        <label for="pkg_out" style="margin-top:10px;">Packaging Prompt Output (Copy/paste to ChatGPT)</label>
-        <textarea id="pkg_out" class="mono" style="min-height:220px;" placeholder="Click Build Packaging…"></textarea>
       </div>
 
         <h3>Working Results (paste from ChatGPT) — NOT SAVED</label>
@@ -513,148 +497,6 @@
       }
     };
 
-    // ---------- Added: YouTube Packaging prompt builder ----------
-    let playlistsText = "";
-
-    async function loadPlaylistsForArtist(artistId){
-      try{
-        let { data, error } = await supabase
-          .from("artist_playlists")
-          .select("title,description,sort_order")
-          .eq("artist_id", artistId);
-        if (error){
-          const fb = await supabase
-            .from("artist_playlists")
-            .select("title,description")
-            .eq("artist_id", artistId);
-          data = fb.data;
-          error = fb.error;
-        }
-        if (error || !data || !data.length) return "";
-        const hasSort = Object.prototype.hasOwnProperty.call(data[0], "sort_order");
-        const sorted = hasSort ? [...data].sort((a,b)=>(Number(a.sort_order||0)-Number(b.sort_order||0))) : [...data];
-        return sorted.map((p,i)=>{
-          const title = (p.title || "").toString().trim() || "(untitled playlist)";
-          const desc = (p.description || "").toString().trim();
-          return desc ? `${i+1}. ${title} — ${desc}` : `${i+1}. ${title}`;
-        }).join("\n");
-      }catch(e){
-        return "";
-      }
-    }
-
-    async function safeCopy(text){
-      const t = (text || "").toString();
-      try{
-        if (navigator.clipboard && window.isSecureContext){
-          await navigator.clipboard.writeText(t);
-          return true;
-        }
-      }catch(e){}
-      try{
-        const ta = document.createElement("textarea");
-        ta.value = t;
-        ta.setAttribute("readonly","");
-        ta.style.position = "fixed";
-        ta.style.left = "-9999px";
-        ta.style.top = "0";
-        document.body.appendChild(ta);
-        ta.focus(); ta.select();
-        const ok = document.execCommand("copy");
-        document.body.removeChild(ta);
-        return ok;
-      }catch(e){ return false; }
-    }
-
-    function openChatGPTTab(){
-      try{ return window.open("https://chat.openai.com/","_blank","noopener,noreferrer"); }
-      catch(e){ return null; }
-    }
-
-    function buildPackagingPrompt(){
-      const mode = $("pkg_mode")?.value || "long";
-      const includeImg = !!$("pkg_useArtistImg")?.checked;
-
-      const artistBlock =
-`ARTIST
-- name: ${artist?.name || "(unknown)"}
-- lane: ${artist?.default_lane || "(none)"}
-- persona/voice identity: ${artist?.voice_identity || artist?.default_perso || "(none)"}
-- main genre: ${artist?.main_genre || "(none)"}
-- secondary genre: ${artist?.secondary_genre || "(none)"}
-- must include: ${artist?.must_include || "(none)"}
-- never include: ${artist?.never_include || "(none)"}
-- suno voice anchor: ${artist?.suno_voice_anchor || "(none)"}`;
-
-      const songBlock =
-`SONG
-- title: ${currentSong?.title || $("title")?.value || ""}
-- keywords: ${$("keywords")?.value || ""}
-- scripture: ${$("scripture")?.value || "(optional)"}
-- suno prompt: ${$("suno_prompt")?.value || ""}`;
-
-      const playlistsBlock = playlistsText
-? `DEFAULT PLAYLISTS (artist)
-${playlistsText}
-
-In your response, recommend the best-fitting artist default playlist(s) for this song (pick 1–3). If none fit, recommend "Album playlist".`
-: `DEFAULT PLAYLISTS
-None found. In your response, recommend whether this song belongs in "Album playlist" or a new mood playlist.`;
-
-      const thumbRule = includeImg
-        ? "Thumbnail prompt MUST include the artist image (or artist reference)."
-        : "Thumbnail prompt must NOT include the artist image.";
-
-      const returnFields = mode==="short"
-        ? `RETURN ONLY these sections (no extra talk):
-PLAYLIST_RECOMMENDATION (pick 1–3 playlists or 'Album playlist'):
-SHORTS_TITLE:
-SHORTS_DESCRIPTION_WITH_HASHTAGS:
-PINNED_COMMENT:
-TIKTOK_DESCRIPTION_WITH_HASHTAGS:`
-        : `RETURN ONLY these sections (no extra talk):
-PLAYLIST_RECOMMENDATION (pick 1–3 playlists or 'Album playlist'):
-YOUTUBE_TITLE:
-YOUTUBE_DESCRIPTION_WITH_HASHTAGS:
-PINNED_COMMENT:
-THUMBNAIL_PROMPT_1280x720:`;
-
-      return `You are helping me package a SINGLE ${mode==="short" ? "Shorts/TikTok post" : "YouTube long-form video"} for my music channel.
-
-${artistBlock}
-
-${songBlock}
-
-LYRICS (paste as-is):
-${$("lyrics")?.value || "(no lyrics found)"}
-
-${playlistsBlock}
-
-${returnFields}
-
-${thumbRule}
-`;
-    }
-
-    function bindPackagingButtons(){
-      const b1 = $("btnPkgBuild");
-      if (b1) b1.onclick = (e)=>{
-        e.preventDefault();
-        $("pkg_out").value = buildPackagingPrompt();
-        toast("Packaging prompt built ✅", true);
-      };
-      const b2 = $("btnPkgCreate");
-      if (b2) b2.onclick = async (e)=>{
-        e.preventDefault();
-        const w = openChatGPTTab();
-        const txt = buildPackagingPrompt();
-        $("pkg_out").value = txt;
-        const ok = await safeCopy(txt);
-        toast(ok ? "Copied ✅ Paste into ChatGPT" : "Copy failed ❌", ok);
-        if (!w) toast("Popup blocked — allow popups for this site.", false);
-      };
-    }
-
     // Save & Close
     const __saveBtn = $("btnSaveSong");
     if (__saveBtn){
@@ -664,9 +506,6 @@ ${thumbRule}
         if (ok !== false) goBackToAlbum();
       };
     }
-
-
-    // Load playlists + bind packaging
     if (artist?.id) playlistsText = await loadPlaylistsForArtist(artist.id);
     bindPackagingButtons();
 
