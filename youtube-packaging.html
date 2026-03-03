@@ -58,7 +58,12 @@
     .item.active{ background:#142042; }
     .itemTop{ display:flex; justify-content:space-between; gap:10px; align-items:center; }
     .itemTitle{ font-weight:900; }
-  </style>
+  
+    .toast{position:fixed;right:16px;bottom:16px;z-index:999;background:rgba(0,0,0,.75);
+      border:1px solid #2a3a5c;color:var(--text);padding:10px 12px;border-radius:12px;display:none;
+      max-width:min(520px,calc(100vw - 32px));}
+    .toast.ok{border-color:rgba(124,255,178,.45)} .toast.bad{border-color:rgba(209,75,75,.55)}
+</style>
 </head>
 <body>
   <div class="wrap">
@@ -80,10 +85,7 @@
           <div id="statusLine" class="muted">Loading…</div>
           <div class="chips" id="chips"></div>
         </div>
-        <div class="row">
-          <button id="btnCopyOutput" class="btn copy">Copy Output</button>
-          <button id="btnBuild" class="btn primary">Build Prompt</button>
-        </div>
+        <div class="row"></div>
       </div>
 
       <div class="divider"></div>
@@ -116,12 +118,15 @@
       </div>
 
       <div class="card">
-        <h2 style="margin:0 0 10px;">Prompt Output (copy/paste to ChatGPT)</h2>
-        <textarea id="output" class="mono" placeholder="Select a song then click Build Prompt…"></textarea>
-        <div class="row" style="margin-top:10px;">
-          <button id="btnClear" class="btn">Clear</button>
-          <button id="btnCopy" class="btn copy">Copy</button>
+        <div class="row" style="justify-content:space-between;align-items:center;margin:0 0 10px;">
+          <h2 style="margin:0;">Prompt Output (copy/paste to ChatGPT)</h2>
+          <div class="row">
+            <button id="btnGenerate" class="btn primary">Generate</button>
+            <button id="btnCreate" class="btn copy">Create (Copy + Open ChatGPT)</button>
+          </div>
         </div>
+        <textarea id="output" class="mono" placeholder="Select a song then click Build Prompt…"></textarea>
+        
 
         <div class="divider"></div>
 
@@ -135,6 +140,8 @@
       </div>
     </div>
   </div>
+
+  <div id="toast" class="toast"></div>
 
   <script type="module">
     import { supabase, requireSessionOrRedirect } from "./app.js";
@@ -157,7 +164,42 @@
     function trimOrNone(v){ const t = safe(v).trim(); return t ? t : "(none)"; }
 
     
-    async function loadArtistPlaylists(artistId){
+    
+    function showToast(msg, ok=true){
+      const t = document.getElementById("toast");
+      if (!t) return;
+      t.textContent = msg;
+      t.className = "toast " + (ok ? "ok" : "bad");
+      t.style.display = "block";
+      setTimeout(() => (t.style.display = "none"), 2600);
+    }
+
+    async function safeCopy(text){
+      const t = (text || "").toString();
+      try{
+        if (navigator.clipboard && window.isSecureContext){
+          await navigator.clipboard.writeText(t);
+          return true;
+        }
+      } catch(e){}
+      try{
+        const ta = document.createElement("textarea");
+        ta.value = t;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        ta.style.top = "0";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        const ok = document.execCommand("copy");
+        document.body.removeChild(ta);
+        return ok;
+      } catch(e){
+        return false;
+      }
+    }
+async function loadArtistPlaylists(artistId){
       // Returns a formatted multi-line list of playlists for this artist.
       // We avoid server-side ordering (can 400 if column not exposed) and sort client-side when possible.
       try{
@@ -457,16 +499,23 @@ Artist info:`);
     }
 
     $("mode").onchange = loadList;
-    $("btnBuild").onclick = buildPrompt;
+    $("btnGenerate").onclick = buildPrompt;
 
-    $("btnClear").onclick = () => $("output").value = "";
-    $("btnCopy").onclick = async () => {
-      const t = $("output").value || "";
-      if (!t.trim()) return alert("Nothing to copy.");
-      await navigator.clipboard.writeText(t);
-      $("statusLine").textContent = "Output copied ✅";
+    $("btnCreate").onclick = async () => {
+      // Ensure prompt exists
+      if (!selected){
+        alert("Select a song first.");
+        return;
+      }
+      if (!($("output").value || "").trim()) buildPrompt();
+      const txt = $("output").value || "";
+      if (!txt.trim()) { showToast("Nothing to copy.", false); return; }
+      const ok = await safeCopy(txt);
+      if (!ok){ showToast("Copy failed ❌", false); return; }
+      $("statusLine").textContent = "Prompt copied ✅ — Opening ChatGPT…";
+      showToast("Prompt copied ✅ — Paste into ChatGPT now. Opening ChatGPT…", true);
+      setTimeout(()=>{ window.open("https://chat.openai.com/", "_blank"); }, 400);
     };
-    $("btnCopyOutput").onclick = $("btnCopy").onclick;
 
     $("btnCopyWorking").onclick = async () => {
       const t = $("working_results").value || "";
