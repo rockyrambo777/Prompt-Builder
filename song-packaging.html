@@ -327,11 +327,13 @@
       chips.push(`artist: ${artist?.name || ""}`);
       chips.push(`song: #? ${song.title || ""}`);
       chips.push(`mode: ${$("mode").value}`);
-      $("metaChips").innerHTML = chips.map(c=>`<span class="chip">${c}</span>`).join("");
+      $("metaChips").innerHTML = chips.map(c=>`<span class="chip">${c}</span>`).join("
+");
 
       $("mode").addEventListener("change", ()=>{
         const mode = $("mode").value;
-        $("metaChips").innerHTML = chips.slice(0,3).concat([`mode: ${mode}`]).map(c=>`<span class="chip">${c}</span>`).join("");
+        $("metaChips").innerHTML = chips.slice(0,3).concat([`mode: ${mode}`]).map(c=>`<span class="chip">${c}</span>`).join("
+");
       });
 
       $("btnBuild").onclick = rebuild;
