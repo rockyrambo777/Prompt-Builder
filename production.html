@@ -95,8 +95,8 @@
 
       <div class="grid">
         <div>
-          <label for="songSelect">Song</label>
-          <select id="songSelect"></select>
+          <label>Song</label>
+          <div id="songDisplay" style="width:100%;padding:12px 14px;border-radius:12px;border:1px solid #2a3a5c;background:rgba(255,255,255,0.03);color:#eaf1ff;">Loading…</div>
           <div class="hint">Tip: open a specific song directly with <span class="mono">production.html?album_id=…&song_id=…</span></div>
         </div>
 
@@ -505,35 +505,28 @@
     }
 
     function buildSongSelect(){
-      const sel = $("songSelect");
-      sel.innerHTML = "";
+      // Dropdown removed: we always show the currently loaded song.
       if (!songs.length) {
-        const opt = document.createElement("option");
-        opt.value = "";
-        opt.textContent = "(No songs found)";
-        sel.appendChild(opt);
         currentSong = null;
+        const sd = $("songDisplay");
+        if (sd) sd.textContent = "(No songs found)";
         $("statusLine").textContent = "No songs in this album yet.";
         return;
       }
-      for (const s of songs){
-        const opt = document.createElement("option");
-        opt.value = s.id;
-        const t = s.track_number ? `#${s.track_number} ` : "";
-        const legacy = s.is_legacy_published ? " (legacy)" : "";
-        opt.textContent = `${t}${s.title || "(untitled)"}${legacy}`;
-        sel.appendChild(opt);
-      }
-      if (songs.length){
-        const chosen = (song_id_param && songs.find(x => String(x.id) === String(song_id_param)))
-          ? song_id_param
-          : songs[0].id;
-        sel.value = chosen;
-        selectSong(chosen);
-      } else {
-        currentSong = null;
-        $("statusLine").textContent = "No songs in this album yet.";
-      }
+
+      // Pick song from URL (?song_id=) or default to first track (sorted by track_no then title).
+      const p = new URLSearchParams(window.location.search);
+      const sid = p.get("song_id");
+
+      const sorted = [...songs].sort((a,b)=>{
+        const ta = (a.track_no ?? a.track ?? a.trackNumber ?? 999999);
+        const tb = (b.track_no ?? b.track ?? b.trackNumber ?? 999999);
+        if (ta !== tb) return ta - tb;
+        return String(a.title||"").localeCompare(String(b.title||""));
+      });
+
+      currentSong = sorted.find(x => String(x.id) === String(sid)) || sorted[0];
+      selectSong(currentSong.id);
     }
 
     function fillSongForm(s){
@@ -576,7 +569,18 @@
     function selectSong(songId){
       const s = songs.find(x => String(x.id) === String(songId));
       if (!s) return;
+      currentSong = s;
+
+      // Update read-only song header (no dropdown).
+      const sd = $("songDisplay");
+      if (sd) {
+        const tn = (s.track_no ?? s.track ?? s.trackNumber ?? "");
+        const prefix = tn !== "" && tn != null ? `#${tn} ` : "";
+        sd.textContent = `${prefix}${s.title || "(Untitled song)"}`;
+      }
+
       fillSongForm(s);
+
       const p = new URLSearchParams(window.location.search);
       p.set("song_id", s.id);
       history.replaceState({}, "", `${location.pathname}?${p.toString()}`);
@@ -658,7 +662,6 @@
     });
 
     await loadData();
-      $("songSelect").value = currentSong.id;
       selectSong(currentSong.id);
       closeMetaModal();
     }
@@ -1187,9 +1190,6 @@ UPDATED_LYRICS:
     if (__el_metaBack) __el_metaBack.onclick = (e) => { if (e.target === __el_metaBack) closeMetaModal(); };
     const __el_btnMetaSave = $("btnMetaSave");
     if (__el_btnMetaSave) __el_btnMetaSave.onclick = saveMeta;
-
-    const _ss = $("songSelect");
-    if (_ss) _ss.onchange = (e) => selectSong(e.target.value);
     const __el_editToggle = $("editSongToggle");
     if (__el_editToggle) __el_editToggle.onchange = () => setEditMode();
 
