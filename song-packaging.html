@@ -126,13 +126,7 @@
   <div id="toast" class="toast"></div>
 
   <script type="module">
-    import { requireSessionOrRedirect, supabase } from "./app.js";
-
-    const readId = (v) => {
-      if (!v) return null;
-      const id = String(v).trim();
-      return id.length ? id : null;
-    };
+    import { requireSessionOrRedirect, readId, supabase } from "./app.js";
 
     const $ = (id) => document.getElementById(id);
 
@@ -200,36 +194,21 @@
     }
 
     async function loadPlaylistsForArtist(artistId){
-  // Loads ONE default playlist for the artist (the first by sort_order, if available).
-  // Uses client-side sorting to avoid PostgREST 400s when ordering/columns differ.
-  try{
-    // Try with sort_order first
-    let { data, error } = await supabase
-      .from("artist_playlists")
-      .select("title,description,sort_order")
-      .eq("artist_id", artistId);
+      try{
+        const { data, error } = await supabase
+          .from("artist_playlists")
+          .select("title,description,sort_order")
+          .eq("artist_id", artistId)
+          .order("sort_order", { ascending: true });
 
-    // If sort_order column isn't available in this schema/view, retry without it
-    if (error && (String(error.message || "").toLowerCase().includes("sort_order") || String(error.code||"") === "PGRST204")) {
-      ({ data, error } = await supabase
-        .from("artist_playlists")
-        .select("title,description")
-        .eq("artist_id", artistId));
+        if (error) { console.warn("playlist load", error.message); return ""; }
+        if (!data || !data.length) return "";
+        return data.map((p,i)=>`${i+1}. ${p.title}${p.description ? ` — ${p.description}` : ""}`).join("\n");
+      } catch(e){
+        console.warn(e);
+        return "";
+      }
     }
-
-    if (error) { console.warn("playlist load", error.message); return ""; }
-    if (!data || !data.length) return "";
-
-    const sorted = [...data].sort((a,b)=> (Number(a.sort_order||0) - Number(b.sort_order||0)));
-    const p0 = sorted[0] || data[0];
-    if (!p0) return "";
-    return p0.description ? `${p0.title} — ${p0.description}` : `${p0.title}`;
-  } catch(e){
-    console.warn(e);
-    return "";
-  }
-}
-    
 
     async function init(){
       const session = await requireSessionOrRedirect();
