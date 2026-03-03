@@ -159,6 +159,7 @@
         <button class="btn secondary" id="btnAddPlaylist" type="button">Add playlist</button>
       </div>
       <div class="hint">Add one or more playlists the artist commonly uses. Packaging prompts will include these so ChatGPT can suggest the best playlist for each upload.</div>
+      <div id="playlistErr" class="hint" style="display:none;color:var(--warn);margin-top:10px;"></div>
       <div id="playlistsWrap" style="display:flex;flex-direction:column;gap:10px;margin-top:10px;"></div>
     </div>
 
@@ -266,19 +267,19 @@
         const { data, error } = await supabase
           .from("artist_playlists")
           .select("id,title,description,sort_order")
-          .eq("artist_id", artistId)
-          .order("sort_order", { ascending: true });
+          .eq("artist_id", artistId); // order client-side to avoid 400 if column missing
 
         if (error) {
           // Most common cause: table/columns not created yet
           console.error("artist_playlists load error:", error);
-          showErr("Playlist table not available yet. Run sql_artist_playlists.sql in Supabase, then refresh.");
+          showErr(`Could not load playlists (${error.message}). Ensure table public.artist_playlists exists, has columns (title, description, sort_order, artist_id), and your RLS/permissions allow SELECT.`);
           _playlists = [];
           renderPlaylists();
           return;
         }
 
-        _playlists = (data || []).map((r) => ({
+        const rows = (data || []).slice().sort((a,b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+        _playlists = rows.map((r) => ({
           id: r.id,
           title: r.title || "",
           description: r.description || "",
