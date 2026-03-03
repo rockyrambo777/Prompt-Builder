@@ -1355,11 +1355,9 @@ UPDATED_LYRICS:
       el.addEventListener("change", updateMetaKPIs);
     });
 
-    await loadData();
-  
     window.addEventListener("DOMContentLoaded", async () => {
       // Load album/song data
-      await loadData();
+
       // Save & Close
       const b = $("btnSaveSong");
       if (b){
