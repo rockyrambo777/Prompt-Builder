@@ -58,9 +58,14 @@
     .modalClose{background:transparent;border:1px solid #2a3a5c;border-radius:12px;color:var(--text);padding:8px 10px;cursor:pointer;font-weight:800;}
     .kpi{display:flex;gap:8px;flex-wrap:wrap;}
     .kpi .pill{font-weight:800}
+
+    .toast{position:fixed;right:16px;bottom:16px;z-index:99999;background:rgba(0,0,0,.75);
+      border:1px solid #2a3a5c;color:var(--text);padding:10px 12px;border-radius:12px;display:none;
+      max-width:min(520px,calc(100vw - 32px));}
 </style>
 </head>
 <body>
+  <div id="toast" class="toast"></div>
   <div class="wrap">
     <div class="top">
       <div>
@@ -392,6 +397,15 @@
     import { supabase, requireSessionOrRedirect } from "./app.js";
     const $ = (id) => document.getElementById(id);
 
+    function showToast(message){
+      const t = $("toast");
+      if (!t) return;
+      t.textContent = message;
+      t.style.display = "block";
+      setTimeout(()=>t.style.display="none", 2600);
+    }
+
+
     const session = await requireSessionOrRedirect();
     $("who").textContent = `Signed in: ${session.user.email}`;
 
@@ -631,18 +645,6 @@
       if (!up.ok){ $("metaStatus").textContent = "Error: " + up.error; return; }
 
       $("metaStatus").textContent = "Saved ✅";
-  
-    // Meta KPI live updates
-    ["meta_youtube_published","meta_youtube_url","meta_youtube_published_at",
-     "meta_ditto_released","meta_ditto_url","meta_ditto_release_date",
-     "meta_bandcamp_released","meta_bandcamp_track_url","meta_bandcamp_release_date"
-    ].forEach(id=>{
-      const el = $(id);
-      if (!el) return;
-      el.addEventListener("input", updateMetaKPIs);
-      el.addEventListener("change", updateMetaKPIs);
-    });
-
     await loadData();
       $("songSelect").value = currentSong.id;
       selectSong(currentSong.id);
@@ -664,8 +666,8 @@
         tempo_direction: $("tempo_direction").value || null,
         energy_direction: $("energy_direction").value || null,
         instrumentation_notes: $("instrumentation_notes").value.trim() || null,
-        edit_notes: $("edit_notes").value || null,        is_
-      };
+        edit_notes: $("edit_notes").value || null,
+};
 
       async function updateWithFallback(obj){
         let working = { ...obj };
@@ -685,18 +687,6 @@
       if (!up.ok) { $("statusLine").textContent = "Error: " + up.error; return; }
 
       $("statusLine").textContent = "Saved ✅";
-  
-    // Meta KPI live updates
-    ["meta_youtube_published","meta_youtube_url","meta_youtube_published_at",
-     "meta_ditto_released","meta_ditto_url","meta_ditto_release_date",
-     "meta_bandcamp_released","meta_bandcamp_track_url","meta_bandcamp_release_date"
-    ].forEach(id=>{
-      const el = $(id);
-      if (!el) return;
-      el.addEventListener("input", updateMetaKPIs);
-      el.addEventListener("change", updateMetaKPIs);
-    });
-
     await loadData();
     }
 
@@ -845,14 +835,8 @@ ${buildSongContextBlock()}
       // Save only when editing
             const __el_btnSaveSong2 = $("btnSaveSong");
       if (__el_btnSaveSong2) __el_btnSaveSong2.disabled = !on;
-
-      // Build Song Edit prompt only when editing      const __el_btnBuildSongEdit = $("btnBuildSongEdit");
-      if (__el_btnBuildSongEdit) __el_btnBuildSongEdit.disabled = !on;
-      const __el_btnCopySongEdit = $("btnCopySongEdit");
-      if (__el_btnCopySongEdit) __el_btnCopySongEdit.disabled = !on;
-      const __el_btnClearSongEdit = $("btnClearSongEdit");
-      if (__el_btnClearSongEdit) __el_btnClearSongEdit.disabled = !on;
 }
+
 
     const _tgl = $("editSongToggle");
     if (_tgl) _tgl.onchange = setEditMode;
@@ -1116,36 +1100,48 @@ UPDATED_LYRICS:
       if (out) out.value = prompt;
       $("statusLine").textContent = "Edit prompt built ✅";
     };
-
     const __el_btnCopyEditPrompt = $("btnCopyEditPrompt");
     if (__el_btnCopyEditPrompt) __el_btnCopyEditPrompt.onclick = async () => {
       const t = $("edit_prompt_out")?.value || "";
       if (!t.trim()) return alert("Nothing to copy.");
-      
-      try {
-        await navigator.clipboard.writeText(t);
-      } catch(e){
-        const ta = document.createElement("textarea");
-        ta.value = t;
-        ta.style.position = "fixed";
-        ta.style.left = "-9999px";
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand("copy");
-        document.body.removeChild(ta);
+
+      // Copy with fallback
+      let copied = false;
+      try{
+        if (navigator.clipboard && window.isSecureContext){
+          await navigator.clipboard.writeText(t);
+          copied = true;
+        }
+      }catch(e){}
+      if (!copied){
+        try{
+          const ta = document.createElement("textarea");
+          ta.value = t;
+          ta.setAttribute("readonly","");
+          ta.style.position = "fixed";
+          ta.style.left = "-9999px";
+          ta.style.top = "0";
+          document.body.appendChild(ta);
+          ta.focus();
+          ta.select();
+          copied = document.execCommand("copy");
+          document.body.removeChild(ta);
+        }catch(e){}
       }
+
+      if (!copied) return alert("Copy failed. Please select and copy manually.");
 
       const msg = "Edit prompt copied ✅ — Paste into ChatGPT now. Opening ChatGPT…";
       $("statusLine").textContent = msg.replace("…","...");
-      showToast(msg);
+      if (typeof showToast === "function") showToast(msg);
 
       const w = window.open("https://chat.openai.com/", "_blank", "noopener,noreferrer");
-      if (!w) {
-        // Popup blocked
-        showToast("Popup blocked ❌ Allow popups, then click again. Or use this link: chat.openai.com");
+      if (!w && typeof showToast === "function") {
+        showToast("Popup blocked ❌ Allow popups for this site, then click again.");
       }
-};
-    if (__el_btnCopyEditPrompt) __el_btnCopyEditPrompt.onclick = async () => {
+    };
+
+if (__el_btnCopyEditPrompt) __el_btnCopyEditPrompt.onclick = async () => {
       const t = $("edit_prompt_out")?.value || "";
       if (!t.trim()) return alert("Nothing to copy.");
       await navigator.clipboard.writeText(t);
