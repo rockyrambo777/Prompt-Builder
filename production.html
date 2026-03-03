@@ -1218,52 +1218,48 @@ UPDATED_LYRICS:
 
     await loadData();
   
-    // --- Added: Save & Go Back redirect + Packaging button (safe vars) ---
-    (function(){
-      // use unique variable names to avoid collisions with existing code
-      const __pkg_params = new URLSearchParams(window.location.search);
-      const __pkg_album_id = __pkg_params.get("album_id");
-      const __pkg_song_id  = __pkg_params.get("song_id");
+// --- Save & Go Back + Packaging (clean override) ---
+(function(){
+  const __params = new URLSearchParams(window.location.search);
+  const __album_id = __params.get("album_id");
+  const __song_id  = __params.get("song_id");
 
-      // Save & Go Back: do NOT redeclare/override core save logic; just wrap button click
-      const __saveBtn = document.getElementById("btnSaveSong");
-      if (__saveBtn){
-        __saveBtn.addEventListener("click", async (e)=>{
-          // allow existing handlers to run first if any; but ensure we go back after successful save
-          // we detect success by waiting a tick and checking if saveSong exists
-          try{
-            if (typeof saveSong === "function"){
-              // prevent default so we control flow
-              e.preventDefault();
-              const ok = await saveSong();
-              if (ok !== false){
-                if (__pkg_album_id) window.location.href = `./album-edit.html?id=${encodeURIComponent(__pkg_album_id)}`;
-                else window.history.back();
-              }
+  // FORCE override save button
+  const saveBtn = document.getElementById("btnSaveSong");
+  if (saveBtn){
+    saveBtn.onclick = async function(e){
+      e.preventDefault();
+      try{
+        if (typeof saveSong === "function"){
+          const ok = await saveSong();
+          if (ok !== false){
+            if (__album_id){
+              window.location.href = "./album-edit.html?id=" + encodeURIComponent(__album_id);
+            } else {
+              window.location.href = "./album-edit.html";
             }
-          }catch(err){
-            console.error(err);
           }
-        }, { capture: true });
+        }
+      }catch(err){
+        console.error(err);
       }
+    };
+  }
 
-      // Song Packaging button
-      const __pkgBtn = document.getElementById("btnPackaging");
-      if (__pkgBtn){
-        __pkgBtn.addEventListener("click", (e)=>{
-          e.preventDefault();
-          if (__pkg_album_id && __pkg_song_id){
-            window.location.href = `./song-packaging.html?album_id=${encodeURIComponent(__pkg_album_id)}&song_id=${encodeURIComponent(__pkg_song_id)}`;
-          }else if (__pkg_song_id){
-            window.location.href = `./song-packaging.html?song_id=${encodeURIComponent(__pkg_song_id)}`;
-          }else if (__pkg_album_id){
-            window.location.href = `./song-packaging.html?album_id=${encodeURIComponent(__pkg_album_id)}`;
-          }else{
-            window.location.href = `./song-packaging.html`;
-          }
-        });
+  // Packaging button
+  const pkgBtn = document.getElementById("btnPackaging");
+  if (pkgBtn){
+    pkgBtn.onclick = function(e){
+      e.preventDefault();
+      if (__album_id && __song_id){
+        window.location.href = "./song-packaging.html?album_id=" 
+          + encodeURIComponent(__album_id) 
+          + "&song_id=" 
+          + encodeURIComponent(__song_id);
       }
-    })();
+    };
+  }
+})();
 
 </script>
 </body>
