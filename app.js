@@ -19,6 +19,11 @@ export async function redirectIfLoggedIn() {
   return session;
 }
 
+export function readId(v) {
+  if (!v) return null;
+  const id = String(v).trim();
+  return id.length ? id : null;
+}
 
 export async function logout() {
   await supabase.auth.signOut();
