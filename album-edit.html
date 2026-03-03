@@ -143,8 +143,8 @@
             <th class="mini">Keywords</th>
             <th class="mini scriptureCol">Scripture</th>
             <th class="tiny">Lyrics ✅</th>
-            <th class="tiny">Long ✅</th>
-            <th class="tiny">Short ✅</th>
+            <th class="tiny">YouTube ✅</th>
+            <th class="tiny">Ditto ✅</th>
             <th class="tiny">Links 🔗</th>
             <th class="mini">Actions</th>
           </tr>
@@ -263,14 +263,14 @@ function safeText(v){ return (v === null || v === undefined) ? "" : String(v); }
         const ytDisabled = ytUrl ? "" : "aria-disabled='true'";
 
         tr.innerHTML = `
-          <td class="tiny"><b>${s.track_number}</b></td>
+          <td class="tiny" data-open-production style="cursor:pointer;"><b>${s.track_number}</b></td>
           <td><input data-title value="${escAttr(s.title)}"></td>
           <td><textarea data-suno class="mono" style="min-height:90px;">${safeText(s.suno_prompt || "")}</textarea></td>
           <td><input data-keywords value="${escAttr(s.keywords)}" placeholder="optional"></td>
           <td class="scriptureCol"><input data-scripture value="${escAttr(s.scripture)}" placeholder="optional"></td>
           <td class="checkCell"><input type="checkbox" data-lyrics-done ${checked} disabled></td>
-          <td class="checkCell"><input type="checkbox" data-long_done ${s.longform_done ? "checked" : ""}></td>
-          <td class="checkCell"><input type="checkbox" data-short_done ${s.short_done ? "checked" : ""}></td>
+          <td class="checkCell"><input type="checkbox" data-yt_done ${s.youtube_published ? "checked" : ""}></td>
+          <td class="checkCell"><input type="checkbox" data-ditto_done ${s.ditto_released ? "checked" : ""}></td>
           <td class="checkCell">
             <div class="row" style="gap:8px; justify-content:center;">
               <span class="linkIcon" data-suno_link ${linkDisabled} title="${url ? "Open Suno" : "No Suno link yet"}">🔗</span>
@@ -286,19 +286,23 @@ function safeText(v){ return (v === null || v === undefined) ? "" : String(v); }
         body.appendChild(tr);
 
         // Save flags to DB
-        const longCb = tr.querySelector("[data-long_done]");
-        const shortCb = tr.querySelector("[data-short_done]");
+        const ytCb = tr.querySelector("[data-yt_done]");
+        const dittoCb = tr.querySelector("[data-ditto_done]");
         const updateFlag = async (field, val) => {
           const sid = tr.dataset.songId;
           const { error } = await supabase.from(SONGS).update({ [field]: val }).eq("id", sid);
           if (error) alert("Save error: " + error.message);
         };
-        longCb && (longCb.onchange = () => updateFlag("longform_done", longCb.checked));
-        shortCb && (shortCb.onchange = () => updateFlag("short_done", shortCb.checked));
-
-        tr.querySelector("[data-lyrics]").onclick = () => {
-          window.location.href = `./production.html?id=${encodeURIComponent(s.id)}&album_id=${encodeURIComponent(id)}`;
+        ytCb && (ytCb.onchange = () => updateFlag("youtube_published", ytCb.checked));
+        dittoCb && (dittoCb.onchange = () => updateFlag("ditto_released", dittoCb.checked));
+tr.querySelector("[data-lyrics]").onclick = () => {
+          window.location.href = `./production.html?album_id=${encodeURIComponent(id)}&song_id=${encodeURIComponent(s.id)}`;
         };
+
+        const openCell = tr.querySelector("[data-open-production]");
+        openCell && (openCell.onclick = () => {
+          window.location.href = `./production.html?album_id=${encodeURIComponent(id)}&song_id=${encodeURIComponent(s.id)}`;
+        });
 
         tr.querySelector("[data-suno-pack]").onclick = () => {
           window.location.href = `./song-suno.html?id=${encodeURIComponent(s.id)}&album_id=${encodeURIComponent(id)}`;
