@@ -43,26 +43,12 @@
     </div>
 
     <div class="card">
-      <div class="muted">Creates a ChatGPT prompt to generate a YouTube playlist package for this album (title, description, tags). No data is saved.</div>
+      <div class="muted">Creates a ChatGPT prompt to generate a YouTube playlist package for this album (title, full description, hashtags). No data is saved.</div>
       <div class="chips" id="chips"></div>
     </div>
 
     <div class="card">
-      <div class="grid">
-        <div>
-          <label for="albumTheme">Album theme (optional)</label>
-          <input id="albumTheme" placeholder="e.g., Revival authority, healing, Christmas praise">
-        </div>
-        <div>
-          <label for="albumMood">Album mood (optional)</label>
-          <input id="albumMood" placeholder="e.g., Triumphant, tender, joyful">
-        </div>
-      </div>
-
-      <label for="notes">Notes (optional)</label>
-      <textarea id="notes" placeholder="Anything special for the playlist packaging"></textarea>
-
-      <div class="row" style="margin-top:12px;justify-content:space-between;">
+<div class="row" style="margin-top:12px;justify-content:space-between;">
         <div class="row">
           <button class="btn primary" id="btnBuild">Build ChatGPT Prompt</button>
           <button class="btn" id="btnCopy">Copy</button>
@@ -159,10 +145,6 @@
     }
 
     function buildPrompt(){
-      const theme = trimOrNone($("albumTheme").value);
-      const mood  = trimOrNone($("albumMood").value);
-      const notes = trimOrNone($("notes").value);
-
       const lane = trimOrNone(artist?.default_lane);
       const persona = trimOrNone(artist?.voice_identity || artist?.default_perso);
 
@@ -172,8 +154,7 @@
 `Return ONLY these sections (no extra talk):`,
 `PLAYLIST_TITLE:`,
 `PLAYLIST_DESCRIPTION:`,
-`PLAYLIST_TAGS (comma-separated, under 500 characters):`,
-`TRACK_DETAILS (bulleted summary of each track’s vibe + why it belongs):`,
+`HASHTAGS:`,
 ``,
 `Album info:`,
 `- Artist: ${trimOrNone(artist?.name)}`,
@@ -182,23 +163,22 @@
 `- Secondary Genre: ${trimOrNone(artist?.secondary_genre)}`,
 `- Lane: ${lane}`,
 `- Persona/Voice: ${persona}`,
-`- Theme: ${theme}`,
-`- Mood: ${mood}`,
-`- Notes: ${notes}`,
 ``,
 `ALBUM_TRACKS (use these to infer the playlist mood, style, and keywords):`,
 formatTracksForPrompt(songs),
 ``,
 `Rules:`,
-`- The PLAYLIST_TITLE must match the album’s lane/style and feel clickable but not spammy.`,
-`- PLAYLIST_DESCRIPTION must describe the overall mood/style of the album and mention 3–6 specific track titles naturally.`,
-`- TRACK_DETAILS: 1–2 bullets per track describing vibe, energy, and theme (use keywords + Suno prompt).`,
-`- Keep it consistent with the artist genres and persona.`
-      ].join("\n");
+`- PLAYLIST_TITLE: clickable and SEO-friendly, NOT spammy, matches the artist lane and album vibe.`,
+`- PLAYLIST_DESCRIPTION: a full YouTube-ready description (8–14 short lines), emoji-friendly, describes mood + style, and naturally mentions 3–6 track titles.`,
+`- HASHTAGS: 8–15 hashtags in ONE line, ready to copy/paste, total under 500 characters, include genre/lane + key themes from Suno prompts.`,
+`- Do NOT output tags in comma-separated format—hashtags only.`
+      ].join("
+");
 
       $("out").value = prompt;
       $("status").textContent = "Built ✅";
     }
+
 
     $("btnBuild").onclick = () => { try{ buildPrompt(); } catch(err){ console.error(err); alert(err.message || err); } };
     $("btnCopy").onclick  = async () => { await navigator.clipboard.writeText($("out").value); $("status").textContent="Copied ✅"; };
