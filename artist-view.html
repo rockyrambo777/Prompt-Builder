@@ -126,13 +126,6 @@
           <div class="v mono" id="sunoVoiceAnchor">—</div>
         </div>
       </div>
-
-      <div class="card" style="padding:14px; margin-top:12px;">
-        <div style="font-weight:900; margin-bottom:6px;">Default YouTube Playlists</div>
-        <div class="muted" id="plEnabledNote">—</div>
-        <div id="plList" style="margin-top:10px; display:flex; flex-direction:column; gap:10px;"></div>
-      </div>
-
       <div class="kv" style="margin-top:12px;">
         <div class="k">Copy/Paste Injection Block</div>
         <div class="v mono" id="dnaPreview">—</div>
@@ -265,36 +258,41 @@
       $("neverInclude").textContent = data.never_include ? data.never_include : "—";
       $("sunoVoiceAnchor").textContent = data.suno_voice_anchor ? data.suno_voice_anchor : "—";
 
+      // Default playlist (single)
+      const plEnabledPill = $("plEnabled");
+      const plTitle = $("plTitle");
+      const plDesc = $("plDesc");
 
-      // Default playlists
-      if (data.default_playlist_enabled){
-        $("plEnabledNote").textContent = "Enabled ✅ (used for packaging recommendations)";
+      if (!data.default_playlist_enabled){
+        plEnabledPill.textContent = "enabled: NO";
+        plEnabledPill.classList.remove("ok");
+        plEnabledPill.classList.add("warn");
+        plTitle.textContent = "title: —";
+        plDesc.textContent = "Default playlists are disabled for this artist.";
       } else {
-        $("plEnabledNote").textContent = "Disabled (album-based playlists)";
-      }
-      $("plList").innerHTML = "";
-      if (data.default_playlist_enabled){
+        plEnabledPill.textContent = "enabled: YES ✅";
+        plEnabledPill.classList.remove("warn");
+        plEnabledPill.classList.add("ok");
+
         const { data: pls, error: plErr } = await supabase
           .from("artist_playlists")
-          .select("title,description,sort_order")
-          .eq("artist_id", id)
-          .order("sort_order", { ascending: true });
+          .select("id,title,description,sort_order")
+          .eq("artist_id", id);
+
         if (plErr){
-          $("plList").innerHTML = `<div class="muted">Could not load playlists: ${safe(plErr.message)}</div>`;
+          plTitle.textContent = "title: —";
+          plDesc.textContent = "Could not load playlists: " + safe(plErr.message);
         } else if (!pls || !pls.length){
-          $("plList").innerHTML = `<div class="muted">No default playlists saved yet.</div>`;
+          plTitle.textContent = "title: —";
+          plDesc.textContent = "No default playlists saved yet.";
         } else {
-          for (const p of pls){
-            const div = document.createElement("div");
-            div.className = "card";
-            div.style.padding = "12px";
-            div.innerHTML = `<div style="font-weight:800;">${safe(p.title)}</div>` +
-                            (p.description ? `<div class="muted" style="margin-top:4px; white-space:pre-wrap;">${safe(p.description)}</div>` : "");
-            $("plList").appendChild(div);
-          }
+          // Sort client-side to avoid PostgREST 400 if sort_order isn't exposed
+          const sorted = [...pls].sort((a,b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+          const p = sorted[0]; // default = first by sort_order
+          plTitle.textContent = "title: " + safe(p.title);
+          plDesc.textContent = p.description ? String(p.description) : "—";
         }
       }
-
 
       const dna = [
         "=== ARTIST DNA ===",
