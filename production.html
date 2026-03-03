@@ -507,6 +507,7 @@
     function buildSongSelect(){
       const sel = $("songSelect");
       sel.innerHTML = "";
+
       if (!songs.length) {
         const opt = document.createElement("option");
         opt.value = "";
@@ -516,6 +517,48 @@
         $("statusLine").textContent = "No songs in this album yet.";
         return;
       }
+
+      for (const s of songs){
+        const opt = document.createElement("option");
+        opt.value = s.id;
+
+        const t = s.track_number ? `#${s.track_number} ` : "";
+        const legacy = s.is_legacy_published ? " (legacy)" : "";
+
+        // ✅ Require BOTH published checkbox + youtube link
+        const hasYouTube = !!(
+          s.youtube_published &&
+          s.youtube_url &&
+          String(s.youtube_url).trim().length > 0
+        );
+
+        const ytMark = hasYouTube ? "✅ " : "";
+
+        opt.textContent = `${ytMark}${t}${s.title || "(untitled)"}${legacy}`;
+
+        // Highlight green if done
+        if (hasYouTube) {
+          opt.style.backgroundColor = "#123a23"; // dark green
+          opt.style.color = "#7CFFB2";           // matches --ok
+          opt.style.fontWeight = "700";
+        }
+
+        sel.appendChild(opt);
+      }
+
+      if (songs.length){
+        const chosen = (song_id_param && songs.find(x => String(x.id) === String(song_id_param)))
+          ? song_id_param
+          : songs[0].id;
+
+        sel.value = chosen;
+        selectSong(chosen);
+      } else {
+        currentSong = null;
+        $("statusLine").textContent = "No songs in this album yet.";
+      }
+    }
+
       for (const s of songs){
         const opt = document.createElement("option");
         opt.value = s.id;
