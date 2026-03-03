@@ -47,29 +47,6 @@
     @media (max-width: 1100px){ .cols{ grid-template-columns: 1fr; } }
     .divider{ height:1px; background:#22304a; margin:14px 0; }
     .stickyBox{ position: sticky; top: 14px; }
-
-    .toast{
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      background:#16315f;
-      color:#fff;
-      padding:14px 18px;
-      border-radius:12px;
-      border:1px solid #2a3a5c;
-      box-shadow:0 10px 30px rgba(0,0,0,0.4);
-      font-weight:800;
-      z-index:9999;
-      opacity:0;
-      transform:translateY(10px);
-      transition:all 0.25s ease;
-      max-width: 420px;
-    }
-    .toast.show{
-      opacity:1;
-      transform:translateY(0);
-    }
-
   </style>
 </head>
 <body>
@@ -212,7 +189,7 @@
           <textarea id="edit_notes" class="mono" placeholder="What should change? Keep it short and clear."></textarea>
           <div class="row" style="justify-content:flex-end; margin-top:10px; gap:10px; flex-wrap:wrap;">
             <button id="btnBuildEditPrompt" class="btn primary">Build Song Edit Prompt</button>
-            <button id="btnCopyEditPrompt" class="btn secondary">Copy Edit Prompt</button>
+            <button id="btnCopyEditPrompt" class="btn secondary">Create (Copy + Open ChatGPT)</button>
           </div>
           <label for="edit_prompt_out" style="margin-top:10px;">Edit Prompt Output (Copy into ChatGPT)</label>
           <textarea id="edit_prompt_out" class="mono" style="min-height:150px;" placeholder="Click Build Song Edit Prompt…"></textarea>
@@ -308,42 +285,6 @@
   <script type="module">
     import { supabase, requireSessionOrRedirect } from "./app.js";
     const $ = (id) => document.getElementById(id);
-
-
-    function showToast(message){
-      const t = $("toast");
-      if (!t) return;
-      t.textContent = message;
-      t.classList.add("show");
-      clearTimeout(window.__toastTimer);
-      window.__toastTimer = setTimeout(() => t.classList.remove("show"), 3000);
-    }
-
-
-    async function safeCopyText(t){
-      const text = (t||\"\").toString();
-      try{
-        await navigator.clipboard.writeText(text);
-        return true;
-      }catch(e){
-        try{
-          const ta = document.createElement(\"textarea\");
-          ta.value = text;
-          ta.setAttribute(\"readonly\", \"\");
-          ta.style.position = \"fixed\";
-          ta.style.left = \"-9999px\";
-          ta.style.top = \"0\";
-          document.body.appendChild(ta);
-          ta.focus();
-          ta.select();
-          const ok = document.execCommand(\"copy\");
-          document.body.removeChild(ta);
-          return ok;
-        }catch(e2){
-          return false;
-        }
-      }
-    }
 
     const session = await requireSessionOrRedirect();
     $("who").textContent = `Signed in: ${session.user.email}`;
@@ -864,59 +805,8 @@ ${buildSongContextBlock()}
     if (__el_btnCopyOutput) __el_btnCopyOutput.onclick = async () => {
       const t = $("output").value || "";
       if (!t.trim()) return alert("Nothing to copy.");
-
-      // Copy (with a small fallback for stricter browsers)
-      const copyOk = async () => {
-        try {
-          await navigator.clipboard.writeText(t);
-          return true;
-        } catch (e) {
-          try {
-            const ta = document.createElement("textarea");
-            ta.value = t;
-            ta.setAttribute("readonly", "");
-            ta.style.position = "fixed";
-            ta.style.left = "-9999px";
-            document.body.appendChild(ta);
-            ta.select();
-            const ok = document.execCommand("copy");
-            document.body.removeChild(ta);
-            return ok;
-          } catch {
-            return false;
-          }
-        }
-      };
-
-      const ok = await copyOk();
-      if (!ok) return alert("Copy failed. Please select the text and copy manually.");
-
-      // Decide which tools to open based on mode
-      const mode = ($("video_mode")?.value || "").trim();
-      const isLong = (mode === "long_lyric" || mode === "long_music");
-      const isShorts = (mode === "shorts");
-
-      const msg = isShorts
-        ? "Prompt copied ✅ — Paste into ChatGPT now. Opening ChatGPT + Flow + Grok…"
-        : (isLong
-            ? "Prompt copied ✅ — Paste into ChatGPT now. Opening ChatGPT + Flow…"
-            : "Prompt copied ✅ — Paste into ChatGPT now. Opening ChatGPT…");
-
-      $("statusLine").textContent = msg.replaceAll("…", "...");
-      showToast(msg);
-
-      // Open tabs (best effort; browsers may block multiple popups)
-      try {
-        window.open("https://chat.openai.com/", "_blank", "noopener,noreferrer");
-        if (isLong || isShorts) {
-          window.open("https://labs.google/fx/tools/flow", "_blank", "noopener,noreferrer");
-        }
-        if (isShorts) {
-          window.open("https://grok.com/", "_blank", "noopener,noreferrer");
-        }
-      } catch (e) {
-        // If popups are blocked, at least the copy succeeded
-      }
+      await navigator.clipboard.writeText(t);
+      $("statusLine").textContent = "Output copied ✅";
     };
 
     // Song Edit Prompt (ChatGPT)
@@ -995,6 +885,31 @@ UPDATED_LYRICS:
     if (__el_btnCopyEditPrompt) __el_btnCopyEditPrompt.onclick = async () => {
       const t = $("edit_prompt_out")?.value || "";
       if (!t.trim()) return alert("Nothing to copy.");
+      
+      try {
+        await navigator.clipboard.writeText(t);
+      } catch(e){
+        const ta = document.createElement("textarea");
+        ta.value = t;
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+
+      const msg = "Edit prompt copied ✅ — Paste into ChatGPT now. Opening ChatGPT…";
+      $("statusLine").textContent = msg.replace("…","...");
+      showToast(msg);
+
+      setTimeout(() => {
+        window.open("https://chat.openai.com/", "_blank", "noopener,noreferrer");
+      }, 400);
+    };
+    if (__el_btnCopyEditPrompt) __el_btnCopyEditPrompt.onclick = async () => {
+      const t = $("edit_prompt_out")?.value || "";
+      if (!t.trim()) return alert("Nothing to copy.");
       await navigator.clipboard.writeText(t);
       $("statusLine").textContent = "Edit prompt copied ✅";
     };
@@ -1029,6 +944,5 @@ UPDATED_LYRICS:
 
     await loadData();
   </script>
-  <div id="toast" class="toast"></div>
 </body>
 </html>
