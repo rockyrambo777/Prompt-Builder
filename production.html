@@ -70,7 +70,8 @@
           <div class="chips" id="chips"></div>
         </div>
         <div class="row">
-<button id="btnSaveSong" class="btn primary">Save &amp; Close</button>
+<button id="btnEditMeta" type="button" class="btn secondary">Release &amp; Links</button>
+            <button id="btnSaveSong" class="btn primary">Save &amp; Close</button>
         </div>
       </div>
 
@@ -511,6 +512,115 @@
 
     // If a song_id is provided, open it even if published/distributed
     if (song_id) await selectSong(song_id);
+
+    
+
+    function metaCompletion(){
+      const yt = $("meta_youtube_published")?.checked;
+      const ytUrl = ($("meta_youtube_url")?.value || "").trim();
+      const ytDt = ($("meta_youtube_published_at")?.value || "").trim();
+
+      const di = $("meta_ditto_released")?.checked;
+      const diDt = ($("meta_ditto_release_date")?.value || "").trim();
+
+      const bc = $("meta_bandcamp_released")?.checked;
+      const bcUrl = ($("meta_bandcamp_track_url")?.value || "").trim();
+      const bcDt = ($("meta_bandcamp_release_date")?.value || "").trim();
+
+      const ytOk = !!(yt && ytUrl && ytDt);
+      const diOk = !!(di && diDt);
+      const bcOk = !!(bc && bcUrl && bcDt);
+
+      const done = [ytOk, diOk, bcOk].filter(Boolean).length;
+      const pct = Math.round((done / 3) * 100);
+      return { ytOk, diOk, bcOk, pct, allDone: done === 3 };
+    }
+
+    function updateMetaKPIs(){
+      const s = metaCompletion();
+      $("kpiComplete").textContent = `Complete: ${s.pct}%`;
+      $("kpiComplete").className = "pill " + (s.allDone ? "ok" : "warn");
+      $("kpiYouTube").textContent = "YouTube: " + (s.ytOk ? "DONE" : "TODO");
+      $("kpiYouTube").className = "pill " + (s.ytOk ? "ok" : "warn");
+      $("kpiDitto").textContent = "Ditto: " + (s.diOk ? "DONE" : "TODO");
+      $("kpiDitto").className = "pill " + (s.diOk ? "ok" : "warn");
+      $("kpiBandcamp").textContent = "Bandcamp: " + (s.bcOk ? "DONE" : "TODO");
+      $("kpiBandcamp").className = "pill " + (s.bcOk ? "ok" : "warn");
+    }
+
+    function openMetaModal(){
+      updateMetaKPIs();
+      const back = $("metaModalBack");
+      back.style.display = "flex";
+      back.setAttribute("aria-hidden","false");
+    }
+
+    function closeMetaModal(){
+      const back = $("metaModalBack");
+      back.style.display = "none";
+      back.setAttribute("aria-hidden","true");
+    }
+
+    function saveMeta(){
+      if (!currentSong) return;
+      const payload = {
+        track_number: Number($("meta_track_number").value || currentSong.track_number || 1),
+        release_notes: ($("meta_notes").value || "").trim() || null,
+
+        youtube_published: !!$("meta_youtube_published").checked,
+        youtube_url: ($("meta_youtube_url").value || "").trim() || null,
+        youtube_published_at: ($("meta_youtube_published_at").value || "").trim() || null,
+
+        ditto_released: !!$("meta_ditto_released").checked,
+        ditto_url: ($("meta_ditto_url").value || "").trim() || null,
+        ditto_release_date: ($("meta_ditto_release_date").value || "").trim() || null,
+
+        bandcamp_released: !!$("meta_bandcamp_released").checked,
+        bandcamp_track_url: ($("meta_bandcamp_track_url").value || "").trim() || null,
+        bandcamp_release_date: ($("meta_bandcamp_release_date").value || "").trim() || null,
+      }
+
+    $("btnEditMeta");
+    if (__el_btnEditMeta) __el_btnEditMeta.onclick = () => {
+      if (!currentSong) return alert("Select a song first.");
+      openMetaModal();
+    };
+    const __el_btnMetaClose = $("btnMetaClose");
+    if (__el_btnMetaClose) __el_btnMetaClose.onclick = closeMetaModal;
+    const __el_metaBack = $("metaModalBack");
+    if (__el_metaBack) __el_metaBack.onclick = (e) => { if (e.target === __el_metaBack) closeMetaModal(); };
+
+    const __el_btnMetaSave = $("btnMetaSave");
+    if (__el_btnMetaSave) __el_btnMetaSave.onclick = saveMeta;
+
+    const _ss = $("songSelect");
+    if (_ss) _ss.onchange = (e) => selectSong(e.target.value);
+    const __el_editToggle = $("editSongToggle");
+    if (__el_editToggle) __el_editToggle.onchange = () => setEditMode();
+
+    const __el_btnHome = $("btnHome");
+    if (__el_btnHome) __el_btnHome.onclick = () => window.location.href = "./home.html";
+    const __el_btnAlbum = $("btnAlbum");
+    if (__el_btnAlbum) __el_btnAlbum.onclick = () => window.location.href = `./album-edit.html?id=${encodeURIComponent(album_id)}`;
+    const __el_btnLogout = $("btnLogout");
+    if (__el_btnLogout) __el_btnLogout.onclick = async () => {
+      await supabase.auth.signOut();
+      window.location.href = "./index.html";
+    };
+
+
+    // Meta KPI live updates
+    ["meta_youtube_published","meta_youtube_url","meta_youtube_published_at",
+     "meta_ditto_released","meta_ditto_url","meta_ditto_release_date",
+     "meta_bandcamp_released","meta_bandcamp_track_url","meta_bandcamp_release_date"
+    ].forEach(id=>{
+      const el = $(id);
+      if (!el) return;
+      el.addEventListener("input", updateMetaKPIs);
+      el.addEventListener("change", updateMetaKPIs);
+    });
+
+    
 
     await loadData();
     }
@@ -997,5 +1107,25 @@ UPDATED_LYRICS:
 
     await loadData();
   </script>
+<div id="metaModalBack" class="modalBack" aria-hidden="true">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="metaModalTitle">
+        <div class="modalHeader">
+          <h3 id="metaModalTitle" class="modalTitle">Release & Links</h3>
+          <button id="btnMetaClose" class="modalClose">Close</button>
+        </div>
+        <div class="modalBody">
+          <div class="kpi" style="margin-bottom:10px;">
+            <span class="pill" id="kpiComplete">Complete: 0%</span>
+            <span class="pill" id="kpiYouTube">YouTube: —</span>
+            <span class="pill" id="kpiDitto">Ditto: —</span>
+            <span class="pill" id="kpiBandcamp">Bandcamp: —</span>
+          </div>
+
+          <div class="grid">
+            <div>
+              <label for="meta_track_number">Track #</label>
+              <input id="meta_track_number" placeholder="e.g. 1">
+              <div class="hint">This is the album track order. You can update it here anytime.</div>
+            </div>
 </body>
 </html>
