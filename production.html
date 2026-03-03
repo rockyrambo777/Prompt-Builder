@@ -507,7 +507,6 @@
     function buildSongSelect(){
       const sel = $("songSelect");
       sel.innerHTML = "";
-
       if (!songs.length) {
         const opt = document.createElement("option");
         opt.value = "";
@@ -517,48 +516,6 @@
         $("statusLine").textContent = "No songs in this album yet.";
         return;
       }
-
-      for (const s of songs){
-        const opt = document.createElement("option");
-        opt.value = s.id;
-
-        const t = s.track_number ? `#${s.track_number} ` : "";
-        const legacy = s.is_legacy_published ? " (legacy)" : "";
-
-        // ✅ Require BOTH published checkbox + youtube link
-        const hasYouTube = !!(
-          s.youtube_published &&
-          s.youtube_url &&
-          String(s.youtube_url).trim().length > 0
-        );
-
-        const ytMark = hasYouTube ? "✅ " : "";
-
-        opt.textContent = `${ytMark}${t}${s.title || "(untitled)"}${legacy}`;
-
-        // Highlight green if done
-        if (hasYouTube) {
-          opt.style.backgroundColor = "#123a23"; // dark green
-          opt.style.color = "#7CFFB2";           // matches --ok
-          opt.style.fontWeight = "700";
-        }
-
-        sel.appendChild(opt);
-      }
-
-      if (songs.length){
-        const chosen = (song_id_param && songs.find(x => String(x.id) === String(song_id_param)))
-          ? song_id_param
-          : songs[0].id;
-
-        sel.value = chosen;
-        selectSong(chosen);
-      } else {
-        currentSong = null;
-        $("statusLine").textContent = "No songs in this album yet.";
-      }
-    }
-
       for (const s of songs){
         const opt = document.createElement("option");
         opt.value = s.id;
@@ -1169,11 +1126,12 @@ UPDATED_LYRICS:
       if (out) out.value = prompt;
       $("statusLine").textContent = "Edit prompt built ✅";
     };
+
     const __el_btnCopyEditPrompt = $("btnCopyEditPrompt");
     if (__el_btnCopyEditPrompt) __el_btnCopyEditPrompt.onclick = async () => {
       const t = $("edit_prompt_out")?.value || "";
       if (!t.trim()) return alert("Nothing to copy.");
-
+      
       try {
         await navigator.clipboard.writeText(t);
       } catch(e){
@@ -1187,14 +1145,23 @@ UPDATED_LYRICS:
         document.body.removeChild(ta);
       }
 
-      const msg = "Edit prompt copied ✅ — Paste into ChatGPT now.";
-      $("statusLine").textContent = msg;
+      const msg = "Edit prompt copied ✅ — Paste into ChatGPT now. Opening ChatGPT…";
+      $("statusLine").textContent = msg.replace("…","...");
       showToast(msg);
 
-      // Optional: open ChatGPT in a new tab (may be blocked by popup settings)
       const w = window.open("https://chat.openai.com/", "_blank", "noopener,noreferrer");
-      if (!w) showToast("Popup blocked ❌ Allow popups, then click again. Or open chat.openai.com");
+      if (!w) {
+        // Popup blocked
+        showToast("Popup blocked ❌ Allow popups, then click again. Or use this link: chat.openai.com");
+      }
+};
+    if (__el_btnCopyEditPrompt) __el_btnCopyEditPrompt.onclick = async () => {
+      const t = $("edit_prompt_out")?.value || "";
+      if (!t.trim()) return alert("Nothing to copy.");
+      await navigator.clipboard.writeText(t);
+      $("statusLine").textContent = "Edit prompt copied ✅";
     };
+
 
     const __el_btnCopyWorking = $("btnCopyWorking");
     if (__el_btnCopyWorking) __el_btnCopyWorking.onclick = async () => {
