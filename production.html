@@ -1231,14 +1231,14 @@ UPDATED_LYRICS:
       e.preventDefault();
       try{
         if (typeof saveSong === "function"){
-          const ok = await saveSong();
-          if (ok !== false){
-            if (__album_id){
-              window.location.href = "./album-edit.html?id=" + encodeURIComponent(__album_id);
-            } else {
-              window.location.href = "./album-edit.html";
-            }
-          }
+          // Always attempt save; some implementations return false when nothing changed.
+          await saveSong();
+        }
+        // Always go back after clicking Save & Go Back (unless an exception occurs)
+        if (__album_id){
+          window.location.href = "./album-edit.html?id=" + encodeURIComponent(__album_id);
+        } else {
+          window.location.href = "./album-edit.html";
         }
       }catch(err){
         console.error(err);
