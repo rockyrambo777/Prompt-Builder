@@ -1222,7 +1222,7 @@ UPDATED_LYRICS:
 
 
 
-// --- SIMPLE Save + Back Logic ---
+// --- SIMPLE Save + Back Logic (corrected) ---
 (function(){
   const params = new URLSearchParams(window.location.search);
   const album_id = params.get("album_id");
@@ -1230,25 +1230,21 @@ UPDATED_LYRICS:
   const saveBtn = document.getElementById("btnSaveSong");
   const backBtn = document.getElementById("btnGoBack");
 
+  // SAVE = only save (no redirect)
   if (saveBtn){
     saveBtn.onclick = async function(e){
       e.preventDefault();
       try{
         if (typeof saveSong === "function"){
-          await saveSong(); // always attempt save
+          await saveSong();
         }
       }catch(err){
         console.error(err);
       }
-      // Always go back after save click
-      if (album_id){
-        window.location.href = "./album-edit.html?id=" + encodeURIComponent(album_id);
-      } else {
-        window.location.href = "./album-edit.html";
-      }
     };
   }
 
+  // BACK = always go back to album-edit.html
   if (backBtn){
     backBtn.onclick = function(){
       if (album_id){
