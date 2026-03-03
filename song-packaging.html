@@ -75,9 +75,15 @@
             </div>
             <div>
               <label>Options</label>
-              <div style="display:flex;gap:10px;align-items:center;margin-top:10px">
-                <input id="useArtistImg" type="checkbox" />
-                <label for="useArtistImg" style="margin:0;color:var(--text);font-size:13px">Include artist image (thumbnail prompt)</label>
+              <div style="display:flex;gap:14px;align-items:center;margin-top:10px;flex-wrap:wrap">
+                <div style="display:flex;gap:10px;align-items:center">
+                  <input id="useArtistImg" type="checkbox" />
+                  <label for="useArtistImg" style="margin:0;color:var(--text);font-size:13px">Include artist image (thumbnail prompt)</label>
+                </div>
+                <div style="display:flex;gap:10px;align-items:center">
+                  <input id="buildAlbumPlaylist" type="checkbox" />
+                  <label for="buildAlbumPlaylist" style="margin:0;color:var(--text);font-size:13px">Build/Use album playlist (generate playlist plan)</label>
+                </div>
               </div>
               <div class="mut" style="margin-top:8px">Shorts do not have thumbnails (checkbox is ignored in Shorts mode).</div>
             </div>
@@ -161,15 +167,17 @@
 
       const songBlock = `SONG\n- title: ${song?.title || ""}\n- keywords: ${song?.keywords || ""}\n- scripture: ${gospel ? (song?.scripture || "(optional)") : "(not gospel/christian)"}\n- suno prompt (for this song): ${song?.suno_prompt || ""}`;
 
+      const wantAlbumPlaylist = !!$("buildAlbumPlaylist")?.checked;
+
       const playlistNote = playlistsText
-        ? `PLAYLISTS (artist defaults)\n${playlistsText}\n\nIn your response, also tell me which playlist this song fits best (or "Album playlist" if none).`
+        ? `DEFAULT_PLAYLIST (artist)\n${playlistsText}\n\nIn your response, also tell me which playlist this song fits best (or "Album playlist" if none).`
         : `PLAYLISTS\nNo artist default playlists. In your response, also tell me if this should go to an Album playlist or a new mood playlist.`;
 
       const thumbRule = includeArtistImg
         ? "Thumbnail: INCLUDE artist reference image. Make it bold, high contrast, mobile readable."
         : "Thumbnail: Do NOT include artist reference image. Make it bold, high contrast, mobile readable.";
 
-      return `You are helping me package a SINGLE YouTube long-form video for my music channel.\n\n${artistBlock}\n\n${songBlock}\n\nLYRICS (paste as-is):\n${song?.lyrics || "(no lyrics found)"}\n\n${playlistNote}\n\nRETURN ONLY these sections (clean, no extra talk):\nYOUTUBE_TITLE:\nYOUTUBE_DESCRIPTION_WITH_HASHTAGS:\nYOUTUBE_TAGS_UNDER_500_CHARS (comma-separated):\nPINNED_COMMENT:\nTHUMBNAIL_PROMPT_1280x720 (SEO, readable, eye-catching):\n${thumbRule}\n\nIMPORTANT:\n- Do NOT include the 'Song Details: BPM/Key/Genre/Mood' line.\n- If this is not a gospel/christian artist, do NOT add scripture verses and do NOT mention Bible references.\n- Keep tags genre-accurate based on the Suno prompt and artist genres.\n`;
+      return `You are helping me package a SINGLE YouTube long-form video for my music channel.\n\n${artistBlock}\n\n${songBlock}\n\nLYRICS (paste as-is):\n${song?.lyrics || "(no lyrics found)"}\n\n${playlistNote}\n\nRETURN ONLY these sections (clean, no extra talk):\nYOUTUBE_TITLE:\nYOUTUBE_DESCRIPTION_WITH_HASHTAGS:\nYOUTUBE_TAGS_UNDER_500_CHARS (comma-separated):\nPINNED_COMMENT:\nTHUMBNAIL_PROMPT_1280x720 (SEO, readable, eye-catching):\n${thumbRule}\n${wantAlbumPlaylist ? "\nALBUM_PLAYLIST_BUILDER (only if needed):\n- PLAYLIST_TITLE\n- PLAYLIST_DESCRIPTION\n- TRACKLIST (ordered list of THIS album\'s songs)\n" : ""}\nIMPORTANT:\n- Do NOT include the 'Song Details: BPM/Key/Genre/Mood' line.\n- If this is not a gospel/christian artist, do NOT add scripture verses and do NOT mention Bible references.\n- Keep tags genre-accurate based on the Suno prompt and artist genres.\n`;
     }
 
     function buildPromptShort(){
@@ -179,11 +187,13 @@
 
       const songBlock = `SONG\n- title: ${song?.title || ""}\n- keywords: ${song?.keywords || ""}\n- scripture: ${gospel ? (song?.scripture || "(optional)") : "(not gospel/christian)"}\n- suno prompt: ${song?.suno_prompt || ""}`;
 
+      const wantAlbumPlaylist = !!$("buildAlbumPlaylist")?.checked;
+
       const playlistNote = playlistsText
-        ? `PLAYLISTS (artist defaults)\n${playlistsText}\n\nIn your response, also tell me which playlist this short should link back to (or "Album playlist" if none).`
+        ? `DEFAULT_PLAYLIST (artist)\n${playlistsText}\n\nIn your response, also tell me which playlist this short should link back to (or "Album playlist" if none).`
         : `PLAYLISTS\nNo artist default playlists. In your response, also tell me if this short should link back to an Album playlist or a mood playlist.`;
 
-      return `You are helping me package a SINGLE Shorts/TikTok post for this song.\n\n${artistBlock}\n\n${songBlock}\n\nLYRICS (paste as-is):\n${song?.lyrics || "(no lyrics found)"}\n\n${playlistNote}\n\nRETURN ONLY these sections (clean, no extra talk):\nSHORTS_TITLE:\nSHORTS_DESCRIPTION_WITH_HASHTAGS:\nSHORTS_TAGS_UNDER_500_CHARS (comma-separated):\nPINNED_COMMENT (YouTube Shorts):\nTIKTOK_DESCRIPTION_WITH_HASHTAGS:\n\nIMPORTANT:\n- Shorts do NOT need a thumbnail prompt.\n- Do NOT include the 'Song Details: BPM/Key/Genre/Mood' line.\n- If this is not a gospel/christian artist, do NOT add scripture verses and do NOT mention Bible references.\n- Keep tags genre-accurate based on the Suno prompt and artist genres.\n`;
+      return `You are helping me package a SINGLE Shorts/TikTok post for this song.\n\n${artistBlock}\n\n${songBlock}\n\nLYRICS (paste as-is):\n${song?.lyrics || "(no lyrics found)"}\n\n${playlistNote}\n\nRETURN ONLY these sections (clean, no extra talk):\nSHORTS_TITLE:\nSHORTS_DESCRIPTION_WITH_HASHTAGS:\nSHORTS_TAGS_UNDER_500_CHARS (comma-separated):\nPINNED_COMMENT (YouTube Shorts):\nTIKTOK_DESCRIPTION_WITH_HASHTAGS:\n${wantAlbumPlaylist ? "\nALBUM_PLAYLIST_BUILDER (only if needed):\n- PLAYLIST_TITLE\n- PLAYLIST_DESCRIPTION\n- TRACKLIST (ordered list of THIS album\'s songs)\n" : ""}\nIMPORTANT:\n- Shorts do NOT need a thumbnail prompt.\n- Do NOT include the 'Song Details: BPM/Key/Genre/Mood' line.\n- If this is not a gospel/christian artist, do NOT add scripture verses and do NOT mention Bible references.\n- Keep tags genre-accurate based on the Suno prompt and artist genres.\n`;
     }
 
     function rebuild(){
@@ -198,12 +208,12 @@
         const { data, error } = await supabase
           .from("artist_playlists")
           .select("title,description,sort_order")
-          .eq("artist_id", artistId)
-          .order("sort_order", { ascending: true });
-
+          .eq("artist_id", artistId);
         if (error) { console.warn("playlist load", error.message); return ""; }
         if (!data || !data.length) return "";
-        return data.map((p,i)=>`${i+1}. ${p.title}${p.description ? ` — ${p.description}` : ""}`).join("\n");
+        const sorted = [...data].sort((a,b)=>(Number(a.sort_order||0)-Number(b.sort_order||0)));
+        const p0 = sorted[0];
+        return p0 ? (p0.description ? `${p0.title} — ${p0.description}` : `${p0.title}`) : "";
       } catch(e){
         console.warn(e);
         return "";
