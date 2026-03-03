@@ -911,8 +911,11 @@ UPDATED_LYRICS:
     if (__el_btnClearWorking) __el_btnClearWorking.onclick = () => $("working_results").value = "";
 
     const __el_btnSaveSong = $("btnSaveSong");
-    if (__el_btnSaveSong) __el_btnSaveSong.const _ss = $("songSelect");
-    if (_ss) _ss.onchange = (e) => selectSong(e.target.value);
+    // Save & Close binding (if present)
+    if (__el_btnSaveSong) __el_btnSaveSong.onclick = async (e) => { e?.preventDefault?.(); const ok = await saveSong(); if (ok !== false) goBackToAlbum(); };
+
+    const _ss = $("songSelect");
+if (_ss) _ss.onchange = (e) => selectSong(e.target.value);
     const __el_editToggle = $("editSongToggle");
     if (__el_editToggle) __el_editToggle.onchange = () => setEditMode();
 
