@@ -47,9 +47,25 @@
     @media (max-width: 1100px){ .cols{ grid-template-columns: 1fr; } }
     .divider{ height:1px; background:#22304a; margin:14px 0; }
     .stickyBox{ position: sticky; top: 14px; }
-  </style>
+  
+    .toast{position:fixed;right:16px;bottom:16px;z-index:99999;background:rgba(0,0,0,.75);
+      border:1px solid #2a3a5c;color:var(--text);padding:10px 12px;border-radius:12px;display:none;
+      max-width:min(520px,calc(100vw - 32px));}
+
+    /* Modal */
+    .modalBack{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:9999;padding:18px;}
+    .modal{width:min(920px,100%);background:var(--card);border:1px solid var(--border);border-radius:18px;box-shadow:0 20px 70px rgba(0,0,0,.55);}
+    .modalHeader{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid #22304a;}
+    .modalBody{padding:16px;}
+    .modalFooter{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 16px;border-top:1px solid #22304a;flex-wrap:wrap;}
+    .modalTitle{font-size:16px;font-weight:900;margin:0;}
+    .modalClose{background:transparent;border:1px solid #2a3a5c;border-radius:12px;color:var(--text);padding:8px 10px;cursor:pointer;font-weight:800;}
+    .kpi{display:flex;gap:8px;flex-wrap:wrap;}
+    .kpi .pill{font-weight:800}
+</style>
 </head>
 <body>
+  <div id="toast" class="toast"></div>
   <div class="wrap">
     <div class="top">
       <div>
@@ -70,7 +86,8 @@
           <div class="chips" id="chips"></div>
         </div>
         <div class="row">
-<button id="btnSaveSong" class="btn primary">Save Song</button>
+<button id="btnEditMeta" class="btn secondary">Edit Release & Links</button>
+          <button id="btnSaveSong" class="btn primary">Save Song</button>
         </div>
       </div>
 
@@ -282,9 +299,108 @@
         </div>
       </div>
 
+
+    <div id="metaModalBack" class="modalBack" aria-hidden="true">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="metaModalTitle">
+        <div class="modalHeader">
+          <h3 id="metaModalTitle" class="modalTitle">Release & Links</h3>
+          <button id="btnMetaClose" class="modalClose">Close</button>
+        </div>
+        <div class="modalBody">
+          <div class="kpi" style="margin-bottom:10px;">
+            <span class="pill" id="kpiComplete">Complete: 0%</span>
+            <span class="pill" id="kpiYouTube">YouTube: —</span>
+            <span class="pill" id="kpiDitto">Ditto: —</span>
+            <span class="pill" id="kpiBandcamp">Bandcamp: —</span>
+          </div>
+
+          <div class="grid">
+            <div>
+              <label for="meta_track_number">Track #</label>
+              <input id="meta_track_number" placeholder="e.g. 1">
+              <div class="hint">This is the album track order. You can update it here anytime.</div>
+            </div>
+            <div>
+              <label for="meta_notes">Notes (optional)</label>
+              <input id="meta_notes" placeholder="e.g. scheduled, waiting artwork, etc.">
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <h4 style="margin:0 0 10px;">YouTube</h4>
+          <div class="grid">
+            <div class="checkRow">
+              <label><input id="meta_youtube_published" type="checkbox"> Published on YouTube</label>
+            </div>
+            <div></div>
+            <div>
+              <label for="meta_youtube_url">YouTube URL</label>
+              <input id="meta_youtube_url" placeholder="https://www.youtube.com/watch?v=...">
+            </div>
+            <div>
+              <label for="meta_youtube_published_at">Published date</label>
+              <input id="meta_youtube_published_at" type="date">
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <h4 style="margin:0 0 10px;">Ditto</h4>
+          <div class="grid">
+            <div class="checkRow">
+              <label><input id="meta_ditto_released" type="checkbox"> Released via Ditto</label>
+            </div>
+            <div></div>
+            <div>
+              <label for="meta_ditto_url">Ditto URL (optional)</label>
+              <input id="meta_ditto_url" placeholder="https://...">
+            </div>
+            <div>
+              <label for="meta_ditto_release_date">Release date</label>
+              <input id="meta_ditto_release_date" type="date">
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <h4 style="margin:0 0 10px;">Bandcamp</h4>
+          <div class="grid">
+            <div class="checkRow">
+              <label><input id="meta_bandcamp_released" type="checkbox"> Released on Bandcamp</label>
+            </div>
+            <div></div>
+            <div>
+              <label for="meta_bandcamp_track_url">Bandcamp Track URL</label>
+              <input id="meta_bandcamp_track_url" placeholder="https://...">
+            </div>
+            <div>
+              <label for="meta_bandcamp_release_date">Release date</label>
+              <input id="meta_bandcamp_release_date" type="date">
+            </div>
+          </div>
+        </div>
+        <div class="modalFooter">
+          <div class="muted" id="metaStatus">Ready.</div>
+          <div class="row">
+            <button id="btnMetaSave" class="btn primary">Save Release & Links</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   <script type="module">
     import { supabase, requireSessionOrRedirect } from "./app.js";
     const $ = (id) => document.getElementById(id);
+
+    function showToast(message){
+      const t = $("toast");
+      if (!t) return;
+      t.textContent = message;
+      t.style.display = "block";
+      setTimeout(()=>t.style.display="none", 2600);
+    }
+
 
     const session = await requireSessionOrRedirect();
     $("who").textContent = `Signed in: ${session.user.email}`;
@@ -342,6 +458,52 @@
       $("dnaLegacy").className = "pill " + (currentSong?.is_legacy_published ? "warn" : "ok");
     }
 
+
+    function metaCompletion(){
+      const yt = $("meta_youtube_published")?.checked;
+      const ytUrl = ($("meta_youtube_url")?.value || "").trim();
+      const ytDt = ($("meta_youtube_published_at")?.value || "").trim();
+
+      const di = $("meta_ditto_released")?.checked;
+      const diDt = ($("meta_ditto_release_date")?.value || "").trim();
+
+      const bc = $("meta_bandcamp_released")?.checked;
+      const bcUrl = ($("meta_bandcamp_track_url")?.value || "").trim();
+      const bcDt = ($("meta_bandcamp_release_date")?.value || "").trim();
+
+      const ytOk = !!(yt && ytUrl && ytDt);
+      const diOk = !!(di && diDt);
+      const bcOk = !!(bc && bcUrl && bcDt);
+
+      const done = [ytOk, diOk, bcOk].filter(Boolean).length;
+      const pct = Math.round((done / 3) * 100);
+      return { ytOk, diOk, bcOk, pct, allDone: done === 3 };
+    }
+
+    function updateMetaKPIs(){
+      const s = metaCompletion();
+      $("kpiComplete").textContent = `Complete: ${s.pct}%`;
+      $("kpiComplete").className = "pill " + (s.allDone ? "ok" : "warn");
+      $("kpiYouTube").textContent = "YouTube: " + (s.ytOk ? "DONE" : "TODO");
+      $("kpiYouTube").className = "pill " + (s.ytOk ? "ok" : "warn");
+      $("kpiDitto").textContent = "Ditto: " + (s.diOk ? "DONE" : "TODO");
+      $("kpiDitto").className = "pill " + (s.diOk ? "ok" : "warn");
+      $("kpiBandcamp").textContent = "Bandcamp: " + (s.bcOk ? "DONE" : "TODO");
+      $("kpiBandcamp").className = "pill " + (s.bcOk ? "ok" : "warn");
+    }
+
+    function openMetaModal(){
+      updateMetaKPIs();
+      const back = $("metaModalBack");
+      back.style.display = "flex";
+      back.setAttribute("aria-hidden","false");
+    }
+    function closeMetaModal(){
+      const back = $("metaModalBack");
+      back.style.display = "none";
+      back.setAttribute("aria-hidden","true");
+    }
+
     function buildSongSelect(){
       const sel = $("songSelect");
       sel.innerHTML = "";
@@ -391,7 +553,24 @@
       $("tempo_direction").value = s.tempo_direction || "";
       $("energy_direction").value = s.energy_direction || "";
       $("instrumentation_notes").value = s.instrumentation_notes || "";
-      $("edit_notes").value = s.edit_notes || "";      setEditMode();      setDNAPreview();
+      $("edit_notes").value = s.edit_notes || "";
+
+      // Release & links (modal)
+      $("meta_track_number").value = s.track_number ?? "";
+      $("meta_notes").value = s.release_notes || "";
+      $("meta_youtube_published").checked = !!s.youtube_published;
+      $("meta_youtube_url").value = s.youtube_url || "";
+      $("meta_youtube_published_at").value = s.youtube_published_at || "";
+      $("meta_ditto_released").checked = !!s.ditto_released;
+      $("meta_ditto_url").value = s.ditto_url || "";
+      $("meta_ditto_release_date").value = s.ditto_release_date || "";
+      $("meta_bandcamp_released").checked = !!s.bandcamp_released;
+      $("meta_bandcamp_track_url").value = s.bandcamp_track_url || "";
+      $("meta_bandcamp_release_date").value = s.bandcamp_release_date || "";
+      updateMetaKPIs();
+
+      setEditMode();
+      setDNAPreview();
     }
 
     function selectSong(songId){
@@ -425,6 +604,65 @@
       buildSongSelect();
     }
 
+
+    async function saveMeta(){
+      if (!currentSong) return;
+      const payload = {
+        track_number: Number($("meta_track_number").value || currentSong.track_number || 1),
+        release_notes: ($("meta_notes").value || "").trim() || null,
+
+        youtube_published: !!$("meta_youtube_published").checked,
+        youtube_url: ($("meta_youtube_url").value || "").trim() || null,
+        youtube_published_at: ($("meta_youtube_published_at").value || "").trim() || null,
+
+        ditto_released: !!$("meta_ditto_released").checked,
+        ditto_url: ($("meta_ditto_url").value || "").trim() || null,
+        ditto_release_date: ($("meta_ditto_release_date").value || "").trim() || null,
+
+        bandcamp_released: !!$("meta_bandcamp_released").checked,
+        bandcamp_track_url: ($("meta_bandcamp_track_url").value || "").trim() || null,
+        bandcamp_release_date: ($("meta_bandcamp_release_date").value || "").trim() || null,
+      };
+
+      $("metaStatus").textContent = "Saving…";
+
+      async function updateWithFallback(obj){
+        let working = { ...obj };
+        for (let attempts = 0; attempts < 12; attempts++){
+          const res = await supabase.from(SONGS).update(working).eq("id", currentSong.id);
+          if (!res.error) return { ok:true };
+          const msg = String(res.error.message || "");
+          const m = msg.match(/column\s+\"([^\"]+)\"\s+of\s+relation/i)
+                 || msg.match(/column\s+\"([^\"]+)\"\s+does\s+not\s+exist/i)
+                 || msg.match(/could not find the \'([^\']+)\' column of \'songs\' in the schema cache/i);
+          if (!m) return { ok:false, error: msg };
+          delete working[m[1]];
+        }
+        return { ok:false, error: "Update failed after fallbacks." };
+      }
+
+      const up = await updateWithFallback(payload);
+      if (!up.ok){ $("metaStatus").textContent = "Error: " + up.error; return; }
+
+      $("metaStatus").textContent = "Saved ✅";
+  
+    // Meta KPI live updates
+    ["meta_youtube_published","meta_youtube_url","meta_youtube_published_at",
+     "meta_ditto_released","meta_ditto_url","meta_ditto_release_date",
+     "meta_bandcamp_released","meta_bandcamp_track_url","meta_bandcamp_release_date"
+    ].forEach(id=>{
+      const el = $(id);
+      if (!el) return;
+      el.addEventListener("input", updateMetaKPIs);
+      el.addEventListener("change", updateMetaKPIs);
+    });
+
+    await loadData();
+      $("songSelect").value = currentSong.id;
+      selectSong(currentSong.id);
+      closeMetaModal();
+    }
+
     async function saveSong(){
       if (!currentSong) return;
 
@@ -440,8 +678,8 @@
         tempo_direction: $("tempo_direction").value || null,
         energy_direction: $("energy_direction").value || null,
         instrumentation_notes: $("instrumentation_notes").value.trim() || null,
-        edit_notes: $("edit_notes").value || null,        is_
-      };
+        edit_notes: $("edit_notes").value || null,
+};
 
       async function updateWithFallback(obj){
         let working = { ...obj };
@@ -450,9 +688,7 @@
           if (!res.error) return { ok:true };
           const msg = String(res.error.message || "");
           const m = msg.match(/column\s+\"([^\"]+)\"\s+of\s+relation/i)
-          || msg.match(/column\s+\"([^\"]+)\"\s+does\s+not\s+exist/i)
-          || msg.match(/could not find the \'([^\']+)\' column of \'songs\' in the schema cache/i)
-          || msg.match(/Could not find the \'([^\']+)\' column of \'songs\' in the schema cache/i);
+          || msg.match(/could not find the \'([^\']+)\' column of \'songs\' in the schema cache/i);
           if (!m) return { ok:false, error: msg };
           delete working[m[1]];
         }
@@ -464,7 +700,19 @@
       if (!up.ok) { $("statusLine").textContent = "Error: " + up.error; return; }
 
       $("statusLine").textContent = "Saved ✅";
-      await loadData();
+  
+    // Meta KPI live updates
+    ["meta_youtube_published","meta_youtube_url","meta_youtube_published_at",
+     "meta_ditto_released","meta_ditto_url","meta_ditto_release_date",
+     "meta_bandcamp_released","meta_bandcamp_track_url","meta_bandcamp_release_date"
+    ].forEach(id=>{
+      const el = $(id);
+      if (!el) return;
+      el.addEventListener("input", updateMetaKPIs);
+      el.addEventListener("change", updateMetaKPIs);
+    });
+
+    await loadData();
     }
 
     function buildArtistDNABlock(){
@@ -588,14 +836,16 @@ ${buildSongContextBlock()}
     }
 
     function setEditMode(){
-      const on = $("editSongToggle").checked;
-
+      const canEdit = hasLyrics();
+      const on = $("editSongToggle").checked && canEdit;
 
       // Gate toggle itself if no lyrics
-$("editHint").textContent = hasLyrics()
+      $("editSongToggle").disabled = !canEdit;
+      $("editHint").textContent = canEdit
         ? "Tick Edit song to change tempo/lyrics/Suno prompt. Then build the Song Edit Prompt."
-        : "You can still edit, but this song has no lyrics yet. Use Build Lyrics + Suno if you want ChatGPT to generate lyrics.";
-// These fields become editable only in edit mode
+        : "This song has no lyrics yet. Use Build Lyrics + Suno first. Editing unlocks once lyrics exist.";
+
+      // These fields become editable only in edit mode
       const ids = ["title","track_number","keywords","scripture","suno_prompt","lyrics",
                    "revision_goal","tempo_direction","energy_direction","instrumentation_notes","edit_notes"];
       for (const id of ids){
@@ -605,17 +855,13 @@ $("editHint").textContent = hasLyrics()
       }
 
                   const __el_btnOpenLyricsBuilder = $("btnOpenLyricsBuilder");
-      if (__el_btnOpenLyricsBuilder) __el_btnOpenLyricsBuilder.disabled = false; // always allow
+      if (__el_btnOpenLyricsBuilder) __el_btnOpenLyricsBuilder.disabled = canEdit; // only for missing lyrics
 
       // Save only when editing
             const __el_btnSaveSong2 = $("btnSaveSong");
-      if (__el_btnSaveSong2) __el_btnSaveSong2.disabled = !currentSong;
-// Build Song Edit prompt only when editing      const __el_btnBuildSongEdit = $("btnBuildSongEdit");
-      if (__el_btnBuildSongEdit) __el_btnBuildSongEdit.disabled = !on;
-      const __el_btnCopySongEdit = $("btnCopySongEdit");
-      if (__el_btnCopySongEdit) __el_btnCopySongEdit.disabled = !on;
-      const __el_btnClearSongEdit = $("btnClearSongEdit");
-      if (__el_btnClearSongEdit) __el_btnClearSongEdit.disabled = !on;
+      if (__el_btnSaveSong2) __el_btnSaveSong2.disabled = !on;
+
+      // Build Song Edit prompt only when editing
 }
 
     const _tgl = $("editSongToggle");
@@ -686,9 +932,19 @@ $("editHint").textContent = hasLyrics()
       out.push("- Make lyrics singable and clean (no profanity).");
       out.push("- UPDATED_SUNO_PROMPT must be <= 1000 characters.");
 
-      const box = $("song_edit_prompt") || $("edit_prompt_out");
-      if (box) box.value = out.join("\n");
+      $("song_edit_prompt").value = out.join("\n");
     }
+
+    const __el_btnBuildSongEdit = $("btnBuildSongEdit");
+    if (__el_btnBuildSongEdit) __el_btnBuildSongEdit.onclick = buildSongEditPrompt;
+    const __el_btnCopySongEdit = $("btnCopySongEdit");
+    if (__el_btnCopySongEdit) __el_btnCopySongEdit.onclick = async () => {
+      const t = $("song_edit_prompt").value || "";
+      if (!t.trim()) return alert("Nothing to copy.");
+      await navigator.clipboard.writeText(t);
+      $("statusLine").textContent = "Song edit prompt copied ✅";
+    };
+    const __el_btnClearSongEdit = $("btnClearSongEdit");
     if (__el_btnClearSongEdit) __el_btnClearSongEdit.onclick = () => $("song_edit_prompt").value = "";
 
     // --- Updated video prompt builder ---
@@ -919,6 +1175,19 @@ UPDATED_LYRICS:
 
     const __el_btnSaveSong = $("btnSaveSong");
     if (__el_btnSaveSong) __el_btnSaveSong.onclick = saveSong;
+
+    const __el_btnEditMeta = $("btnEditMeta");
+    if (__el_btnEditMeta) __el_btnEditMeta.onclick = () => {
+      if (!currentSong) return alert("Select a song first.");
+      openMetaModal();
+    };
+    const __el_btnMetaClose = $("btnMetaClose");
+    if (__el_btnMetaClose) __el_btnMetaClose.onclick = closeMetaModal;
+    const __el_metaBack = $("metaModalBack");
+    if (__el_metaBack) __el_metaBack.onclick = (e) => { if (e.target === __el_metaBack) closeMetaModal(); };
+    const __el_btnMetaSave = $("btnMetaSave");
+    if (__el_btnMetaSave) __el_btnMetaSave.onclick = saveMeta;
+
     const _ss = $("songSelect");
     if (_ss) _ss.onchange = (e) => selectSong(e.target.value);
     const __el_editToggle = $("editSongToggle");
@@ -933,6 +1202,18 @@ UPDATED_LYRICS:
       await supabase.auth.signOut();
       window.location.href = "./index.html";
     };
+
+
+    // Meta KPI live updates
+    ["meta_youtube_published","meta_youtube_url","meta_youtube_published_at",
+     "meta_ditto_released","meta_ditto_url","meta_ditto_release_date",
+     "meta_bandcamp_released","meta_bandcamp_track_url","meta_bandcamp_release_date"
+    ].forEach(id=>{
+      const el = $(id);
+      if (!el) return;
+      el.addEventListener("input", updateMetaKPIs);
+      el.addEventListener("change", updateMetaKPIs);
+    });
 
     await loadData();
   </script>
