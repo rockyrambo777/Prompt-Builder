@@ -132,7 +132,13 @@
   <div id="toast" class="toast"></div>
 
   <script type="module">
-    import { requireSessionOrRedirect, readId, supabase } from "./app.js";
+    import { requireSessionOrRedirect, supabase } from "./app.js";
+
+const readId = (v) => {
+  if (!v) return null;
+  const id = String(v).trim();
+  return id.length ? id : null;
+};
 
     const $ = (id) => document.getElementById(id);
 
