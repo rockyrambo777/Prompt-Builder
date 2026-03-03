@@ -47,6 +47,29 @@
     @media (max-width: 1100px){ .cols{ grid-template-columns: 1fr; } }
     .divider{ height:1px; background:#22304a; margin:14px 0; }
     .stickyBox{ position: sticky; top: 14px; }
+
+    .toast{
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background:#16315f;
+      color:#fff;
+      padding:14px 18px;
+      border-radius:12px;
+      border:1px solid #2a3a5c;
+      box-shadow:0 10px 30px rgba(0,0,0,0.4);
+      font-weight:800;
+      z-index:9999;
+      opacity:0;
+      transform:translateY(10px);
+      transition:all 0.25s ease;
+      max-width: 420px;
+    }
+    .toast.show{
+      opacity:1;
+      transform:translateY(0);
+    }
+
   </style>
 </head>
 <body>
@@ -285,6 +308,17 @@
   <script type="module">
     import { supabase, requireSessionOrRedirect } from "./app.js";
     const $ = (id) => document.getElementById(id);
+
+
+    function showToast(message){
+      const t = $("toast");
+      if (!t) return;
+      t.textContent = message;
+      t.classList.add("show");
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(() => t.classList.remove("show"), 3000);
+    }
+
 
     const session = await requireSessionOrRedirect();
     $("who").textContent = `Signed in: ${session.user.email}`;
@@ -805,8 +839,16 @@ ${buildSongContextBlock()}
     if (__el_btnCopyOutput) __el_btnCopyOutput.onclick = async () => {
       const t = $("output").value || "";
       if (!t.trim()) return alert("Nothing to copy.");
+
       await navigator.clipboard.writeText(t);
-      $("statusLine").textContent = "Output copied ✅";
+
+      $("statusLine").textContent = "Prompt copied ✅ — Opening ChatGPT…";
+      showToast("Prompt copied ✅ — Paste into ChatGPT now. Opening ChatGPT…");
+
+      // Small delay so clipboard completes before opening a new tab
+      setTimeout(() => {
+        window.open("https://chat.openai.com/", "_blank", "noopener,noreferrer");
+      }, 350);
     };
 
     // Song Edit Prompt (ChatGPT)
@@ -919,5 +961,6 @@ UPDATED_LYRICS:
 
     await loadData();
   </script>
+  <div id="toast" class="toast"></div>
 </body>
 </html>
