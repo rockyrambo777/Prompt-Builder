@@ -767,8 +767,6 @@ const s = songs.find(x => String(x.id) === String(songId));
       el.addEventListener("input", updateMetaKPIs);
       el.addEventListener("change", updateMetaKPIs);
     });
-
-    await loadData();
     }
 
     function buildArtistDNABlock(){
@@ -1360,6 +1358,8 @@ UPDATED_LYRICS:
     await loadData();
   
     window.addEventListener("DOMContentLoaded", async () => {
+      // Load album/song data
+      await loadData();
       // Save & Close
       const b = $("btnSaveSong");
       if (b){
