@@ -619,10 +619,7 @@
       el.addEventListener("input", updateMetaKPIs);
       el.addEventListener("change", updateMetaKPIs);
     });
-
-    
-
-    await loadData();
+    loadData();
     }
 
     function buildArtistDNABlock(){
@@ -1104,8 +1101,7 @@ UPDATED_LYRICS:
       await supabase.auth.signOut();
       window.location.href = "./index.html";
     };
-
-    await loadData();
+    loadData();
   </script>
 <div id="metaModalBack" class="modalBack" aria-hidden="true">
       <div class="modal" role="dialog" aria-modal="true" aria-labelledby="metaModalTitle">
