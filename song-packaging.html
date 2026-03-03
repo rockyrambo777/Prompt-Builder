@@ -258,8 +258,7 @@
           const title = (p.title || "").toString().trim() || "(untitled playlist)";
           const desc = (p.description || "").toString().trim();
           return desc ? `${i+1}. ${title} — ${desc}` : `${i+1}. ${title}`;
-        }).join("
-");
+        }).join("\n");
       } catch(e){
         console.warn(e);
         return "";
