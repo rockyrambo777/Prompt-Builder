@@ -903,10 +903,12 @@ UPDATED_LYRICS:
       $("statusLine").textContent = msg.replace("…","...");
       showToast(msg);
 
-      setTimeout(() => {
-        window.open("https://chat.openai.com/", "_blank", "noopener,noreferrer");
-      }, 400);
-    };
+      const w = window.open("https://chat.openai.com/", "_blank", "noopener,noreferrer");
+      if (!w) {
+        // Popup blocked
+        showToast("Popup blocked ❌ Allow popups, then click again. Or use this link: chat.openai.com");
+      }
+};
     if (__el_btnCopyEditPrompt) __el_btnCopyEditPrompt.onclick = async () => {
       const t = $("edit_prompt_out")?.value || "";
       if (!t.trim()) return alert("Nothing to copy.");
