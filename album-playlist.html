@@ -76,17 +76,22 @@
   </div>
 
   <script type="module">
-    import { supabase, requireSessionOrRedirect, logout } from "./app.js";
+    import { supabase, requireSessionOrRedirect } from "./app.js";
     const $ = (id) => document.getElementById(id);
+
+    // Avoid depending on app.js exporting "logout" (prevents module import crashes)
+    async function doLogout(){
+      try { await supabase.auth.signOut(); } catch(e) {}
+    }
 
     const session = await requireSessionOrRedirect();
     $("who").textContent = `Signed in: ${session.user.email}`;
 
     const params = new URLSearchParams(location.search);
-    const albumId = params.get("album_id");
+    const albumId = (params.get("album_id") || "").trim();
     if (!albumId){ alert("Missing album_id"); location.href="./albums.html"; }
 
-    let album=null, artist=null;
+    let album=null, artist=null, songs=[];
 
     function safe(v){ return (v===null||v===undefined) ? "" : String(v); }
     function trimOrNone(v){ const t=safe(v).trim(); return t ? t : "(none)"; }
@@ -98,18 +103,61 @@
       if (artist?.name) bits.push("artist: " + artist.name);
       if (artist?.main_genre || artist?.secondary_genre) bits.push("genre: " + [artist.main_genre, artist.secondary_genre].filter(Boolean).join(" / "));
       if (album?.title) bits.push("album: " + album.title);
+      bits.push(`tracks: ${songs.length}`);
       bits.forEach(b=>{
         const s=document.createElement("span"); s.className="chip"; s.textContent=b; chips.appendChild(s);
       });
     }
 
-    async function load(){
-      const { data:a, error:e1 } = await supabase.from("albums").select("*").eq("id", albumId).single();
+    function formatTracksForPrompt(list){
+      if (!list?.length) return "(no tracks found for this album)";
+      return list.map((t, i) => {
+        const title = trimOrNone(t.title);
+        const keywords = trimOrNone(t.keywords);
+        const scripture = trimOrNone(t.scripture);
+        const suno = trimOrNone(t.suno_prompt);
+        return [
+          `#${i+1} ${title}`,
+          `- keywords: ${keywords}`,
+          `- scripture: ${scripture}`,
+          `- suno_prompt: ${suno}`
+        ].join("
+");
+      }).join("
+
+");
+    }
+
+    async function loadAlbumArtistSongs(){
+      // Album
+      const { data:a, error:e1 } = await supabase
+        .from("albums")
+        .select("id,title,artist_id,status")
+        .eq("id", albumId)
+        .single();
       if (e1) throw e1;
       album=a;
-      const { data:ar, error:e2 } = await supabase.from("artists").select("id,name,main_genre,secondary_genre,default_lane,default_perso,default_playlist_enabled,default_playlist_title,default_playlist_description,artist_about,youtube_about").eq("id", album.artist_id).single();
+
+      // Artist (via album.artist_id)
+      const { data:ar, error:e2 } = await supabase
+        .from("artists")
+        .select("id,name,main_genre,secondary_genre,default_lane,default_perso,voice_identity,must_include,never_include,suno_voice_anchor")
+        .eq("id", album.artist_id)
+        .single();
       if (e2) throw e2;
       artist=ar;
+
+      // Songs for album (DO NOT assume track_no or artist_id columns)
+      const { data:s, error:e3 } = await supabase
+        .from("songs")
+        .select("id,album_id,title,keywords,scripture,suno_prompt")
+        .eq("album_id", albumId);
+      if (e3) throw e3;
+
+      songs = Array.isArray(s) ? s : [];
+      // Client-side sort: if titles exist, sort by title; otherwise keep original
+      songs = [...songs].sort((x,y)=>safe(x.title).localeCompare(safe(y.title)));
+
       setChips();
     }
 
@@ -118,47 +166,39 @@
       const mood  = trimOrNone($("albumMood").value);
       const notes = trimOrNone($("notes").value);
 
-      const hasDefault = !!artist?.default_playlist_enabled;
-      const defaultTitle = trimOrNone(artist?.default_playlist_title);
-      const defaultDesc  = trimOrNone(artist?.default_playlist_description);
-
-      const isGospel = ((safe(artist?.main_genre)+" "+safe(artist?.secondary_genre)).toLowerCase().includes("gospel") || (safe(artist?.main_genre)+" "+safe(artist?.secondary_genre)).toLowerCase().includes("christ"));
-
       const lane = trimOrNone(artist?.default_lane);
-      const persona = trimOrNone(artist?.default_perso);
+      const persona = trimOrNone(artist?.voice_identity || artist?.default_perso);
 
       const prompt = [
-`Create a YouTube playlist package for an album.`,
+`Build a YouTube PLAYLIST package for this ALBUM, based directly on the tracks listed below.`,
 ``,
-`Return these sections (clean, no extra talk):`,
+`Return ONLY these sections (no extra talk):`,
 `PLAYLIST_TITLE:`,
 `PLAYLIST_DESCRIPTION:`,
-`PLAYLIST_TAGS:`,
-`PLAYLIST_RECOMMENDATION:`,
+`PLAYLIST_TAGS (comma-separated, under 500 characters):`,
+`TRACK_DETAILS (bulleted summary of each track’s vibe + why it belongs):`,
 ``,
 `Album info:`,
-`- Artist: ${safe(artist?.name)}`,
-`- Album Title: ${safe(album?.title)}`,
+`- Artist: ${trimOrNone(artist?.name)}`,
+`- Album Title: ${trimOrNone(album?.title)}`,
 `- Main Genre: ${trimOrNone(artist?.main_genre)}`,
 `- Secondary Genre: ${trimOrNone(artist?.secondary_genre)}`,
 `- Lane: ${lane}`,
-`- Persona: ${persona}`,
+`- Persona/Voice: ${persona}`,
 `- Theme: ${theme}`,
 `- Mood: ${mood}`,
 `- Notes: ${notes}`,
 ``,
-`Artist playlist defaults:`,
-`- Has default playlist: ${hasDefault ? "YES" : "NO"}`,
-`- Default playlist title: ${defaultTitle}`,
-`- Default playlist description: ${defaultDesc}`,
+`ALBUM_TRACKS (use these to infer the playlist mood, style, and keywords):`,
+formatTracksForPrompt(songs),
 ``,
 `Rules:`,
-`- Make the title clickable + SEO-friendly, but not spammy.`,
-`- Description: 6–10 lines, emoji-friendly, includes a short 'what this playlist is' intro, then a short CTA.`,
-`- Tags: comma-separated under 500 characters, match the genres and lane.`,
-`- PLAYLIST_RECOMMENDATION: If the artist has a default playlist enabled, recommend adding this album playlist into that default, otherwise recommend album-based playlist only.`,
-`- If the artist is not Gospel/Christian, do NOT mention scripture.`
-      ].join("\n");
+`- The PLAYLIST_TITLE must match the album’s lane/style and feel clickable but not spammy.`,
+`- PLAYLIST_DESCRIPTION must describe the overall mood/style of the album and mention 3–6 specific track titles naturally.`,
+`- TRACK_DETAILS: 1–2 bullets per track describing vibe, energy, and theme (use keywords + Suno prompt).`,
+`- Keep it consistent with the artist genres and persona.`
+      ].join("
+");
 
       $("out").value = prompt;
       $("status").textContent = "Built ✅";
@@ -168,9 +208,9 @@
     $("btnCopy").onclick  = async () => { await navigator.clipboard.writeText($("out").value); $("status").textContent="Copied ✅"; };
     $("btnBack").onclick  = () => history.back();
     $("btnAlbum").onclick = () => location.href = `./album-edit.html?id=${encodeURIComponent(albumId)}`;
-    $("btnLogout").onclick= async () => { await logout(); location.href="./index.html"; };
+    $("btnLogout").onclick= async () => { await doLogout(); location.href="./index.html"; };
 
-    load().catch(err => { console.error(err); alert(err.message || err); });
+    loadAlbumArtistSongs().catch(err => { console.error(err); alert(err.message || err); });
   </script>
 </body>
 </html>
