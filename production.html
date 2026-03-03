@@ -382,8 +382,8 @@ function pickInitialSong(){
     function finalizeSongSelection(){
       const target = song_id || currentSong?.id || (songs && songs[0] && songs[0].id);
       if (target) selectSong(target);
-      // Ensure the requested song opens even if published/distributed
       finalizeSongSelection();
+
     }
 
     async function fetchSongById(id){
