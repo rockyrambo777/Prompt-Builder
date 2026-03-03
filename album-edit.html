@@ -484,7 +484,7 @@ function safeText(v){ return (v === null || v === undefined) ? "" : String(v); }
     };
 
     $("btnPlaylist").onclick = () => {
-      location.href = `./album-playlist.html?album_id=${encodeURIComponent(albumId)}`;
+      location.href = `./album-playlist.html?album_id=${encodeURIComponent(id)}`;
     };
 
     $("btnCopyPrompt").onclick = async () => {
