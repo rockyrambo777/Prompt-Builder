@@ -225,12 +225,12 @@
       _playlists.forEach((pl, i) => {
         const row = document.createElement("div");
         row.style.display = "grid";
-        row.style.gridTemplateColumns = "1.2fr 1.6fr 2fr auto";
+        // playlists are title + description only (no URL stored)
+        row.style.gridTemplateColumns = "1.4fr 2.4fr auto";
         row.style.gap = "10px";
         row.style.alignItems = "start";
         row.innerHTML = `
           <input class="input" data-k="title" placeholder="Playlist title" value="${escapeHtml(pl.title)}">
-          <input class="input" data-k="url" placeholder="Playlist URL (optional)" value="${escapeHtml(pl.url)}">
           <input class="input" data-k="description" placeholder="Short description (optional)" value="${escapeHtml(pl.description)}">
           <button class="btn danger" type="button" data-act="del">Remove</button>
         `;
@@ -265,7 +265,7 @@
         hideErr();
         const { data, error } = await supabase
           .from("artist_playlists")
-          .select("id,title,url,description,sort_order")
+          .select("id,title,description,sort_order")
           .eq("artist_id", artistId)
           .order("sort_order", { ascending: true });
 
@@ -281,7 +281,6 @@
         _playlists = (data || []).map((r) => ({
           id: r.id,
           title: r.title || "",
-          url: r.url || "",
           description: r.description || "",
           sort_order: r.sort_order ?? 0,
         }));
@@ -297,14 +296,14 @@
 
     async function savePlaylists(artistId) {
       // normalize
-      const cleaned = _playlists
-        .map((p, idx) => ({
-          artist_id: artistId,
-          title: (p.title || "").trim(),
-          url: (p.url || "").trim() || null,
-          description: (p.description || "").trim() || null,
-          sort_order: idx,
-        }))
+	  // NOTE: playlist URLs are NOT stored (table has title + description only)
+	  const cleaned = _playlists
+	    .map((p, idx) => ({
+	      artist_id: artistId,
+	      title: (p.title || "").trim(),
+	      description: (p.description || "").trim() || null,
+	      sort_order: idx,
+	    }))
         .filter((p) => p.title.length);
 
       const del = await supabase.from("artist_playlists").delete().eq("artist_id", artistId);
@@ -477,6 +476,9 @@
 
         if (error) { $("statusLine").textContent = "Error: " + error.message; return; }
 
+        // Save default playlists (title + description only)
+        await savePlaylists(artistId);
+
         $("statusLine").textContent = "Saved ✅";
         window.location.href = `./artist-view.html?id=${encodeURIComponent(artistId)}`;
       } catch (err) {
@@ -485,7 +487,7 @@
       }
     }
 
-    $("btnAddPlaylist").onclick = () => { _playlists.push({ title:"", url:"", description:"" }); renderPlaylists(); };
+    $("btnAddPlaylist").onclick = () => { _playlists.push({ title:"", description:"" }); renderPlaylists(); };
     $("btnSave").onclick = save;
     $("btnCancel").onclick = () => window.location.href = `./artist-view.html?id=${encodeURIComponent(artistId)}`;
     $("btnBack").onclick = () => window.location.href = `./artist-view.html?id=${encodeURIComponent(artistId)}`;
