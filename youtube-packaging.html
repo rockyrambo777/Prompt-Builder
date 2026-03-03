@@ -151,12 +151,53 @@
     let selected = null;        // selected song row
     let selectedAlbum = null;   // album row
     let selectedArtist = null;
-    let selectedArtistPlaylistsText = "None";  // artist row
+    let selectedArtistPlaylistsText = "";  // formatted list of default playlists (can be multiple)
 
     function safe(v){ return (v === null || v === undefined) ? "" : String(v); }
     function trimOrNone(v){ const t = safe(v).trim(); return t ? t : "(none)"; }
 
-    function setChips(){
+    
+    async function loadArtistPlaylists(artistId){
+      // Returns a formatted multi-line list of playlists for this artist.
+      // We avoid server-side ordering (can 400 if column not exposed) and sort client-side when possible.
+      try{
+        // Try with sort_order first (if the column exists)
+        let { data, error } = await supabase
+          .from("artist_playlists")
+          .select("title,description,sort_order")
+          .eq("artist_id", artistId);
+
+        if (error){
+          // Fallback without sort_order
+          const fb = await supabase
+            .from("artist_playlists")
+            .select("title,description")
+            .eq("artist_id", artistId);
+          data = fb.data;
+          error = fb.error;
+        }
+
+        if (error || !data || !data.length) return "";
+
+        // Sort if sort_order present
+        const hasSort = Object.prototype.hasOwnProperty.call(data[0], "sort_order");
+        const sorted = hasSort
+          ? [...data].sort((a,b)=> (Number(a.sort_order||0) - Number(b.sort_order||0)))
+          : [...data];
+
+        // Format multiple playlists (1 per line)
+        return sorted.map((p,i)=>{
+          const title = safe(p.title).trim() || "(untitled playlist)";
+          const desc  = safe(p.description).trim();
+          return desc ? `${i+1}. ${title} — ${desc}` : `${i+1}. ${title}`;
+        }).join("\n");
+      } catch(e){
+        console.warn("loadArtistPlaylists", e);
+        return "";
+      }
+    }
+
+function setChips(){
       const chips = $("chips");
       chips.innerHTML = "";
       const bits = [];
@@ -287,7 +328,7 @@
       const includeImg = $("include_artist_image").checked;
 
       const core = [];
-      const defaultPlaylistsText = selectedArtistPlaylistsText || "None";
+      const defaultPlaylistsText = (selectedArtistPlaylistsText || "").trim();
       core.push(`Create YouTube packaging copy for the following.`);
 
       core.push(``);
@@ -316,7 +357,7 @@ PLAYLIST_RECOMMENDATION:`);
       core.push(``);
       core.push(`Artist playlist settings:
 - Default playlist enabled: ${ar?.default_playlist_enabled ? 'YES' : 'NO'}
-- Default playlist (single): ${defaultPlaylistsText}
+- Default playlists (can be multiple):\n${defaultPlaylistsText || "(none)"}
 - Build/Use album playlist: ${$("include_album_playlist")?.checked ? 'YES' : 'NO'}
 
 Artist info:`);
@@ -351,7 +392,7 @@ Artist info:`);
 
       core.push(``);
       core.push(`Rules:
-- PLAYLIST_RECOMMENDATION: Recommend the best playlist for this upload. Use the artist default playlist if it fits; otherwise recommend an album playlist.
+- PLAYLIST_RECOMMENDATION: Choose the best-fitting artist default playlist(s) from the list above (you may pick 1–3). If none fit, recommend "Create/Use Album playlist".
 - If “Build/Use album playlist” is YES: also return ALBUM_PLAYLIST_BUILDER with:
   - PLAYLIST_TITLE
   - PLAYLIST_DESCRIPTION
