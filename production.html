@@ -840,15 +840,58 @@ ${buildSongContextBlock()}
       const t = $("output").value || "";
       if (!t.trim()) return alert("Nothing to copy.");
 
-      await navigator.clipboard.writeText(t);
+      // Copy (with a small fallback for stricter browsers)
+      const copyOk = async () => {
+        try {
+          await navigator.clipboard.writeText(t);
+          return true;
+        } catch (e) {
+          try {
+            const ta = document.createElement("textarea");
+            ta.value = t;
+            ta.setAttribute("readonly", "");
+            ta.style.position = "fixed";
+            ta.style.left = "-9999px";
+            document.body.appendChild(ta);
+            ta.select();
+            const ok = document.execCommand("copy");
+            document.body.removeChild(ta);
+            return ok;
+          } catch {
+            return false;
+          }
+        }
+      };
 
-      $("statusLine").textContent = "Prompt copied ✅ — Opening ChatGPT…";
-      showToast("Prompt copied ✅ — Paste into ChatGPT now. Opening ChatGPT…");
+      const ok = await copyOk();
+      if (!ok) return alert("Copy failed. Please select the text and copy manually.");
 
-      // Small delay so clipboard completes before opening a new tab
-      setTimeout(() => {
+      // Decide which tools to open based on mode
+      const mode = ($("video_mode")?.value || "").trim();
+      const isLong = (mode === "long_lyric" || mode === "long_music");
+      const isShorts = (mode === "shorts");
+
+      const msg = isShorts
+        ? "Prompt copied ✅ — Paste into ChatGPT now. Opening ChatGPT + Flow + Grok…"
+        : (isLong
+            ? "Prompt copied ✅ — Paste into ChatGPT now. Opening ChatGPT + Flow…"
+            : "Prompt copied ✅ — Paste into ChatGPT now. Opening ChatGPT…");
+
+      $("statusLine").textContent = msg.replaceAll("…", "...");
+      showToast(msg);
+
+      // Open tabs (best effort; browsers may block multiple popups)
+      try {
         window.open("https://chat.openai.com/", "_blank", "noopener,noreferrer");
-      }, 350);
+        if (isLong || isShorts) {
+          window.open("https://labs.google/fx/tools/flow", "_blank", "noopener,noreferrer");
+        }
+        if (isShorts) {
+          window.open("https://grok.com/", "_blank", "noopener,noreferrer");
+        }
+      } catch (e) {
+        // If popups are blocked, at least the copy succeeded
+      }
     };
 
     // Song Edit Prompt (ChatGPT)
