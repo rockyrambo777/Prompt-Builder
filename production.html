@@ -378,6 +378,20 @@ function pickInitialSong(){
     }
 
     async function loadData(){
+
+    function finalizeSongSelection(){
+      const target = song_id || currentSong?.id || (songs && songs[0] && songs[0].id);
+      if (target) selectSong(target);
+      // Ensure the requested song opens even if published/distributed
+      finalizeSongSelection();
+    }
+
+    async function fetchSongById(id){
+      const { data, error } = await supabase.from(SONGS).select("*").eq("id", id).single();
+      if (error) return null;
+      return data;
+    }
+
       $("statusLine").textContent = "Loading…";
 
       const { data: a, error: e1 } = await supabase.from(ALBUMS).select("*").eq("id", album_id).single();
@@ -454,6 +468,11 @@ function pickInitialSong(){
 
     await loadData();
 
+    // Load playlists and bind packaging buttons after data is ready
+    if (artist?.id) playlistsText = await loadPlaylistsForArtist(artist.id);
+    bindPackagingButtons();
+
+
     // Load artist playlists for packaging
     if (artist?.id) playlistsText = await loadPlaylistsForArtist(artist.id);
 
@@ -476,7 +495,6 @@ function pickInitialSong(){
         if (!w) showToast("ChatGPT tab blocked — allow popups for this site.");
       });
     }
-    bindPackagingButtons();
 selectSong(currentSong.id);
       closeMetaModal();
     }
@@ -1151,6 +1169,37 @@ UPDATED_LYRICS:
     });
 
     await loadData();
-  </script>
+  
+    // ---------- Robust button bindings (always) ----------
+    function bindCoreButtons(){
+      const saveBtn = $("btnSaveSong");
+      if (saveBtn){
+        saveBtn.addEventListener("click", async (e)=>{
+          e.preventDefault();
+          const ok = await saveSong();
+          if (ok) goBackToAlbum();
+        });
+      }
+      const metaBtn = $("btnEditMeta");
+      if (metaBtn){
+        metaBtn.addEventListener("click", (e)=>{
+          e.preventDefault();
+          if (!currentSong) return alert("Select a song first.");
+          openMetaModal();
+        });
+      }
+      const metaClose = $("btnMetaClose");
+      if (metaClose) metaClose.addEventListener("click", (e)=>{ e.preventDefault(); closeMetaModal(); });
+      const metaSave = $("btnMetaSave");
+      if (metaSave) metaSave.addEventListener("click", async (e)=>{ e.preventDefault(); await saveMeta(); });
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      bindCoreButtons();
+      // Packaging buttons may be inserted later; bind now and also after loadData.
+      try{ bindPackagingButtons?.(); }catch(e){}
+    });
+
+</script>
 </body>
 </html>
