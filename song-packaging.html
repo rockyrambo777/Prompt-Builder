@@ -132,13 +132,7 @@
   <div id="toast" class="toast"></div>
 
   <script type="module">
-    import { requireSessionOrRedirect, supabase } from "./app.js";
-
-const readId = (v) => {
-  if (!v) return null;
-  const id = String(v).trim();
-  return id.length ? id : null;
-};
+    import { requireSessionOrRedirect, readId, supabase } from "./app.js";
 
     const $ = (id) => document.getElementById(id);
 
@@ -210,15 +204,40 @@ const readId = (v) => {
     }
 
     async function loadPlaylistsForArtist(artistId){
+      // Some Supabase/PostgREST setups throw 400 if a column (like sort_order) is missing or not exposed.
+      // We try with sort_order first, then fall back to title/description only.
       try{
-        const { data, error } = await supabase
+        let { data, error } = await supabase
           .from("artist_playlists")
           .select("title,description,sort_order")
           .eq("artist_id", artistId);
-        if (error) { console.warn("playlist load", error.message); return ""; }
+
+        if (error){
+          // Fallback (no sort_order)
+          console.warn("playlist load (with sort_order) failed:", error);
+          const res2 = await supabase
+            .from("artist_playlists")
+            .select("title,description")
+            .eq("artist_id", artistId);
+          data = res2.data;
+          error = res2.error;
+        }
+
+        if (error) {
+          console.warn("playlist load failed:", error);
+          return "";
+        }
         if (!data || !data.length) return "";
-        const sorted = [...data].sort((a,b)=>(Number(a.sort_order||0)-Number(b.sort_order||0)));
-        const p0 = sorted[0];
+
+        // Prefer lowest sort_order if present, else just take the first row returned.
+        let p0 = null;
+        if (data[0] && Object.prototype.hasOwnProperty.call(data[0], "sort_order")) {
+          const sorted = [...data].sort((a,b)=>(Number(a.sort_order||0)-Number(b.sort_order||0)));
+          p0 = sorted[0];
+        } else {
+          p0 = data[0];
+        }
+
         return p0 ? (p0.description ? `${p0.title} — ${p0.description}` : `${p0.title}`) : "";
       } catch(e){
         console.warn(e);
