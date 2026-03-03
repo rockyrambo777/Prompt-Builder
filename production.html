@@ -47,25 +47,9 @@
     @media (max-width: 1100px){ .cols{ grid-template-columns: 1fr; } }
     .divider{ height:1px; background:#22304a; margin:14px 0; }
     .stickyBox{ position: sticky; top: 14px; }
-  
-    .toast{position:fixed;right:16px;bottom:16px;z-index:99999;background:rgba(0,0,0,.75);
-      border:1px solid #2a3a5c;color:var(--text);padding:10px 12px;border-radius:12px;display:none;
-      max-width:min(520px,calc(100vw - 32px));}
-
-    /* Modal */
-    .modalBack{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:9999;padding:18px;}
-    .modal{width:min(920px,100%);background:var(--card);border:1px solid var(--border);border-radius:18px;box-shadow:0 20px 70px rgba(0,0,0,.55);}
-    .modalHeader{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid #22304a;}
-    .modalBody{padding:16px;}
-    .modalFooter{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 16px;border-top:1px solid #22304a;flex-wrap:wrap;}
-    .modalTitle{font-size:16px;font-weight:900;margin:0;}
-    .modalClose{background:transparent;border:1px solid #2a3a5c;border-radius:12px;color:var(--text);padding:8px 10px;cursor:pointer;font-weight:800;}
-    .kpi{display:flex;gap:8px;flex-wrap:wrap;}
-    .kpi .pill{font-weight:800}
-</style>
+  </style>
 </head>
 <body>
-  <div id="toast" class="toast"></div>
   <div class="wrap">
     <div class="top">
       <div>
@@ -78,140 +62,236 @@
         <button id="btnLogout" class="btn danger">Logout</button>
       </div>
     </div>
-          </div>
 
-          <div class="divider"></div>
-
-          <div class="row" style="justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
-            <div class="muted">Build a packaging prompt for ChatGPT (title + description + hashtags + pinned comment + thumbnail prompt).</div>
-            <div class="row">
-              <button id="btnPkgBuild" type="button" class="btn primary">Build Packaging</button>
-              <button id="btnPkgCreate" type="button" class="btn secondary">Create (Copy + Open ChatGPT)</button>
-            </div>
-          </div>
-
-          <label for="pkg_out" style="margin-top:10px;">Packaging Prompt Output (Copy/paste to ChatGPT)</label>
-          <textarea id="pkg_out" class="mono" style="min-height:220px;" placeholder="Click Build Packaging…"></textarea>
+    <div class="card">
+      <div class="row" style="justify-content:space-between;">
+        <div>
+          <div id="statusLine" class="muted">Loading…</div>
+          <div class="chips" id="chips"></div>
         </div>
-
-</div>
+        <div class="row">
+          <button id="btnCopyOutput" class="btn copy">Copy Output</button>
+          <button id="btnSaveSong" class="btn primary">Save Song</button>
+        </div>
       </div>
 
+      <div class="divider"></div>
 
-    <div id="metaModalBack" class="modalBack" aria-hidden="true">
-      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="metaModalTitle">
-        <div class="modalHeader">
-          <h3 id="metaModalTitle" class="modalTitle">Release & Links</h3>
-          <button id="btnMetaClose" class="modalClose">Close</button>
+      <div class="grid">
+        <div>
+          <label for="songSelect">Song</label>
+          <select id="songSelect"></select>
+          <div class="hint">Tip: open a specific song directly with <span class="mono">production.html?album_id=…&song_id=…</span></div>
         </div>
-        <div class="modalBody">
-          <div class="kpi" style="margin-bottom:10px;">
-            <span class="pill" id="kpiComplete">Complete: 0%</span>
-            <span class="pill" id="kpiYouTube">YouTube: —</span>
-            <span class="pill" id="kpiDitto">Ditto: —</span>
-            <span class="pill" id="kpiBandcamp">Bandcamp: —</span>
-          </div>
 
-          <div class="grid">
-            <div>
-              <label for="meta_track_number">Track #</label>
-              <input id="meta_track_number" placeholder="e.g. 1">
-              <div class="hint">This is the album track order. You can update it here anytime.</div>
-            </div>
-            <div>
-              <label for="meta_notes">Notes (optional)</label>
-              <input id="meta_notes" placeholder="e.g. scheduled, waiting artwork, etc.">
-            </div>
-          </div>
-
-          <div class="divider"></div>
-
-          <h4 style="margin:0 0 10px;">YouTube</h4>
-          <div class="grid">
-            <div class="checkRow">
-              <label><input id="meta_youtube_published" type="checkbox"> Published on YouTube</label>
-            </div>
-            <div></div>
-            <div>
-              <label for="meta_youtube_url">YouTube URL</label>
-              <input id="meta_youtube_url" placeholder="https://www.youtube.com/watch?v=...">
-            </div>
-            <div>
-              <label for="meta_youtube_published_at">Published date</label>
-              <input id="meta_youtube_published_at" type="date">
-            </div>
-          </div>
-
-          <div class="divider"></div>
-
-          <h4 style="margin:0 0 10px;">Ditto</h4>
-          <div class="grid">
-            <div class="checkRow">
-              <label><input id="meta_ditto_released" type="checkbox"> Released via Ditto</label>
-            </div>
-            <div></div>
-            <div>
-              <label for="meta_ditto_url">Ditto URL (optional)</label>
-              <input id="meta_ditto_url" placeholder="https://...">
-            </div>
-            <div>
-              <label for="meta_ditto_release_date">Release date</label>
-              <input id="meta_ditto_release_date" type="date">
-            </div>
-          </div>
-
-          <div class="divider"></div>
-
-          <h4 style="margin:0 0 10px;">Bandcamp</h4>
-          <div class="grid">
-            <div class="checkRow">
-              <label><input id="meta_bandcamp_released" type="checkbox"> Released on Bandcamp</label>
-            </div>
-            <div></div>
-            <div>
-              <label for="meta_bandcamp_track_url">Bandcamp Track URL</label>
-              <input id="meta_bandcamp_track_url" placeholder="https://...">
-            </div>
-            <div>
-              <label for="meta_bandcamp_release_date">Release date</label>
-              <input id="meta_bandcamp_release_date" type="date">
-            </div>
-          </div>
-        </div>
-        <div class="modalFooter">
-          <div class="muted" id="metaStatus">Ready.</div>
-          <div class="row">
-            <button id="btnMetaSave" class="btn primary">Save Release & Links</button>
+        <div>
+          <label>Artist DNA (auto injected)</label>
+          <div class="row" style="gap:8px; flex-wrap:wrap;">
+            <span class="pill" id="dnaGenre">genre: —</span>
+            <span class="pill" id="dnaVoice">voice: —</span>
+            <span class="pill" id="dnaLane">lane: —</span>
+            <span class="pill" id="dnaLegacy">legacy: —</span>
           </div>
         </div>
       </div>
     </div>
 
+    <div class="cols">
+      <div>
+
+        <div class="card">
+          <h2 style="margin:0 0 10px;">Song Editor</h2>
+
+          <div class="row" style="justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+            <label class="row" style="gap:10px; align-items:center; margin:0;">
+              <input type="checkbox" id="editSongToggle">
+              <span>Edit song (tempo / lyrics / Suno prompt)</span>
+            </label>
+
+            <button id="btnOpenLyricsBuilder" class="btn secondary">Build Lyrics + Suno</button>
+          </div>
+
+          <div class="hint" id="editHint" style="margin-top:8px;">
+            If the song has no lyrics, use Build Lyrics + Suno. Editing unlocks once lyrics exist.
+          </div>
+
+          <div class="grid" style="margin-top:14px;">
+            <div>
+              <label for="title">Title</label>
+              <input id="title" placeholder="Song title">
+            </div>
+            <div>
+              <label for="track_number">Track #</label>
+              <input id="track_number" placeholder="e.g. 1">
+            </div>
+          </div>
+
+          <div class="grid">
+            <div>
+              <label for="keywords">Keywords (optional)</label>
+              <input id="keywords" placeholder="faith, authority, bold praise">
+            </div>
+            <div>
+              <label for="scripture">Scripture (optional)</label>
+              <input id="scripture" placeholder="Ephesians 6:10">
+            </div>
+          </div>
+
+          <label for="suno_prompt">Suno Prompt</label>
+          <textarea id="suno_prompt" class="mono" placeholder="Song prompt…"></textarea>
+
+          <label for="lyrics" style="margin-top:10px;">Lyrics</label>
+          <textarea id="lyrics" class="mono" placeholder="Lyrics…"></textarea>
+
+          <div class="divider" style="margin:14px 0;"></div>
+
+          <div class="grid">
+            <div>
+              <label for="revision_goal">Revision goal</label>
+              <select id="revision_goal">
+                <option value="">(optional)</option>
+                <option value="tempo">Change tempo</option>
+                <option value="lyrics">Change lyrics</option>
+                <option value="arrangement">Change arrangement</option>
+                <option value="energy">Change energy</option>
+                <option value="instrumentation">Change instruments</option>
+              </select>
+            </div>
+            <div>
+              <label for="tempo_direction">Tempo direction</label>
+              <select id="tempo_direction">
+                <option value="">(optional)</option>
+                <option value="slower">Slightly slower</option>
+                <option value="faster">Slightly faster</option>
+                <option value="much_slower">Much slower</option>
+                <option value="much_faster">Much faster</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid">
+            <div>
+              <label for="energy_direction">Energy direction</label>
+              <select id="energy_direction">
+                <option value="">(optional)</option>
+                <option value="more_energy">More energy</option>
+                <option value="less_energy">Less energy</option>
+                <option value="more_dramatic">More dramatic</option>
+                <option value="more_groove">More groove</option>
+              </select>
+            </div>
+            <div>
+              <label for="instrumentation_notes">Instrumentation notes</label>
+              <input id="instrumentation_notes" placeholder="Add more drums, heavier bass, etc.">
+            </div>
+          </div>
+
+          <label for="edit_notes">Edit notes</label>
+          <textarea id="edit_notes" class="mono" placeholder="What should change? Keep it short and clear."></textarea>
+          <div class="row" style="justify-content:flex-end; margin-top:10px; gap:10px; flex-wrap:wrap;">
+            <button id="btnBuildEditPrompt" class="btn primary">Build Song Edit Prompt</button>
+            <button id="btnCopyEditPrompt" class="btn secondary">Copy Edit Prompt</button>
+          </div>
+          <label for="edit_prompt_out" style="margin-top:10px;">Edit Prompt Output (Copy into ChatGPT)</label>
+          <textarea id="edit_prompt_out" class="mono" style="min-height:150px;" placeholder="Click Build Song Edit Prompt…"></textarea>
+
+
+          <div class="hint" style="margin-top:10px;">
+            Reminder: songs should always include instruments. Voice stays anchored by Artist DNA, but each song can have a different beat/arrangement.
+          </div>
+        </div>
+
+      </div>
+
+      <div class="stickyBox">
+        <div class="card">
+          <h2 style="margin:0 0 10px;">Prompt Builder</h2>
+
+          
+          <div class="grid">
+            <div>
+              <label for="video_mode">Mode</label>
+              <select id="video_mode">
+                <option value="long_lyric" selected>Longform – Lyric Video (Flow)</option>
+                <option value="long_music">Longform – Music Video (Grok image-to-video)</option>
+                <option value="shorts">Shorts plan (10s) (Flow + Grok + Onscreen text)</option>
+              </select>
+            </div>
+            <div>
+              <label for="scene_count">Scenes (longform only)</label>
+              <select id="scene_count">
+                <option value="1" >1</option>
+<option value="2" >2</option>
+<option value="3" >3</option>
+<option value="4" >4</option>
+<option value="5" >5</option>
+<option value="6" >6</option>
+<option value="7" >7</option>
+<option value="8" >8</option>
+<option value="9" >9</option>
+<option value="10" >10</option>
+<option value="11" >11</option>
+<option value="12" selected>12</option>
+<option value="13" >13</option>
+<option value="14" >14</option>
+<option value="15" >15</option>
+<option value="16" >16</option>
+<option value="17" >17</option>
+<option value="18" >18</option>
+<option value="19" >19</option>
+<option value="20" >20</option>
+<option value="21" >21</option>
+<option value="22" >22</option>
+<option value="23" >23</option>
+<option value="24" >24</option>
+<option value="25" >25</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="checkRow" style="margin-top:10px;">
+            <label><input id="use_artist_image" type="checkbox" checked> Use artist reference image (Flow/Grok)</label>
+          </div>
+          <div class="hint">Shorts do <b>not</b> use scenes. Longform uses scenes 1–25.</div>
+          <div class="divider"></div>
+
+          <div class="row" style="justify-content:space-between; align-items:center;">
+            <div class="muted">Build a strict prompt for ChatGPT. Paste ChatGPT results into the Working box (not saved).</div>
+            <div class="row">
+              <button id="btnBuild" class="btn primary">Build Prompt</button>
+              <button id="btnClearOutput" class="btn">Clear</button>
+            </div>
+          </div>
+
+          <label for="output" style="margin-top:10px;">Prompt Output (Copy this into ChatGPT)</label>
+          <textarea id="output" class="mono" style="min-height:220px;" placeholder="Click Build Prompt…"></textarea>
+
+          <div class="row" style="margin-top:10px;">
+            <button id="btnCopyOutput" class="btn copy">Copy Output</button>
+          </div>
+
+          <div class="divider"></div>
+
+          <label for="working_results">Working Results (paste from ChatGPT) — NOT SAVED</label>
+          <textarea id="working_results" class="mono" style="min-height:180px;" placeholder="Paste ChatGPT output here (scenes/shorts plan)…"></textarea>
+
+          <div class="row" style="margin-top:10px;">
+            <button id="btnCopyWorking" class="btn copy">Copy Working</button>
+            <button id="btnClearWorking" class="btn">Clear Working</button>
+          </div>
+
+        </div>
+      </div>
+
   <script type="module">
     import { supabase, requireSessionOrRedirect } from "./app.js";
     const $ = (id) => document.getElementById(id);
 
-    function showToast(message){
-      const t = $("toast");
-      if (!t) return;
-      t.textContent = message;
-      t.style.display = "block";
-      setTimeout(()=>t.style.display="none", 2600);
-    }
-
-
     const session = await requireSessionOrRedirect();
-    $("who").textContent = `Signed in: ${session.user.email}`;
+    safeText("who", `Signed in: ${session.user.email}`);
 
     const params = new URLSearchParams(window.location.search);
     const album_id = params.get("album_id") || params.get("id");
-
-    function goBackToAlbum(){
-      // Prefer explicit album edit route
-      if (album_id) window.location.href = `./album-edit.html?id=${encodeURIComponent(album_id)}`;
-      else window.history.back();
-    }
-
     const song_id_param = params.get("song_id");
 
     if (!album_id) {
@@ -250,67 +330,54 @@
       const mg = (artist?.main_genre || "").trim();
       const sg = (artist?.secondary_genre || "").trim();
       const genre = [mg, sg].filter(Boolean).join(" / ") || "—";
-      $("dnaGenre").textContent = "genre: " + genre;
+      safeText("dnaGenre", "genre: " + genre);
 
       const voice = (artist?.voice_identity || "").trim() || "—";
-      $("dnaVoice").textContent = "voice: " + (voice.length > 22 ? voice.slice(0,22) + "…" : voice);
+      safeText("dnaVoice", "voice: " + (voice.length > 22 ? voice.slice(0,22) + "…" : voice));
 
       const lane = (artist?.default_lane || "").trim() || "—";
-      $("dnaLane").textContent = "lane: " + lane;
+      safeText("dnaLane", "lane: " + lane);
 
       const legacy = currentSong?.is_legacy_published ? "YES" : "NO";
-      $("dnaLegacy").textContent = "legacy: " + legacy;
+      safeText("dnaLegacy", "legacy: " + legacy);
       $("dnaLegacy").className = "pill " + (currentSong?.is_legacy_published ? "warn" : "ok");
     }
 
-
-    function metaCompletion(){
-      const yt = $("meta_youtube_published")?.checked;
-      const ytUrl = ($("meta_youtube_url")?.value || "").trim();
-      const ytDt = ($("meta_youtube_published_at")?.value || "").trim();
-
-      const di = $("meta_ditto_released")?.checked;
-      const diDt = ($("meta_ditto_release_date")?.value || "").trim();
-
-      const bc = $("meta_bandcamp_released")?.checked;
-      const bcUrl = ($("meta_bandcamp_track_url")?.value || "").trim();
-      const bcDt = ($("meta_bandcamp_release_date")?.value || "").trim();
-
-      const ytOk = !!(yt && ytUrl && ytDt);
-      const diOk = !!(di && diDt);
-      const bcOk = !!(bc && bcUrl && bcDt);
-
-      const done = [ytOk, diOk, bcOk].filter(Boolean).length;
-      const pct = Math.round((done / 3) * 100);
-      return { ytOk, diOk, bcOk, pct, allDone: done === 3 };
+    function buildSongSelect(){
+      const sel = $("songSelect");
+      sel.innerHTML = "";
+      if (!songs.length) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "(No songs found)";
+        sel.appendChild(opt);
+        currentSong = null;
+        setStatus("No songs in this album yet.");
+        return;
+      }
+      for (const s of songs){
+        const opt = document.createElement("option");
+        opt.value = s.id;
+        const t = s.track_number ? `#${s.track_number} ` : "";
+        const legacy = s.is_legacy_published ? " (legacy)" : "";
+        opt.textContent = `${t}${s.title || "(untitled)"}${legacy}`;
+        sel.appendChild(opt);
+      }
+      if (songs.length){
+        const chosen = (song_id_param && songs.find(x => String(x.id) === String(song_id_param)))
+          ? song_id_param
+          : songs[0].id;
+        sel.value = chosen;
+        selectSong(chosen);
+      } else {
+        currentSong = null;
+        setStatus("No songs in this album yet.");
+      }
     }
 
-    function updateMetaKPIs(){
-      const s = metaCompletion();
-      $("kpiComplete").textContent = `Complete: ${s.pct}%`;
-      $("kpiComplete").className = "pill " + (s.allDone ? "ok" : "warn");
-      $("kpiYouTube").textContent = "YouTube: " + (s.ytOk ? "DONE" : "TODO");
-      $("kpiYouTube").className = "pill " + (s.ytOk ? "ok" : "warn");
-      $("kpiDitto").textContent = "Ditto: " + (s.diOk ? "DONE" : "TODO");
-      $("kpiDitto").className = "pill " + (s.diOk ? "ok" : "warn");
-      $("kpiBandcamp").textContent = "Bandcamp: " + (s.bcOk ? "DONE" : "TODO");
-      $("kpiBandcamp").className = "pill " + (s.bcOk ? "ok" : "warn");
-    }
-
-    function openMetaModal(){
-      updateMetaKPIs();
-      const back = $("metaModalBack");
-      back.style.display = "flex";
-      back.setAttribute("aria-hidden","false");
-    }
-    function closeMetaModal(){
-      const back = $("metaModalBack");
-      back.style.display = "none";
-      back.setAttribute("aria-hidden","true");
-    }
-function fillSongForm(s){
+    function fillSongForm(s){
       currentSong = s;
-      $("pageTitle").textContent = `Production: ${album?.title || ""}`;
+      safeText("pageTitle", `Production: ${album?.title || ""}`);
 
       $("title").value = s.title || "";
       $("track_number").value = s.track_number ?? "";
@@ -325,77 +392,23 @@ function fillSongForm(s){
       $("tempo_direction").value = s.tempo_direction || "";
       $("energy_direction").value = s.energy_direction || "";
       $("instrumentation_notes").value = s.instrumentation_notes || "";
-      $("edit_notes").value = s.edit_notes || "";
-
-      // Release & links (modal)
-      $("meta_track_number").value = s.track_number ?? "";
-      $("meta_notes").value = s.release_notes || "";
-      $("meta_youtube_published").checked = !!s.youtube_published;
-      $("meta_youtube_url").value = s.youtube_url || "";
-      $("meta_youtube_published_at").value = s.youtube_published_at || "";
-      $("meta_ditto_released").checked = !!s.ditto_released;
-      $("meta_ditto_url").value = s.ditto_url || "";
-      $("meta_ditto_release_date").value = s.ditto_release_date || "";
-      $("meta_bandcamp_released").checked = !!s.bandcamp_released;
-      $("meta_bandcamp_track_url").value = s.bandcamp_track_url || "";
-      $("meta_bandcamp_release_date").value = s.bandcamp_release_date || "";
-      updateMetaKPIs();
-
-      setEditMode();
-      setDNAPreview();
+      $("edit_notes").value = s.edit_notes || "";      setEditMode();      setDNAPreview();
     }
-
-function setSongLabel(){
-  const el = $("songLabel");
-  if (!el) return;
-  if (!currentSong){ el.textContent = "—"; return; }
-  const t = currentSong.track_number ? `#${currentSong.track_number} ` : "";
-  el.textContent = `${t}${currentSong.title || "(untitled)"}`;
-}
-
-function pickInitialSong(){
-  if (!songs.length){
-    currentSong = null;
-    $("statusLine").textContent = "No songs in this album yet.";
-    setSongLabel();
-    return;
-  }
-  const chosen = (song_id_param && songs.find(x => String(x.id) === String(song_id_param)))
-    ? song_id_param
-    : songs[0].id;
-  selectSong(chosen);
-}
-
 
     function selectSong(songId){
       const s = songs.find(x => String(x.id) === String(songId));
       if (!s) return;
       fillSongForm(s);
-      setSongLabel();
       const p = new URLSearchParams(window.location.search);
       p.set("song_id", s.id);
       history.replaceState({}, "", `${location.pathname}?${p.toString()}`);
     }
 
     async function loadData(){
-
-    function finalizeSongSelection(){
-      const target = song_id || currentSong?.id || (songs && songs[0] && songs[0].id);
-      if (target) selectSong(target);
-      finalizeSongSelection();
-
-    }
-
-    async function fetchSongById(id){
-      const { data, error } = await supabase.from(SONGS).select("*").eq("id", id).single();
-      if (error) return null;
-      return data;
-    }
-
-      $("statusLine").textContent = "Loading…";
+      setStatus("Loading…");
 
       const { data: a, error: e1 } = await supabase.from(ALBUMS).select("*").eq("id", album_id).single();
-      if (e1) { $("statusLine").textContent = "Error: " + e1.message; return; }
+      if (e1) { setStatus("Error: " + e1.message); return; }
       album = a;
 
       const { data: ar, error: e2 } = await supabase.from(ARTISTS).select("*").eq("id", album.artist_id).single();
@@ -404,99 +417,13 @@ function pickInitialSong(){
       const { data: s, error: e3 } = await supabase.from(SONGS).select("*").eq("album_id", album_id).order("track_number", { ascending: true });
       if (e3) {
         songs = [];
-        $("statusLine").textContent = "Songs load error: " + e3.message;
+        setStatus("Songs load error: " + e3.message);
       } else {
         songs = s || [];
-        $("statusLine").textContent = `Album loaded. Songs: ${songs.length}`;
+        setStatus(`Album loaded. Songs: ${songs.length}`);
       }
       setChips();
-      pickInitialSong();
-    }
-
-
-    async function saveMeta(){
-      if (!currentSong) return false;
-      const payload = {
-        track_number: Number($("meta_track_number").value || currentSong.track_number || 1),
-        release_notes: ($("meta_notes").value || "").trim() || null,
-
-        youtube_published: !!$("meta_youtube_published").checked,
-        youtube_url: ($("meta_youtube_url").value || "").trim() || null,
-        youtube_published_at: ($("meta_youtube_published_at").value || "").trim() || null,
-
-        ditto_released: !!$("meta_ditto_released").checked,
-        ditto_url: ($("meta_ditto_url").value || "").trim() || null,
-        ditto_release_date: ($("meta_ditto_release_date").value || "").trim() || null,
-
-        bandcamp_released: !!$("meta_bandcamp_released").checked,
-        bandcamp_track_url: ($("meta_bandcamp_track_url").value || "").trim() || null,
-        bandcamp_release_date: ($("meta_bandcamp_release_date").value || "").trim() || null,
-      };
-
-      $("metaStatus").textContent = "Saving…";
-
-      async function updateWithFallback(obj){
-        let working = { ...obj };
-        for (let attempts = 0; attempts < 12; attempts++){
-          const res = await supabase.from(SONGS).update(working).eq("id", currentSong.id);
-          if (!res.error) return { ok:true };
-          const msg = String(res.error.message || "");
-          const m = msg.match(/column\s+\"([^\"]+)\"\s+of\s+relation/i)
-                 || msg.match(/column\s+\"([^\"]+)\"\s+does\s+not\s+exist/i)
-                 || msg.match(/could not find the \'([^\']+)\' column of \'songs\' in the schema cache/i);
-          if (!m) return { ok:false, error: msg };
-          delete working[m[1]];
-        }
-        return { ok:false, error: "Update failed after fallbacks." };
-      }
-
-      const up = await updateWithFallback(payload);
-      if (!up.ok){ $("metaStatus").textContent = "Error: " + up.error; return; }
-
-      $("metaStatus").textContent = "Saved ✅";
-  
-    // Meta KPI live updates
-    ["meta_youtube_published","meta_youtube_url","meta_youtube_published_at",
-     "meta_ditto_released","meta_ditto_url","meta_ditto_release_date",
-     "meta_bandcamp_released","meta_bandcamp_track_url","meta_bandcamp_release_date"
-    ].forEach(id=>{
-      const el = $(id);
-      if (!el) return;
-      el.addEventListener("input", updateMetaKPIs);
-      el.addEventListener("change", updateMetaKPIs);
-    });
-
-    await loadData();
-
-    // Load playlists and bind packaging buttons after data is ready
-    if (artist?.id) playlistsText = await loadPlaylistsForArtist(artist.id);
-    bindPackagingButtons();
-
-
-    // Load artist playlists for packaging
-    if (artist?.id) playlistsText = await loadPlaylistsForArtist(artist.id);
-
-
-    // Packaging buttons
-    function bindPackagingButtons(){
-      const b1 = $("btnPkgBuild");
-      if (b1) b1.addEventListener("click", (e)=>{ e.preventDefault(); buildPackaging(); });
-
-      const b2 = $("btnPkgCreate");
-      if (b2) b2.addEventListener("click", async (e)=>{
-        e.preventDefault();
-        // Open tab immediately (best chance to avoid popup blockers)
-        const w = openChatGPTTab();
-        buildPackaging();
-        const txt = $("pkg_out").value || "";
-        const ok = await safeCopy(txt);
-        if (ok) showToast("Packaging prompt copied ✅ Paste into ChatGPT");
-        else showToast("Copy failed ❌");
-        if (!w) showToast("ChatGPT tab blocked — allow popups for this site.");
-      });
-    }
-selectSong(currentSong.id);
-      closeMetaModal();
+      buildSongSelect();
     }
 
     async function saveSong(){
@@ -514,8 +441,8 @@ selectSong(currentSong.id);
         tempo_direction: $("tempo_direction").value || null,
         energy_direction: $("energy_direction").value || null,
         instrumentation_notes: $("instrumentation_notes").value.trim() || null,
-        edit_notes: $("edit_notes").value || null,
-};
+        edit_notes: $("edit_notes").value || null,        is_
+      };
 
       async function updateWithFallback(obj){
         let working = { ...obj };
@@ -523,33 +450,19 @@ selectSong(currentSong.id);
           const res = await supabase.from(SONGS).update(working).eq("id", currentSong.id);
           if (!res.error) return { ok:true };
           const msg = String(res.error.message || "");
-          const m = msg.match(/column\s+\"([^\"]+)\"\s+of\s+relation/i)
-          || msg.match(/could not find the \'([^\']+)\' column of \'songs\' in the schema cache/i);
+          const m = msg.match(/column\s+\"([^\"]+)\"\s+of\s+relation/i);
           if (!m) return { ok:false, error: msg };
           delete working[m[1]];
         }
         return { ok:false, error: "Update failed after fallbacks." };
       }
 
-      $("statusLine").textContent = "Saving…";
+      setStatus("Saving…");
       const up = await updateWithFallback(payload);
-      if (!up.ok) { $("statusLine").textContent = "Error: " + up.error; return false; }
+      if (!up.ok) { setStatus("Error: " + up.error); return; }
 
-      $("statusLine").textContent = "Saved ✅";
-  
-    // Meta KPI live updates
-    ["meta_youtube_published","meta_youtube_url","meta_youtube_published_at",
-     "meta_ditto_released","meta_ditto_url","meta_ditto_release_date",
-     "meta_bandcamp_released","meta_bandcamp_track_url","meta_bandcamp_release_date"
-    ].forEach(id=>{
-      const el = $(id);
-      if (!el) return;
-      el.addEventListener("input", updateMetaKPIs);
-      el.addEventListener("change", updateMetaKPIs);
-    });
-
-    await loadData();
-      return true;
+      setStatus("Saved ✅");
+      await loadData();
     }
 
     function buildArtistDNABlock(){
@@ -678,9 +591,9 @@ ${buildSongContextBlock()}
 
       // Gate toggle itself if no lyrics
       $("editSongToggle").disabled = !canEdit;
-      $("editHint").textContent = canEdit
+      safeText("editHint", canEdit
         ? "Tick Edit song to change tempo/lyrics/Suno prompt. Then build the Song Edit Prompt."
-        : "This song has no lyrics yet. Use Build Lyrics + Suno first. Editing unlocks once lyrics exist.";
+        : "This song has no lyrics yet. Use Build Lyrics + Suno first. Editing unlocks once lyrics exist.");
 
       // These fields become editable only in edit mode
       const ids = ["title","track_number","keywords","scripture","suno_prompt","lyrics",
@@ -698,7 +611,12 @@ ${buildSongContextBlock()}
             const __el_btnSaveSong2 = $("btnSaveSong");
       if (__el_btnSaveSong2) __el_btnSaveSong2.disabled = !on;
 
-      // Build Song Edit prompt only when editing
+      // Build Song Edit prompt only when editing      const __el_btnBuildSongEdit = $("btnBuildSongEdit");
+      if (__el_btnBuildSongEdit) __el_btnBuildSongEdit.disabled = !on;
+      const __el_btnCopySongEdit = $("btnCopySongEdit");
+      if (__el_btnCopySongEdit) __el_btnCopySongEdit.disabled = !on;
+      const __el_btnClearSongEdit = $("btnClearSongEdit");
+      if (__el_btnClearSongEdit) __el_btnClearSongEdit.disabled = !on;
 }
 
     const _tgl = $("editSongToggle");
@@ -779,7 +697,7 @@ ${buildSongContextBlock()}
       const t = $("song_edit_prompt").value || "";
       if (!t.trim()) return alert("Nothing to copy.");
       await navigator.clipboard.writeText(t);
-      $("statusLine").textContent = "Song edit prompt copied ✅";
+      setStatus("Song edit prompt copied ✅");
     };
     const __el_btnClearSongEdit = $("btnClearSongEdit");
     if (__el_btnClearSongEdit) __el_btnClearSongEdit.onclick = () => $("song_edit_prompt").value = "";
@@ -870,135 +788,13 @@ ${buildSongContextBlock()}
     };
 
 
-
-    // ---------- YouTube Packaging (integrated) ----------
-    async function safeCopy(text){
-      const t = (text || "").toString();
-      try{
-        if (navigator.clipboard && window.isSecureContext){
-          await navigator.clipboard.writeText(t);
-          return true;
-        }
-      }catch(e){}
-      try{
-        const ta = document.createElement("textarea");
-        ta.value = t;
-        ta.setAttribute("readonly","");
-        ta.style.position = "fixed";
-        ta.style.left = "-9999px";
-        ta.style.top = "0";
-        document.body.appendChild(ta);
-        ta.focus(); ta.select();
-        const ok = document.execCommand("copy");
-        document.body.removeChild(ta);
-        return ok;
-      }catch(e){
-        return false;
-      }
-    }
-
-    function openChatGPTTab(){
-      // May be blocked by popup blockers; we try anyway in direct click handlers.
-      try{
-        return window.open("https://chat.openai.com/", "_blank", "noopener,noreferrer");
-      }catch(e){
-        return null;
-      }
-    }
-
-    function isGospelArtist(a){
-      const mg = (a?.main_genre || "").toLowerCase();
-      const sg = (a?.secondary_genre || "").toLowerCase();
-      const lane = (a?.default_lane || "").toLowerCase();
-      const any = `${mg} ${sg} ${lane}`;
-      return any.includes("gospel") || any.includes("christ") || any.includes("worship") || any.includes("christian");
-    }
-
-    let playlistsText = "";
-
-    async function loadPlaylistsForArtist(artistId){
-      try{
-        let { data, error } = await supabase
-          .from("artist_playlists")
-          .select("title,description,sort_order")
-          .eq("artist_id", artistId);
-
-        if (error){
-          const fb = await supabase
-            .from("artist_playlists")
-            .select("title,description")
-            .eq("artist_id", artistId);
-          data = fb.data;
-          error = fb.error;
-        }
-
-        if (error) return "";
-        if (!data || !data.length) return "";
-
-        const hasSort = Object.prototype.hasOwnProperty.call(data[0], "sort_order");
-        const sorted = hasSort
-          ? [...data].sort((a,b)=>(Number(a.sort_order||0)-Number(b.sort_order||0)))
-          : [...data];
-
-        return sorted.map((p,i)=>{
-          const title = (p.title || "").toString().trim() || "(untitled playlist)";
-          const desc = (p.description || "").toString().trim();
-          return desc ? `${i+1}. ${title} — ${desc}` : `${i+1}. ${title}`;
-        }).join("\\n");
-      }catch(e){
-        return "";
-      }
-    }
-
-    function buildPackagingPromptLong(){
-      const includeArtistImg = !!$("pkg_useArtistImg")?.checked;
-      const gospel = isGospelArtist(artist);
-
-      const artistBlock = `ARTIST\\n- name: ${artist?.name || "(unknown)"}\\n- lane: ${artist?.default_lane || "(none)"}\\n- persona/voice identity: ${artist?.voice_identity || artist?.default_perso || "(none)"}\\n- main genre: ${artist?.main_genre || "(none)"}\\n- secondary genre: ${artist?.secondary_genre || "(none)"}\\n- must include: ${artist?.must_include || "(none)"}\\n- never include: ${artist?.never_include || "(none)"}\\n- suno voice anchor: ${artist?.suno_voice_anchor || "(none)"}`;
-
-      const songBlock = `SONG\\n- title: ${currentSong?.title || ""}\\n- keywords: ${$("keywords")?.value || ""}\\n- scripture: ${gospel ? ($("scripture")?.value || "(optional)") : "(not gospel/christian)"}\\n- suno prompt (for this song): ${$("suno_prompt")?.value || ""}`;
-
-      const playlistNote = playlistsText
-        ? `PLAYLISTS (artist defaults)\\n${playlistsText}\\n\\nIn your response, recommend the best-fitting artist default playlist(s) for this song (pick 1–3). If none fit, recommend "Album playlist".`
-        : `PLAYLISTS\\nNo artist default playlists. In your response, also tell me if this should go to an Album playlist or a new mood playlist.`;
-
-      const thumbRule = includeArtistImg
-        ? "Thumbnail: INCLUDE artist reference image. Make it bold, high contrast, mobile readable."
-        : "Thumbnail: Do NOT include artist reference image. Make it bold, high contrast, mobile readable.";
-
-      return `You are helping me package a SINGLE YouTube long-form video for my music channel.\\n\\n${artistBlock}\\n\\n${songBlock}\\n\\nLYRICS (paste as-is):\\n${$("lyrics")?.value || "(no lyrics found)"}\\n\\n${playlistNote}\\n\\nRETURN ONLY these sections (clean, no extra talk):\\nPLAYLIST_RECOMMENDATION (pick 1–3 playlists or 'Album playlist'):\\nYOUTUBE_TITLE:\\nYOUTUBE_DESCRIPTION_WITH_HASHTAGS:\\nPINNED_COMMENT:\\nTHUMBNAIL_PROMPT_1280x720 (SEO, readable, eye-catching):\\n${thumbRule}\\n\\nIMPORTANT:\\n- Do NOT include the 'Song Details: BPM/Key/Genre/Mood' line.\\n- If this is not a gospel/christian artist, do NOT add scripture verses and do NOT mention Bible references.\\n`;
-    }
-
-    function buildPackagingPromptShort(){
-      const gospel = isGospelArtist(artist);
-
-      const artistBlock = `ARTIST\\n- name: ${artist?.name || "(unknown)"}\\n- lane: ${artist?.default_lane || "(none)"}\\n- persona/voice identity: ${artist?.voice_identity || artist?.default_perso || "(none)"}\\n- main genre: ${artist?.main_genre || "(none)"}\\n- secondary genre: ${artist?.secondary_genre || "(none)"}`;
-
-      const songBlock = `SONG\\n- title: ${currentSong?.title || ""}\\n- keywords: ${$("keywords")?.value || ""}\\n- scripture: ${gospel ? ($("scripture")?.value || "(optional)") : "(not gospel/christian)"}\\n- suno prompt: ${$("suno_prompt")?.value || ""}`;
-
-      const playlistNote = playlistsText
-        ? `PLAYLISTS (artist defaults)\\n${playlistsText}\\n\\nIn your response, recommend the best-fitting artist default playlist(s) for this short (pick 1–3). If none fit, recommend "Album playlist".`
-        : `PLAYLISTS\\nNo artist default playlists. In your response, also tell me if this short should link back to an Album playlist or a mood playlist.`;
-
-      return `You are helping me package a SINGLE Shorts/TikTok post for this song.\\n\\n${artistBlock}\\n\\n${songBlock}\\n\\nLYRICS (paste as-is):\\n${$("lyrics")?.value || "(no lyrics found)"}\\n\\n${playlistNote}\\n\\nRETURN ONLY these sections (clean, no extra talk):\\nPLAYLIST_RECOMMENDATION (pick 1–3 playlists or 'Album playlist'):\\nSHORTS_TITLE:\\nSHORTS_DESCRIPTION_WITH_HASHTAGS:\\nPINNED_COMMENT (YouTube Shorts):\\nTIKTOK_DESCRIPTION_WITH_HASHTAGS:\\n\\nIMPORTANT:\\n- Shorts do NOT need a thumbnail prompt.\\n- Do NOT include the 'Song Details: BPM/Key/Genre/Mood' line.\\n- If this is not a gospel/christian artist, do NOT add scripture verses and do NOT mention Bible references.\\n`;
-    }
-
-    function buildPackaging(){
-      if (!currentSong){ showToast?.('Select a song first.'); return; }
-      if (!artist){ showToast?.('Artist not loaded yet.'); return; }
-      const mode = $("pkg_mode")?.value || "long";
-      $("pkg_out").value = (mode === "short") ? buildPackagingPromptShort() : buildPackagingPromptLong();
-      $("statusLine").textContent = "Packaging prompt built ✅";
-    }
-
-
     function buildPrompt(){
       if (!currentSong) return;
       const mode = $("video_mode").value;
       if (mode === "shorts") $("output").value = __buildShortsPrompt();
       else if (mode === "long_music") $("output").value = __buildLongPrompt(true);
       else $("output").value = __buildLongPrompt(false);
-      $("statusLine").textContent = "Prompt built ✅";
+      setStatus("Prompt built ✅");
     }
 
     const __el_btnBuild = $("btnBuild");
@@ -1011,7 +807,7 @@ ${buildSongContextBlock()}
       const t = $("output").value || "";
       if (!t.trim()) return alert("Nothing to copy.");
       await navigator.clipboard.writeText(t);
-      $("statusLine").textContent = "Output copied ✅";
+      setStatus("Output copied ✅");
     };
 
     // Song Edit Prompt (ChatGPT)
@@ -1083,56 +879,31 @@ UPDATED_LYRICS:
 `;
       const out = $("edit_prompt_out");
       if (out) out.value = prompt;
-      $("statusLine").textContent = "Edit prompt built ✅";
+      setStatus("Edit prompt built ✅");
     };
 
     const __el_btnCopyEditPrompt = $("btnCopyEditPrompt");
     if (__el_btnCopyEditPrompt) __el_btnCopyEditPrompt.onclick = async () => {
       const t = $("edit_prompt_out")?.value || "";
       if (!t.trim()) return alert("Nothing to copy.");
-      
-      try {
-        await navigator.clipboard.writeText(t);
-      } catch(e){
-        const ta = document.createElement("textarea");
-        ta.value = t;
-        ta.style.position = "fixed";
-        ta.style.left = "-9999px";
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand("copy");
-        document.body.removeChild(ta);
-      }
-
-      const msg = "Edit prompt copied ✅ — Paste into ChatGPT now. Opening ChatGPT…";
-      $("statusLine").textContent = msg.replace("…","...");
-      showToast(msg);
-
-      const w = window.open("https://chat.openai.com/", "_blank", "noopener,noreferrer");
-      if (!w) {
-        // Popup blocked
-        showToast("Popup blocked ❌ Allow popups, then click again. Or use this link: chat.openai.com");
-      }
-};
-    if (__el_btnCopyEditPrompt) __el_btnCopyEditPrompt.onclick = async () => {
-      const t = $("edit_prompt_out")?.value || "";
-      if (!t.trim()) return alert("Nothing to copy.");
       await navigator.clipboard.writeText(t);
-      $("statusLine").textContent = "Edit prompt copied ✅";
+      setStatus("Edit prompt copied ✅");
     };
-    const __el_btnEditMeta = $("btnEditMeta");
-    if (__el_btnEditMeta) __el_btnEditMeta.onclick = () => {
-      if (!currentSong) return alert("Select a song first.");
-      openMetaModal();
-    };
-    const __el_btnMetaClose = $("btnMetaClose");
-    if (__el_btnMetaClose) __el_btnMetaClose.onclick = closeMetaModal;
-    const __el_metaBack = $("metaModalBack");
-    if (__el_metaBack) __el_metaBack.onclick = (e) => { if (e.target === __el_metaBack) closeMetaModal(); };
-    const __el_btnMetaSave = $("btnMetaSave");
-    if (__el_btnMetaSave) __el_btnMetaSave.onclick = saveMeta;
 
-    const _ss = null;
+
+    const __el_btnCopyWorking = $("btnCopyWorking");
+    if (__el_btnCopyWorking) __el_btnCopyWorking.onclick = async () => {
+      const t = $("working_results").value || "";
+      if (!t.trim()) return alert("Working box is empty.");
+      await navigator.clipboard.writeText(t);
+      setStatus("Working copied ✅");
+    };
+    const __el_btnClearWorking = $("btnClearWorking");
+    if (__el_btnClearWorking) __el_btnClearWorking.onclick = () => $("working_results").value = "";
+
+    const __el_btnSaveSong = $("btnSaveSong");
+    if (__el_btnSaveSong) __el_btnSaveSong.onclick = saveSong;
+    const _ss = $("songSelect");
     if (_ss) _ss.onchange = (e) => selectSong(e.target.value);
     const __el_editToggle = $("editSongToggle");
     if (__el_editToggle) __el_editToggle.onchange = () => setEditMode();
@@ -1147,61 +918,7 @@ UPDATED_LYRICS:
       window.location.href = "./index.html";
     };
 
-
-    // Meta KPI live updates
-    ["meta_youtube_published","meta_youtube_url","meta_youtube_published_at",
-     "meta_ditto_released","meta_ditto_url","meta_ditto_release_date",
-     "meta_bandcamp_released","meta_bandcamp_track_url","meta_bandcamp_release_date"
-    ].forEach(id=>{
-      const el = $(id);
-      if (!el) return;
-      el.addEventListener("input", updateMetaKPIs);
-      el.addEventListener("change", updateMetaKPIs);
-    });
-
     await loadData();
-  
-    // ---------- Robust button bindings (always) ----------
-    function bindCoreButtons(){
-      const saveBtn = $("btnSaveSong");
-      if (saveBtn){
-        saveBtn.addEventListener("click", async (e)=>{
-          e.preventDefault();
-          const ok = await saveSong();
-          if (ok) goBackToAlbum();
-        });
-      }
-      const metaBtn = $("btnEditMeta");
-      if (metaBtn){
-        metaBtn.addEventListener("click", (e)=>{
-          e.preventDefault();
-          if (!currentSong) return alert("Select a song first.");
-          openMetaModal();
-        });
-      }
-      const metaClose = $("btnMetaClose");
-      if (metaClose) metaClose.addEventListener("click", (e)=>{ e.preventDefault(); closeMetaModal(); });
-      const metaSave = $("btnMetaSave");
-      if (metaSave) metaSave.addEventListener("click", async (e)=>{ e.preventDefault(); await saveMeta(); });
-    }
-
-    window.addEventListener("DOMContentLoaded", () => {
-      bindCoreButtons();
-      // Packaging buttons may be inserted later; bind now and also after loadData.
-      try{ bindPackagingButtons?.(); }catch(e){}
-    });
-
-
-    // Save & Close (robust)
-    const __el_btnSaveSong = $("btnSaveSong");
-    if (__el_btnSaveSong){
-      __el_btnSaveSong.addEventListener("click", async (e)=>{
-        e.preventDefault();
-        const ok = await saveSong();
-        if (ok) goBackToAlbum();
-      });
-    }
-
-</script>
+  </script>
 </body>
 </html>
