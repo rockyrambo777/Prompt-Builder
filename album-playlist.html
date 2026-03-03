@@ -121,11 +121,8 @@
           `- keywords: ${keywords}`,
           `- scripture: ${scripture}`,
           `- suno_prompt: ${suno}`
-        ].join("
-");
-      }).join("
-
-");
+        ].join("\n");
+      }).join("\n\n");
     }
 
     async function loadAlbumArtistSongs(){
@@ -197,8 +194,7 @@ formatTracksForPrompt(songs),
 `- PLAYLIST_DESCRIPTION must describe the overall mood/style of the album and mention 3–6 specific track titles naturally.`,
 `- TRACK_DETAILS: 1–2 bullets per track describing vibe, energy, and theme (use keywords + Suno prompt).`,
 `- Keep it consistent with the artist genres and persona.`
-      ].join("
-");
+      ].join("\n");
 
       $("out").value = prompt;
       $("status").textContent = "Built ✅";
