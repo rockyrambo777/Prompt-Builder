@@ -101,6 +101,7 @@
           <label>Options</label>
           <div class="checkRow">
             <label><input id="include_artist_image" type="checkbox" checked> Include artist image (thumbnail prompt)</label>
+            <label><input id="include_album_playlist" type="checkbox"> Build/Use album playlist (generate playlist plan)</label>
           </div>
           <div class="hint">Shorts do not have thumbnails (checkbox is ignored in shorts mode).</div>
         </div>
@@ -219,16 +220,19 @@
         const { data: ar, error: e2 } = await supabase.from(ARTISTS).select("*").eq("id", artistId).single();
         selectedArtist = e2 ? null : ar;
 
-        // load artist default playlists (multi)
+        // load artist default playlists (use SINGLE default: first by sort_order)
         let plsText = "None";
         if (!e2 && ar?.default_playlist_enabled){
           const { data: pls, error: pe } = await supabase
             .from("artist_playlists")
             .select("title,description,sort_order")
-            .eq("artist_id", artistId)
-            .order("sort_order", { ascending: true });
+            .eq("artist_id", artistId);
+
           if (!pe && pls && pls.length){
-            plsText = pls.map(p => p.description ? `${p.title} — ${p.description}` : `${p.title}`).join(" | ");
+            // client-side sort to avoid PostgREST 400 if sort_order is missing/exposed
+            const sorted = [...pls].sort((a,b) => (Number(a.sort_order||0) - Number(b.sort_order||0)));
+            const p0 = sorted[0];
+            plsText = p0?.description ? `${p0.title} — ${p0.description}` : `${p0.title}`;
           }
         }
         selectedArtistPlaylistsText = plsText;
@@ -295,18 +299,25 @@ PLAYLIST_RECOMMENDATION:`);
         core.push(`YOUTUBE_TAGS (comma separated, under 500 characters):`);
         core.push(`PINNED_COMMENT:`);
         core.push(`THUMBNAIL_PROMPT (1280x720, SEO-friendly, readable):`);
+        if ($("include_album_playlist")?.checked){
+          core.push(`ALBUM_PLAYLIST_BUILDER (only if needed):`);
+        }
       } else {
         core.push(`YOUTUBE_SHORT_TITLE:`);
         core.push(`YOUTUBE_SHORT_DESCRIPTION:`);
         core.push(`YOUTUBE_SHORT_TAGS (comma separated, under 500 characters):`);
         core.push(`PINNED_COMMENT:`);
         core.push(`TIKTOK_DESCRIPTION (short, hashtag-ready):`);
+        if ($("include_album_playlist")?.checked){
+          core.push(`ALBUM_PLAYLIST_BUILDER (only if needed):`);
+        }
       }
 
       core.push(``);
-      core.push(`Artist info:
-- Default playlist enabled: ${artist?.default_playlist_enabled ? 'YES' : 'NO'}
-- Default playlists: ${defaultPlaylistsText}
+      core.push(`Artist playlist settings:
+- Default playlist enabled: ${ar?.default_playlist_enabled ? 'YES' : 'NO'}
+- Default playlist (single): ${defaultPlaylistsText}
+- Build/Use album playlist: ${$("include_album_playlist")?.checked ? 'YES' : 'NO'}
 
 Artist info:`);
       core.push(`- Artist: ${artistName}`);
@@ -340,7 +351,16 @@ Artist info:`);
 
       core.push(``);
       core.push(`Rules:
-- PLAYLIST_RECOMMENDATION: Recommend the best playlist for this upload. If the artist has a default playlist enabled, choose between that and an album playlist. If not, choose album playlist only.`);
+- PLAYLIST_RECOMMENDATION: Recommend the best playlist for this upload. Use the artist default playlist if it fits; otherwise recommend an album playlist.
+- If “Build/Use album playlist” is YES: also return ALBUM_PLAYLIST_BUILDER with:
+  - PLAYLIST_TITLE
+  - PLAYLIST_DESCRIPTION
+  - TRACKLIST (ordered list of THIS album’s songs)
+  - Keep it aligned to the artist DNA + album theme.
+- Do NOT include a “Song Details: BPM/Key/Genre/Mood” line.
+- Tags MUST be genre-accurate and derived from Suno prompt + artist DNA, under 500 chars, comma separated.
+- Description must include: short intro, artist about line(s), lyrics section, and hashtags.
+- Pinned comment should be short, emoji-friendly, invite prayer requests and engagement.`);
       core.push(`- Do NOT include a “Song Details: BPM/Key/Genre/Mood” line.`);
       core.push(`- Tags MUST be genre-accurate and derived from Suno prompt + artist DNA, under 500 chars, comma separated.`);
       core.push(`- Description must include: short intro, artist about line(s), lyrics section, and hashtags.`);
