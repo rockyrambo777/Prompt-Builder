@@ -71,7 +71,7 @@
         </div>
         <div class="row">
           <button id="btnCopyOutput" class="btn copy">Copy Output</button>
-          <button id="btnSaveSong" class="btn primary">Save Song</button>
+          <button id="btnSaveSong" class="btn primary">Save &amp; Close</button>
         </div>
       </div>
 
@@ -80,7 +80,8 @@
       <div class="grid">
         <div>
           <label for="songSelect">Song</label>
-          <select id="songSelect"></select>
+          <div id="songLabel" class="muted" style="margin:-6px 0 8px; font-size:14px;"></div>
+<select id="songSelect" style="display:none"></select>
           <div class="hint">Tip: open a specific song directly with <span class="mono">production.html?album_id=…&song_id=…</span></div>
         </div>
 
@@ -292,7 +293,13 @@
 
     const params = new URLSearchParams(window.location.search);
     const album_id = params.get("album_id") || params.get("id");
-    const song_id_param = params.get("song_id");
+    
+
+    function goBackToAlbum(){
+      if (album_id) window.location.href = `./album-edit.html?id=${encodeURIComponent(album_id)}`;
+      else window.history.back();
+    }
+const song_id_param = params.get("song_id");
 
     if (!album_id) {
       alert("Missing album_id");
@@ -310,7 +317,9 @@
 
     function safeText(v){ return (v === null || v === undefined) ? "" : String(v); }
 
-    function setChips(){
+    
+    function setStatus(msg){ safeText("statusLine", msg); }
+function setChips(){
       const chips = $("chips");
       chips.innerHTML = "";
       const vals = [
@@ -902,8 +911,7 @@ UPDATED_LYRICS:
     if (__el_btnClearWorking) __el_btnClearWorking.onclick = () => $("working_results").value = "";
 
     const __el_btnSaveSong = $("btnSaveSong");
-    if (__el_btnSaveSong) __el_btnSaveSong.onclick = saveSong;
-    const _ss = $("songSelect");
+    if (__el_btnSaveSong) __el_btnSaveSong.const _ss = $("songSelect");
     if (_ss) _ss.onchange = (e) => selectSong(e.target.value);
     const __el_editToggle = $("editSongToggle");
     if (__el_editToggle) __el_editToggle.onchange = () => setEditMode();
@@ -919,6 +927,77 @@ UPDATED_LYRICS:
     };
 
     await loadData();
-  </script>
+  
+    // Save & Close
+    (function(){
+      const b = $("btnSaveSong");
+      if (!b) return;
+      b.addEventListener("click", async (e)=>{
+        e.preventDefault();
+        const ok = await saveSong();
+        if (ok !== false) goBackToAlbum();
+      });
+    })();
+
+
+    // ---- Packaging helpers ----
+    async function safeCopy(text){
+      const t = (text || "").toString();
+      try{
+        if (navigator.clipboard && window.isSecureContext){
+          await navigator.clipboard.writeText(t);
+          return true;
+        }
+      }catch(e){}
+      try{
+        const ta = document.createElement("textarea");
+        ta.value = t;
+        ta.setAttribute("readonly","");
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        ta.style.top = "0";
+        document.body.appendChild(ta);
+        ta.focus(); ta.select();
+        const ok = document.execCommand("copy");
+        document.body.removeChild(ta);
+        return ok;
+      }catch(e){ return false; }
+    }
+    function openChatGPTTab(){ try{ return window.open("https://chat.openai.com/","_blank","noopener,noreferrer"); }catch(e){ return null; } }
+
+    function buildPackagingPrompt(){
+      const mode = $("pkg_mode")?.value || "long";
+      const includeImg = !!$("pkg_useArtistImg")?.checked;
+      const lyrics = $("lyrics")?.value || "";
+      const suno = $("suno_prompt")?.value || "";
+      const kw = $("keywords")?.value || "";
+      const scr = $("scripture")?.value || "";
+      const artistName = artist?.name || "";
+      const songTitle = currentSong?.title || $("title")?.value || "";
+      const thumbRule = includeImg ? "Include artist image in thumbnail prompt." : "Do NOT include artist image in thumbnail prompt.";
+      const base = `ARTIST: ${artistName}\nSONG: ${songTitle}\nKEYWORDS: ${kw}\nSCRIPTURE(optional): ${scr}\nSUNO_PROMPT: ${suno}\n\nLYRICS:\n${lyrics}\n\nRETURN ONLY:\nYOUTUBE_TITLE:\nYOUTUBE_DESCRIPTION_WITH_HASHTAGS:\nPINNED_COMMENT:\nTHUMBNAIL_PROMPT_1280x720:\n${thumbRule}\n`;
+      if (mode === "short"){
+        return `You are helping me package a SINGLE Shorts/TikTok post.\n\n${base.replace("THUMBNAIL_PROMPT_1280x720:", "NO_THUMBNAIL_NEEDED:")}`;
+      }
+      return `You are helping me package a SINGLE YouTube long-form video.\n\n${base}`;
+    }
+
+    function bindPackaging(){
+      const b1 = $("btnPkgBuild");
+      if (b1) b1.addEventListener("click",(e)=>{ e.preventDefault(); $("pkg_out").value = buildPackagingPrompt(); setStatus("Packaging prompt built ✅"); });
+      const b2 = $("btnPkgCreate");
+      if (b2) b2.addEventListener("click", async (e)=>{
+        e.preventDefault();
+        const w = openChatGPTTab();
+        const txt = buildPackagingPrompt();
+        $("pkg_out").value = txt;
+        const ok = await safeCopy(txt);
+        setStatus(ok ? "Copied ✅ Paste into ChatGPT" : "Copy failed ❌");
+        if (!w) alert("Popup blocked. Allow popups for this site to auto-open ChatGPT.");
+      });
+    }
+    bindPackaging();
+
+</script>
 </body>
 </html>
