@@ -88,7 +88,8 @@
         <div class="row">
 <button id="btnEditMeta" class="btn secondary">Edit Release & Links</button>
           <button id="btnPackaging" type="button" class="btn secondary">Song Packaging</button>
-        <button id="btnSaveSong" class="btn primary">Save &amp; Go Back</button>
+        <button id="btnSaveSong" class="btn primary">Save</button>
+        <button id="btnGoBack" class="btn secondary" type="button">Back</button>
         </div>
       </div>
 
@@ -1218,44 +1219,42 @@ UPDATED_LYRICS:
 
     await loadData();
   
-// --- Save & Go Back + Packaging (clean override) ---
-(function(){
-  const __params = new URLSearchParams(window.location.search);
-  const __album_id = __params.get("album_id");
-  const __song_id  = __params.get("song_id");
 
-  // FORCE override save button
+
+
+// --- SIMPLE Save + Back Logic ---
+(function(){
+  const params = new URLSearchParams(window.location.search);
+  const album_id = params.get("album_id");
+
   const saveBtn = document.getElementById("btnSaveSong");
+  const backBtn = document.getElementById("btnGoBack");
+
   if (saveBtn){
     saveBtn.onclick = async function(e){
       e.preventDefault();
       try{
         if (typeof saveSong === "function"){
-          // Always attempt save; some implementations return false when nothing changed.
-          await saveSong();
-        }
-        // Always go back after clicking Save & Go Back (unless an exception occurs)
-        if (__album_id){
-          window.location.href = "./album-edit.html?id=" + encodeURIComponent(__album_id);
-        } else {
-          window.location.href = "./album-edit.html";
+          await saveSong(); // always attempt save
         }
       }catch(err){
         console.error(err);
       }
+      // Always go back after save click
+      if (album_id){
+        window.location.href = "./album-edit.html?id=" + encodeURIComponent(album_id);
+      } else {
+        window.location.href = "./album-edit.html";
+      }
     };
   }
 
-  // Packaging button
-  const pkgBtn = document.getElementById("btnPackaging");
-  if (pkgBtn){
-    pkgBtn.onclick = function(e){
-      e.preventDefault();
-      if (__album_id && __song_id){
-        window.location.href = "./song-packaging.html?album_id=" 
-          + encodeURIComponent(__album_id) 
-          + "&song_id=" 
-          + encodeURIComponent(__song_id);
+  if (backBtn){
+    backBtn.onclick = function(){
+      if (album_id){
+        window.location.href = "./album-edit.html?id=" + encodeURIComponent(album_id);
+      } else {
+        window.location.href = "./album-edit.html";
       }
     };
   }
