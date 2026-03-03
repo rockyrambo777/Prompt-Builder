@@ -261,22 +261,13 @@ function setChips(){
         const { data: ar, error: e2 } = await supabase.from(ARTISTS).select("*").eq("id", artistId).single();
         selectedArtist = e2 ? null : ar;
 
-        // load artist default playlists (use SINGLE default: first by sort_order)
-        let plsText = "None";
+        // load artist default playlists (MULTIPLE allowed)
+        // Only load if the artist has default playlists enabled; otherwise keep blank.
         if (!e2 && ar?.default_playlist_enabled){
-          const { data: pls, error: pe } = await supabase
-            .from("artist_playlists")
-            .select("title,description,sort_order")
-            .eq("artist_id", artistId);
-
-          if (!pe && pls && pls.length){
-            // client-side sort to avoid PostgREST 400 if sort_order is missing/exposed
-            const sorted = [...pls].sort((a,b) => (Number(a.sort_order||0) - Number(b.sort_order||0)));
-            const p0 = sorted[0];
-            plsText = p0?.description ? `${p0.title} — ${p0.description}` : `${p0.title}`;
-          }
+          selectedArtistPlaylistsText = await loadArtistPlaylists(artistId);
+        } else {
+          selectedArtistPlaylistsText = "";
         }
-        selectedArtistPlaylistsText = plsText;
       } else {
         selectedArtist = null;
       }
