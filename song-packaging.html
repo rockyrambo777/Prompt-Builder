@@ -162,7 +162,7 @@
       const songBlock = `SONG\n- title: ${song?.title || ""}\n- keywords: ${song?.keywords || ""}\n- scripture: ${gospel ? (song?.scripture || "(optional)") : "(not gospel/christian)"}\n- suno prompt (for this song): ${song?.suno_prompt || ""}`;
 
       const playlistNote = playlistsText
-        ? `PLAYLISTS (artist defaults)\n${playlistsText}\n\nIn your response, also tell me which playlists this song fits best can be multiple (or "Album playlist" if none).`
+        ? `PLAYLISTS (artist defaults)\n${playlistsText}\n\nIn your response, also tell me which playlist this song fits best (or "Album playlist" if none).`
         : `PLAYLISTS\nNo artist default playlists. In your response, also tell me if this should go to an Album playlist or a new mood playlist.`;
 
       const thumbRule = includeArtistImg
@@ -194,17 +194,41 @@
     }
 
     async function loadPlaylistsForArtist(artistId){
+      // Returns formatted multi-line list of artist playlists (can be multiple)
       try{
-        const { data, error } = await supabase
+        let { data, error } = await supabase
           .from("artist_playlists")
           .select("title,description,sort_order")
-          .eq("artist_id", artistId)
-          .order("sort_order", { ascending: true });
+          .eq("artist_id", artistId);
+
+        if (error){
+          const fb = await supabase
+            .from("artist_playlists")
+            .select("title,description")
+            .eq("artist_id", artistId);
+          data = fb.data;
+          error = fb.error;
+        }
 
         if (error) { console.warn("playlist load", error.message); return ""; }
         if (!data || !data.length) return "";
-        return data.map((p,i)=>`${i+1}. ${p.title}${p.description ? ` — ${p.description}` : ""}`).join("\n");
+
+        const hasSort = Object.prototype.hasOwnProperty.call(data[0], "sort_order");
+        const sorted = hasSort
+          ? [...data].sort((a,b)=>(Number(a.sort_order||0)-Number(b.sort_order||0)))
+          : [...data];
+
+        return sorted.map((p,i)=>{
+          const title = (p.title || "").toString().trim() || "(untitled playlist)";
+          const desc = (p.description || "").toString().trim();
+          return desc ? `${i+1}. ${title} — ${desc}` : `${i+1}. ${title}`;
+        }).join("
+");
       } catch(e){
+        console.warn(e);
+        return "";
+      }
+    } catch(e){
         console.warn(e);
         return "";
       }
