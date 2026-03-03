@@ -162,7 +162,7 @@
       const songBlock = `SONG\n- title: ${song?.title || ""}\n- keywords: ${song?.keywords || ""}\n- scripture: ${gospel ? (song?.scripture || "(optional)") : "(not gospel/christian)"}\n- suno prompt (for this song): ${song?.suno_prompt || ""}`;
 
       const playlistNote = playlistsText
-        ? `PLAYLISTS (artist defaults)\n${playlistsText}\n\nIn your response, also tell me which playlist this song fits best (or "Album playlist" if none).`
+        ? `PLAYLISTS (artist defaults)\n${playlistsText}\n\nIn your response, also tell me which playlists this song fits best can be multiple (or "Album playlist" if none).`
         : `PLAYLISTS\nNo artist default playlists. In your response, also tell me if this should go to an Album playlist or a new mood playlist.`;
 
       const thumbRule = includeArtistImg
