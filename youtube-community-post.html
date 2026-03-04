@@ -164,6 +164,83 @@
   function getHandle(a){
     // Try a few common field names, fall back to placeholder
     return safe(a.channel_handle || a.youtube_handle || a.handle || a.yt_handle || a.channel || "") || "@YourChannelHandle";
+
+  function detectPreset(a){
+    const name = (a?.name || "").toLowerCase();
+    const lane = (a?.default_lane || "").toLowerCase();
+    const main = (a?.main_genre || "").toLowerCase();
+    const sec = (a?.secondary_genre || "").toLowerCase();
+
+    // Explicit brand by name
+    if (name.includes("shaun in stereo") || lane.includes("shaun") || main.includes("country") || sec.includes("southern rock")) {
+      return {
+        key: "shaun",
+        brand: a?.name || "Shaun in Stereo",
+        defaultGoal: "new_video",
+        defaultTone: "hype",
+        postStyle: "authentic country-rock, gritty but clean, storyteller energy",
+        imageStyle: [
+          "Square 1024×1024 cinematic country-rock artwork",
+          "Subject: rugged male singer with acoustic guitar (original likeness, not a real celebrity), denim jacket vibe",
+          "Lighting: warm amber/copper highlights with deep indigo/charcoal shadows, subtle haze",
+          "Background: roadside neon or sunset dust, shallow depth of field",
+          `Text: include the brand name "${a?.name || "Shaun in Stereo"}" as clean off-white/gold title text (condensed sans), readable on mobile`
+        ].join("\n")
+      };
+    }
+
+    if (name.includes("nina") || lane.includes("nina")) {
+      return {
+        key: "nina",
+        brand: a?.name || "Nina's Gospel Groove",
+        defaultGoal: "encouragement",
+        defaultTone: "warm",
+        postStyle: "country gospel / contemporary praise, friendly and uplifting",
+        imageStyle: [
+          "Square 1024×1024 inspirational gospel artwork",
+          "Subject: country gospel singer with mic or guitar, rustic church/fields OR clean contemporary worship stage depending on the post vibe",
+          "Palette: sepia/gold rustic OR ivory/gold with soft blue accents",
+          `Text: include the brand name "${a?.name || "Nina's Gospel Groove"}" in elegant serif at top (gold/ivory), soft glow`
+        ].join("\n")
+      };
+    }
+
+    if (name.includes("soulvibe") || name.includes("soulvibe sanctuary") || lane.includes("svs") || lane.includes("soul")) {
+      return {
+        key: "svs",
+        brand: a?.name || "SoulVibe Sanctuary",
+        defaultGoal: "encouragement",
+        defaultTone: "gentle",
+        postStyle: "spirit-filled gospel / soul worship, warm and faith-forward",
+        imageStyle: [
+          "Square 1024×1024 gospel worship artwork",
+          "Subject: soulful worship singer on stage with hand lifted, subtle cross light rays",
+          "Palette: rich gold/amber with deep blue highlights, cinematic glow",
+          `Text: include the brand name "${a?.name || "SoulVibe Sanctuary"}" in glowing gold serif at top, clean readable`
+        ].join("\n")
+      };
+    }
+
+    // Fallback: build from DB genres/lane
+    const brand = a?.name || "Artist";
+    const postStyle = (a?.voice_identity ? a.voice_identity : "clean, brand-safe") + (a?.default_lane ? `; lane: ${a.default_lane}` : "");
+    const imageStyle = [
+      "Square 1024×1024 premium music artwork",
+      `Style matches: ${(a?.default_lane || "the artist lane")} / ${(a?.main_genre || "")}${a?.secondary_genre ? " / " + a.secondary_genre : ""}`,
+      `Text: include the brand name "${brand}" baked in (clean, readable, no logos)`
+    ].join("\n");
+
+    return { key:"generic", brand, defaultGoal:"encouragement", defaultTone:"warm", postStyle, imageStyle };
+  }
+
+  function applyPresetDefaults(p){
+    // Only apply defaults if user hasn't interacted yet (first load)
+    if (!p) return;
+    const goalEl = $("goal");
+    const toneEl = $("tone");
+    if (goalEl && !goalEl.dataset.touched) goalEl.value = p.defaultGoal;
+    if (toneEl && !toneEl.dataset.touched) toneEl.value = p.defaultTone;
+  }
   }
 
   let artist = null;
@@ -237,55 +314,56 @@
 
     const genreLine = [safe(artist.main_genre), safe(artist.secondary_genre)].filter(Boolean).join(" / ") || "—";
 
-    return [
-`You are helping me write ${mapGoal(goal)} for my artist.`,
-``,
-`ARTIST`,
-`- name: ${artist.name || "—"}`,
-`- channel handle: ${handle}`,
-`- genres: ${genreLine}`,
-`- lane: ${artist.default_lane || "—"}`,
-`${personaBits ? "- " + personaBits.replace(/\n/g, "\n- ") : ""}`,
-``,
-`POST REQUIREMENTS`,
-`POST REQUIREMENTS`,
-`- tone: ${mapTone(tone)}`,
-`- post type goal: ${mapGoal(goal)}`,
-`- length: 1–3 short paragraphs (mobile-friendly)`,
-`- include 3–6 relevant emojis (match the tone)`,
-`- include a strong hook in the first line`,
-`- include one clear CTA (${mapCTA(cta)})`,
-`- include 6–10 hashtags at the end (no more than 2 lines)`,
-`- keep it clean and brand-safe`,
-`- ALWAYS include the artist name "${artist.name || "—"}" naturally in the post (not spammy)`,
-`- ALWAYS include ONE short scripture that fits the post (pick it automatically if I leave the scripture field blank). Include reference and a short verse line.`,
-`- Use TODAY’S date context (season/holidays) and general positive world context where appropriate. If you don’t know current events, keep it timeless and avoid making up facts.`,
-`- Also produce a 1×1 square image prompt (1024×1024) that visually matches the post and INCLUDES the artist name as baked-in text in a clean readable way.`,
-`- Then GENERATE the 1×1 image from that prompt (in the same response).`,
-`- The image prompt must avoid copyrighted logos/watermarks and avoid celebrity likeness.`,
-`- If my input fields are blank, make smart choices automatically.`,
-`EXTRA DETAILS (if any):`,
+    const preset = window.__preset || detectPreset(artist);
 
-`${details || "—"}`,
+    return [
+`Write ONE YouTube Community post for the brand: ${preset.brand}.`,
 ``,
-`OUTPUT FORMAT (exact):`,
-`COMMUNITY_POST_TEXT:`,
-`(your post)`,
-`SCRIPTURE_LINE:`,
-`(one short scripture line + reference)`,
-`HASHTAGS:`,
-`(hashtags only)`,
-`IMAGE_PROMPT_1x1:`,
-`(one single prompt for a 1024×1024 square image that matches the post and includes the artist name as baked-in text)`,
-`IMAGE_GENERATION_NOTE:`,
-`After you output the IMAGE_PROMPT_1x1, immediately GENERATE the 1×1 image using that prompt (1024×1024).`,
-`Return the image in your response (use your image tool).`,
-`IMAGE_PROMPT_1x1:`,
-`(a single image prompt for a 1×1 square image that matches the post; no text/logos/watermarks)`,
-`FINAL_NOTE:`,
-`(one short line telling me to copy IMAGE_PROMPT_1x1 into ChatGPT image generation to create the square image)`,
-``
-    ].join("\n");
+`IMPORTANT OUTPUT RULES (must follow):`,
+`- The response must be READY TO COPY/PASTE into YouTube Community.`,
+`- Do NOT include labels like "COMMUNITY_POST_TEXT:", "SCRIPTURE:", or "HASHTAGS:".`,
+`- Do NOT use headings or prefixes before the post.`,
+`- Put the scripture line INSIDE the post naturally (quote + reference).`,
+`- Put hashtags at the very end of the post on 1–2 lines (no label).`,
+`- Always include the brand name "${preset.brand}" naturally in the post (not spammy).`,
+``,
+`CONTEXT + INTELLIGENCE:`,
+`- Use today's date context (season/holidays) and general 'what people are feeling' (busy week, hope, gratitude) WITHOUT inventing specific current events.`,
+`- If details are blank, make smart choices automatically.`,
+`- Choose ONE scripture automatically if I leave scripture blank (fit the message).`,
+``,
+`ARTIST DNA (use to match voice):`,
+`- Genres: ${genreLine}`,
+`- Lane: ${artist.default_lane || "—"}`,
+`- Voice identity: ${artist.voice_identity || "—"}`,
+`- Must include: ${artist.must_include || "—"}`,
+`- Never include: ${artist.never_include || "—"}`,
+`- Brand style preset: ${preset.postStyle}`,
+``,
+`POST SETTINGS:`,
+`- Post type: ${mapGoal(goal)}`,
+`- Tone: ${mapTone(tone)}`,
+`- CTA: ${mapCTA(cta)}`,
+`${scripture ? `- Scripture preference: use ${scripture}` : `- Scripture preference: choose automatically`}`,
+`- Extra details: ${details || "—"}`,
+``,
+`POST STRUCTURE:`,
+`1) Hook line (short, punchy)`,
+`2) 1–3 short paragraphs (mobile-friendly)`,
+`3) One scripture line (short quote + reference)`,
+`4) CTA (one clear action)`,
+`5) 6–10 hashtags (include #${preset.brand.replace(/\s+/g,"")} and relevant themes)`,
+``,
+`AFTER THE POST, output ONE single extra block (exact heading only):`,
+`1x1 IMAGE PROMPT (1024x1024)`,
+`Then write ONE image prompt (no extra lines, no second prompt).`,
+`Image rules:`,
+`- Must visually match the post mood + message`,
+`- Must INCLUDE the brand name "${preset.brand}" as baked-in text in the image (clean, readable, elegant)`,
+`- No logos, no watermarks, no celebrity likeness`,
+`- Style guidance:`,
+`${preset.imageStyle}`
+    ].join("\n");    ].join("\n");
   }
 
   
@@ -300,6 +378,9 @@
     if (ar.error) throw ar.error;
     artist = ar.data;
     renderArtist();
+    window.__preset = detectPreset(artist);
+    applyPresetDefaults(window.__preset);
+
   }
 
   function copyFrom(id){
@@ -310,6 +391,10 @@
   }
 
   $("btnGenerate").onclick = generate;
+  // track user changes so preset defaults don't overwrite later
+  $("goal").addEventListener("change", () => $("goal").dataset.touched = "1");
+  $("tone").addEventListener("change", () => $("tone").dataset.touched = "1");
+
   $("btnClear").onclick = () => {
     $("details").value = "";
     $("scriptureRef").value = "";
