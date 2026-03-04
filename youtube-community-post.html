@@ -46,7 +46,7 @@
       <div>
         <div class="muted" id="who">Signed in…</div>
         <h1 style="margin:6px 0 0;" id="title">Community Post</h1>
-        <div class="muted" id="subtitle">Generate a copy‑paste ChatGPT prompt + Canva image prompt (no saving)</div>
+        <div class="muted" id="subtitle">Generate a copy‑paste ChatGPT prompt that outputs a community post + a 1×1 image prompt (no saving)</div>
       </div>
       <div class="row" style="gap:10px; flex-wrap:wrap;">
         <button class="btn" id="btnBack">Back</button>
@@ -77,6 +77,8 @@
             <option value="new_video">New video drop</option>
             <option value="new_release">New song / release</option>
             <option value="milestone">Milestone / thank you</option>
+            <option value="thankful">Thankful / gratitude</option>
+            <option value="encouragement">Encouragement / uplift</option>
             <option value="poll">Poll question</option>
             <option value="behind_scenes">Behind the scenes</option>
             <option value="livestream">Livestream reminder</option>
@@ -136,17 +138,10 @@
         <button class="btn copy" id="btnCopyPrompt">Copy</button>
       </div>
       <textarea id="outPrompt" class="mono" placeholder="Click Generate…"></textarea>
-      <div class="hint">Paste this into ChatGPT to generate your final community post text.</div>
+      <div class="hint">Paste this into ChatGPT to generate the post text + scripture + a 1×1 image prompt.</div>
     </div>
 
-    <div class="card">
-      <div class="row" style="justify-content:space-between; align-items:center;">
-        <h2 style="margin:0;">Image Prompt (1×1 Square)</h2>
-        <button class="btn copy" id="btnCopyImage">Copy</button>
-      </div>
-      <textarea id="outImage" class="mono" placeholder="Click Generate…"></textarea>
-      <div class="hint">Paste into ChatGPT image generation (or Canva AI). This is a 1×1 square image prompt that matches the post.</div>
-    </div>
+    
   </div>
 
 <script type="module">
@@ -194,7 +189,9 @@
       poll: "a YouTube community post that is a POLL question (include 3–4 answer options)",
       behind_scenes: "a YouTube community post sharing behind-the-scenes / process updates",
       livestream: "a YouTube community post reminding viewers about an upcoming LIVESTREAM",
-      prayer: "a YouTube community post that encourages and invites PRAYER requests"
+      prayer: "a YouTube community post that encourages and invites PRAYER requests",
+      thankful: "a YouTube community post expressing GRATITUDE/THANKFULNESS",
+      encouragement: "a YouTube community post that encourages and uplifts the community"
     };
     return m[v] || "a YouTube community post";
   }
@@ -251,23 +248,36 @@
 `${personaBits ? "- " + personaBits.replace(/\n/g, "\n- ") : ""}`,
 ``,
 `POST REQUIREMENTS`,
+`POST REQUIREMENTS`,
 `- tone: ${mapTone(tone)}`,
+`- post type goal: ${mapGoal(goal)}`,
 `- length: 1–3 short paragraphs (mobile-friendly)`,
 `- include 3–6 relevant emojis (match the tone)`,
 `- include a strong hook in the first line`,
 `- include one clear CTA (${mapCTA(cta)})`,
 `- include 6–10 hashtags at the end (no more than 2 lines)`,
 `- keep it clean and brand-safe`,
-`${scripture ? `- include a short scripture line (reference: ${scripture})` : "- no scripture unless I add one"}`,
-``,
+`- ALWAYS include the artist name "${artist.name || "—"}" naturally in the post (not spammy)`,
+`- ALWAYS include ONE short scripture that fits the post (pick it automatically if I leave the scripture field blank). Include reference and a short verse line.`,
+`- Use TODAY’S date context (season/holidays) and general positive world context where appropriate. If you don’t know current events, keep it timeless and avoid making up facts.`,
+`- Also produce a 1×1 square image prompt (1024×1024) that visually matches the post and INCLUDES the artist name as baked-in text in a clean readable way.`,
+`- The image prompt must avoid copyrighted logos/watermarks and avoid celebrity likeness.`,
+`- If my input fields are blank, make smart choices automatically.`,
 `EXTRA DETAILS (if any):`,
+
 `${details || "—"}`,
 ``,
 `OUTPUT FORMAT (exact):`,
 `COMMUNITY_POST_TEXT:`,
 `(your post)`,
+`SCRIPTURE_LINE:`,
+`(one short scripture line + reference)`,
 `HASHTAGS:`,
 `(hashtags only)`,
+`IMAGE_PROMPT_1x1:`,
+`(one single prompt for a 1024×1024 square image that matches the post and includes the artist name as baked-in text)`,
+`IMAGE_GENERATION_NOTE:`,
+`(one short line telling me to use IMAGE_PROMPT_1x1 to generate the image in ChatGPT / my image tool)`,
 `IMAGE_PROMPT_1x1:`,
 `(a single image prompt for a 1×1 square image that matches the post; no text/logos/watermarks)`,
 `FINAL_NOTE:`,
@@ -276,52 +286,11 @@
     ].join("\n");
   }
 
-  function buildImagePrompt(){
-    if (!artist) return "";
-    const goal = $("goal").value;
-    const tone = $("tone").value;
-    const details = safe($("details").value);
-
-    const moodByTone = {
-      hype: "high-energy, dynamic, bold lighting, dramatic contrast",
-      warm: "warm, uplifting, soft glow, inviting",
-      bold: "strong, powerful, high-contrast, heroic",
-      gentle: "soft, peaceful, comforting, smooth gradients",
-      funny: "bright, playful, friendly, clean"
-    }[tone] || "warm, uplifting";
-
-    const vibeByGoal = {
-      new_video: "new video drop announcement vibe; cinematic spotlight; abstract play-button shapes allowed (no logos)",
-      new_release: "new song/release announcement vibe; celebratory; abstract music textures (no logos)",
-      milestone: "milestone celebration vibe; gratitude; confetti bokeh (subtle, premium)",
-      poll: "clean question/poll vibe; bold shapes; lots of negative space",
-      behind_scenes: "behind-the-scenes studio vibe; gear silhouettes; creative atmosphere",
-      livestream: "live event vibe; stage lights; streaming energy (no platform logos)",
-      prayer: "encouraging faith vibe; gentle light rays; peaceful atmosphere"
-    }[goal] || "premium announcement vibe";
-
-    const genre = [safe(artist.main_genre), safe(artist.secondary_genre)].filter(Boolean).join(" / ") || "music";
-    const lane = safe(artist.default_lane) || "brand";
-    const voice = safe(artist.voice_identity) || "artist";
-
-    return [
-`Generate a 1×1 square image (1024×1024) to match a YouTube Community post for the artist "${artist.name || "Artist"}".`,
-`Style: ${lane} / ${genre}.`,
-`Mood: ${moodByTone}.`,
-`Concept: ${vibeByGoal}.`,
-`Subject: an original, artist-themed scene that reflects "${voice}" (no real celebrity likeness).`,
-`Background: premium cinematic lighting, soft gradients, subtle bokeh/light rays, tasteful texture.`,
-`Composition: centered subject with strong focal point; keep some clean negative space for optional overlay text.`,
-`Color palette: deep navy/charcoal base with tasteful accent colors that fit the genre; high-quality lighting.`,
-`Optional details to incorporate: ${details || "—"}`,
-`IMPORTANT: no text baked into the image, no watermarks, no copyrighted logos, no brand marks.`
-    ].join("\n");
-  }
-}
+  
 
   function generate(){
     $("outPrompt").value = buildPrompt();
-    $("outImage").value = buildImagePrompt();
+
   }
 
   async function loadArtist(){
@@ -343,10 +312,10 @@
     $("details").value = "";
     $("scriptureRef").value = "";
     $("outPrompt").value = "";
-    $("outImage").value = "";
+
   };
   $("btnCopyPrompt").onclick = () => copyFrom("outPrompt");
-  $("btnCopyImage").onclick = () => copyFrom("outImage");
+
 
   $("btnBack").onclick = () => {
     // return to artist view
