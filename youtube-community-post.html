@@ -316,29 +316,33 @@
 
     const preset = window.__preset || detectPreset(artist);
 
+    const preset = window.__preset || detectPreset(artist);
+    const emojiList = (preset.emojiSet || ["✨","🙏","🎶"]).join(" ");
+    const brandTag = preset.brandTag || (preset.brand || "Brand").replace(/[^a-zA-Z0-9]+/g,"");
+
     return [
 `Write ONE YouTube Community post for the brand: ${preset.brand}.`,
 ``,
-`IMPORTANT OUTPUT RULES (must follow):`,
+`CRITICAL OUTPUT RULES:`,
 `- The response must be READY TO COPY/PASTE into YouTube Community.`,
-`- Do NOT include labels like "COMMUNITY_POST_TEXT:", "SCRIPTURE:", or "HASHTAGS:".`,
-`- Do NOT use headings or prefixes before the post.`,
-`- Put the scripture line INSIDE the post naturally (quote + reference).`,
-`- Put hashtags at the very end of the post on 1–2 lines (no label).`,
-`- Always include the brand name "${preset.brand}" naturally in the post (not spammy).`,
+`- Do NOT include labels like "COMMUNITY_POST_TEXT:", "SCRIPTURE:", "HASHTAGS:", or any headings.`,
+`- Do NOT output multiple versions. Output ONE final post only.`,
+`- Include the brand name "${preset.brand}" naturally in the post.`,
+`- Add ONE scripture line inside the post (short quote + reference). If I provided a scripture, use it; otherwise choose the best one automatically.`,
+`- End with 6–10 hashtags (no label). Include #${brandTag}.`,
 ``,
-`CONTEXT + INTELLIGENCE:`,
-`- Use today's date context (season/holidays) and general 'what people are feeling' (busy week, hope, gratitude) WITHOUT inventing specific current events.`,
-`- If details are blank, make smart choices automatically.`,
-`- Choose ONE scripture automatically if I leave scripture blank (fit the message).`,
+`SMART CONTEXT:`,
+`- Use today's date/season context (weekend, month, holidays) and general encouragement/thankfulness without inventing specific current events.`,
+`- If inputs are blank, make smart choices automatically.`,
+`- Use emojis naturally (3–6). You can use this brand emoji set: ${emojiList}`,
 ``,
-`ARTIST DNA (use to match voice):`,
+`ARTIST DNA (match writing voice):`,
 `- Genres: ${genreLine}`,
 `- Lane: ${artist.default_lane || "—"}`,
 `- Voice identity: ${artist.voice_identity || "—"}`,
 `- Must include: ${artist.must_include || "—"}`,
 `- Never include: ${artist.never_include || "—"}`,
-`- Brand style preset: ${preset.postStyle}`,
+`- Brand writing style: ${preset.postStyle}`,
 ``,
 `POST SETTINGS:`,
 `- Post type: ${mapGoal(goal)}`,
@@ -347,23 +351,23 @@
 `${scripture ? `- Scripture preference: use ${scripture}` : `- Scripture preference: choose automatically`}`,
 `- Extra details: ${details || "—"}`,
 ``,
-`POST STRUCTURE:`,
-`1) Hook line (short, punchy)`,
-`2) 1–3 short paragraphs (mobile-friendly)`,
-`3) One scripture line (short quote + reference)`,
-`4) CTA (one clear action)`,
-`5) 6–10 hashtags (include #${preset.brand.replace(/\s+/g,"")} and relevant themes)`,
+`POST STRUCTURE (follow but do not label):`,
+`Hook line`,
+`1–3 short paragraphs`,
+`Scripture line`,
+`CTA line`,
+`Hashtags`,
 ``,
-`AFTER THE POST, output ONE single extra block (exact heading only):`,
+`AFTER the post, output exactly ONE extra block with this exact heading on its own line:`,
 `1x1 IMAGE PROMPT (1024x1024)`,
-`Then write ONE image prompt (no extra lines, no second prompt).`,
-`Image rules:`,
-`- Must visually match the post mood + message`,
-`- Must INCLUDE the brand name "${preset.brand}" as baked-in text in the image (clean, readable, elegant)`,
+`Then output ONE image prompt only (no second prompt).`,
+`IMAGE RULES:`,
+`- Must match the post mood + message`,
+`- MUST include baked-in text: "${preset.brand}" (clean, readable, elegant)`,
 `- No logos, no watermarks, no celebrity likeness`,
-`- Style guidance:`,
+`- Use this brand visual preset:`,
 `${preset.imageStyle}`
-    ].join("\n");
+    ].join("\n");    ].join("\n");
   }
 
   
