@@ -154,9 +154,9 @@
   $("who").textContent = `Signed in: ${session.user.email}`;
 
   const params = new URLSearchParams(window.location.search);
-  const artist_id = params.get("id");
+  const artist_id = params.get("id") || params.get("artist_id");
   if (!artist_id) {
-    alert("Missing artist id. Use youtube-community-post.html?id=...");
+    alert(`Missing artist id. Add ?id=... (or ?artist_id=...).\nURL: ${window.location.href}`);
   }
 
   function safe(v){ return (v ?? "").toString().trim(); }
@@ -375,7 +375,13 @@
 
   async function loadArtist(){
     const ar = await supabase.from(ARTISTS).select("*").eq("id", artist_id).single();
-    if (ar.error) throw ar.error;
+    if (ar.error) {
+      console.error('Supabase artist load error', ar.error);
+      throw ar.error;
+    }
+    if (!ar.data) {
+      throw new Error('No artist record returned (check id, RLS, or table name).');
+    }
     artist = ar.data;
     renderArtist();
     window.__preset = detectPreset(artist);
@@ -417,7 +423,7 @@
     await loadArtist();
   }catch(e){
     console.error(e);
-    alert("Failed to load artist. Check console.");
+    alert("Failed to load artist: " + (e?.message || e) + "\n\nTip: Confirm the URL has ?id=... and that RLS allows reading this artist.");
   }
 </script>
 </body>
