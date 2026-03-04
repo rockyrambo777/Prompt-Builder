@@ -1027,10 +1027,15 @@ ${buildSongContextBlock()}
 
     function buildShortsPrompt(){
   const useRef = $("use_artist_image").checked ? "YES" : "NO";
+
   const out = [];
+
   out.push("You are generating SHORTS video plans for this song (10 second clips).");
   out.push("");
+
   out.push("Output MUST be ONLY repeating blocks in this exact order (no JSON, no extra text):");
+  out.push("");
+
   out.push("SHORT 1:");
   out.push("LYRICS_RANGE:");
   out.push("ONSCREEN_TEXT:");
@@ -1038,31 +1043,43 @@ ${buildSongContextBlock()}
   out.push("GROK_VIDEO_PROMPT:");
   out.push("YOUTUBE_TITLE:");
   out.push("YOUTUBE_DESCRIPTION:");
+  out.push("PINNED_COMMENT:");
   out.push("YOUTUBE_HASHTAGS:");
   out.push("");
+
   out.push("Generate SHORT 1 through SHORT 5.");
   out.push("");
+
   out.push("Artist DNA (must follow):");
   out.push(artistDNASummary());
   out.push("");
+
   out.push("Song:");
   out.push(`- Title: ${currentSong.title}`);
   out.push("");
+
   out.push("Lyrics:");
   out.push("```");
   out.push(currentSong.lyrics || "");
   out.push("```");
   out.push("");
-  out.push("Shorts requirements:");
+
+  out.push("Shorts Requirements:");
   out.push(`- Use artist reference image: ${useRef}`);
-  out.push("- Each short must specify exact LYRICS_RANGE + exact ONSCREEN_TEXT.");
-  out.push("- IMAGE_PROMPT: 1080x1920 (9:16), NO baked text, space for captions.");
-  out.push("- GROK_VIDEO_PROMPT: max 10 seconds, say 'image-to-video', describe motion/camera.");
+  out.push("- Each SHORT must choose the BEST hook moments from the lyrics.");
+  out.push("- Each SHORT is ONE 10 second video.");
+  out.push("- ONSCREEN_TEXT must be short and readable.");
+  out.push("- IMAGE_PROMPT must be 1080x1920 (vertical), cinematic, NO baked text.");
+  out.push("- GROK_VIDEO_PROMPT must say 'image-to-video' and describe camera motion.");
   out.push("");
-  out.push("YouTube packaging requirements (per SHORT):");
-  out.push("- YOUTUBE_TITLE: Shorts-friendly (<= 60 chars if possible), hook + song idea, include artist name if it fits.");
-  out.push("- YOUTUBE_DESCRIPTION: 2–4 lines max, includes 1 short CTA (like/subscribe/share) + optional scripture reference (no long quotes).");
-  out.push("- YOUTUBE_HASHTAGS: 6–10 hashtags (space separated) including the artist brand name tag if possible.");
+
+  out.push("YouTube Packaging Rules:");
+  out.push("- YOUTUBE_TITLE must be optimized for Shorts discovery.");
+  out.push("- YOUTUBE_DESCRIPTION must include a short intro and the lyric hook used.");
+  out.push("- PINNED_COMMENT must encourage engagement or prayer requests.");
+  out.push("- YOUTUBE_HASHTAGS must include 6–10 hashtags including the artist brand.");
+  out.push("- Packaging must match the artist voice and genre.");
+
   return out.join("\n");
 }
 
