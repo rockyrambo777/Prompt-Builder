@@ -315,8 +315,6 @@
     const genreLine = [safe(artist.main_genre), safe(artist.secondary_genre)].filter(Boolean).join(" / ") || "—";
 
     const preset = window.__preset || detectPreset(artist);
-
-    const preset = window.__preset || detectPreset(artist);
     const emojiList = (preset.emojiSet || ["✨","🙏","🎶"]).join(" ");
     const brandTag = preset.brandTag || (preset.brand || "Brand").replace(/[^a-zA-Z0-9]+/g,"");
 
