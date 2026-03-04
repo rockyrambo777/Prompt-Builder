@@ -141,11 +141,11 @@
 
     <div class="card">
       <div class="row" style="justify-content:space-between; align-items:center;">
-        <h2 style="margin:0;">Image Prompt (Canva 1920×1080)</h2>
+        <h2 style="margin:0;">Image Prompt (1×1 Square)</h2>
         <button class="btn copy" id="btnCopyImage">Copy</button>
       </div>
       <textarea id="outImage" class="mono" placeholder="Click Generate…"></textarea>
-      <div class="hint">Paste into Canva AI (or your image tool). Keep text area clear for overlay if you add text later.</div>
+      <div class="hint">Paste into ChatGPT image generation (or Canva AI). This is a 1×1 square image prompt that matches the post.</div>
     </div>
   </div>
 
@@ -268,6 +268,10 @@
 `(your post)`,
 `HASHTAGS:`,
 `(hashtags only)`,
+`IMAGE_PROMPT_1x1:`,
+`(a single image prompt for a 1×1 square image that matches the post; no text/logos/watermarks)`,
+`FINAL_NOTE:`,
+`(one short line telling me to copy IMAGE_PROMPT_1x1 into ChatGPT image generation to create the square image)`,
 ``
     ].join("\n");
   }
@@ -287,33 +291,33 @@
     }[tone] || "warm, uplifting";
 
     const vibeByGoal = {
-      new_video: "YouTube premiere vibe, spotlight, subtle play-button shapes (abstract, not logos)",
-      new_release: "new release announcement vibe, celebratory, subtle music notes (abstract)",
-      milestone: "celebration vibe, confetti light bokeh, gratitude",
-      poll: "question/poll vibe, clean space for large question text",
-      behind_scenes: "studio / creative process vibe, equipment silhouettes, candid feel",
-      livestream: "live event vibe, stage lights, streaming energy",
-      prayer: "encouraging faith vibe, gentle light rays, peaceful atmosphere"
-    }[goal] || "announcement vibe";
+      new_video: "new video drop announcement vibe; cinematic spotlight; abstract play-button shapes allowed (no logos)",
+      new_release: "new song/release announcement vibe; celebratory; abstract music textures (no logos)",
+      milestone: "milestone celebration vibe; gratitude; confetti bokeh (subtle, premium)",
+      poll: "clean question/poll vibe; bold shapes; lots of negative space",
+      behind_scenes: "behind-the-scenes studio vibe; gear silhouettes; creative atmosphere",
+      livestream: "live event vibe; stage lights; streaming energy (no platform logos)",
+      prayer: "encouraging faith vibe; gentle light rays; peaceful atmosphere"
+    }[goal] || "premium announcement vibe";
 
     const genre = [safe(artist.main_genre), safe(artist.secondary_genre)].filter(Boolean).join(" / ") || "music";
     const lane = safe(artist.default_lane) || "brand";
     const voice = safe(artist.voice_identity) || "artist";
 
-    // Keep it tool-agnostic (Canva AI) and avoid copyrighted logos.
     return [
-`Create a 1920×1080 (16:9) community-post image background for the artist "${artist.name || "Artist"}".`,
+`Generate a 1×1 square image (1024×1024) to match a YouTube Community post for the artist "${artist.name || "Artist"}".`,
 `Style: ${lane} / ${genre}.`,
 `Mood: ${moodByTone}.`,
 `Concept: ${vibeByGoal}.`,
-`Subject: an artist-themed scene that matches "${voice}" (no real celebrity likeness).`,
-`Background: cinematic gradients + light rays/bokeh, subtle texture, clean and modern.`,
-`Composition: rule of thirds; keep the CENTER and upper-middle area clean for text overlay; avoid clutter.`,
-`Color palette: deep navy/charcoal base with tasteful accent colors that fit the genre; premium lighting.`,
-`Details to incorporate (optional): ${details || "—"}`,
-`No watermarks, no copyrighted logos, no explicit text baked in.`
+`Subject: an original, artist-themed scene that reflects "${voice}" (no real celebrity likeness).`,
+`Background: premium cinematic lighting, soft gradients, subtle bokeh/light rays, tasteful texture.`,
+`Composition: centered subject with strong focal point; keep some clean negative space for optional overlay text.`,
+`Color palette: deep navy/charcoal base with tasteful accent colors that fit the genre; high-quality lighting.`,
+`Optional details to incorporate: ${details || "—"}`,
+`IMPORTANT: no text baked into the image, no watermarks, no copyrighted logos, no brand marks.`
     ].join("\n");
   }
+}
 
   function generate(){
     $("outPrompt").value = buildPrompt();
