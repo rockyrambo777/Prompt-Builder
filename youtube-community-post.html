@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>YouTube Community Post Builder</title>
+  <style>
+    :root{
+      --bg:#0b0f19; --card:#121a2a; --card2:#0f1626; --border:#23304a;
+      --muted:#92a4c7; --text:#e8eefc; --primary:#2f6fed; --danger:#d14b4b;
+      --chip:#1c273f; --ok:#7CFFB2; --warn:#ffcc66;
+    }
+    body { font-family: Arial, sans-serif; background:var(--bg); color:var(--text); margin:0; }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    .top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+    .muted { color:var(--muted); font-size: 14px; }
+    .btn { padding:10px 12px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); cursor:pointer; font-weight:800; }
+    .btn.primary { background:var(--primary); border:none; }
+    .btn.secondary { background:#1c273f; border:1px solid #2a3a5c; }
+    .btn.copy { background:#16315f; border:1px solid #2a3a5c; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-top:14px; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; }
+    @media (max-width: 980px){ .grid { grid-template-columns: 1fr; } }
+    .pill{
+      display:inline-block; padding:4px 10px; border-radius:999px;
+      border:1px solid #2a3a5c; background:var(--card2); font-size:12px;
+    }
+    .hint { font-size:12px; color:var(--muted); margin-top:6px; line-height:1.4; }
+    label{display:block; font-weight:900; margin-bottom:6px;}
+    input, select, textarea{
+      width:100%; box-sizing:border-box; border-radius:12px; padding:10px;
+      border:1px solid #2a3a5c; background: var(--card2); color:var(--text);
+      font-family: inherit;
+    }
+    textarea{ min-height:140px; resize:vertical; }
+    .smallText{min-height:90px;}
+    .splitBtns{display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; margin-top:12px;}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
+    .divider{ height:1px; background:#22304a; margin:14px 0; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <div class="muted" id="who">Signed in…</div>
+        <h1 style="margin:6px 0 0;" id="title">Community Post</h1>
+        <div class="muted" id="subtitle">Generate a copy‑paste ChatGPT prompt + Canva image prompt (no saving)</div>
+      </div>
+      <div class="row" style="gap:10px; flex-wrap:wrap;">
+        <button class="btn" id="btnBack">Back</button>
+        <button class="btn" id="btnOpenChatGPT">Open ChatGPT</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 style="margin:0 0 10px;">Artist Snapshot</h2>
+      <div class="row" style="gap:10px; flex-wrap:wrap;">
+        <span class="pill" id="pMain">main: —</span>
+        <span class="pill" id="pSec">secondary: —</span>
+        <span class="pill" id="pVoice">voice: —</span>
+        <span class="pill" id="pLane">lane: —</span>
+        <span class="pill" id="pHandle">handle: —</span>
+      </div>
+      <div class="muted" style="margin-top:10px;" id="pMust">must include: —</div>
+      <div class="muted" style="margin-top:6px;" id="pNever">never include: —</div>
+    </div>
+
+    <div class="card">
+      <h2 style="margin:0 0 10px;">Post Inputs</h2>
+
+      <div class="grid">
+        <div>
+          <label for="goal">Post type</label>
+          <select id="goal">
+            <option value="new_video">New video drop</option>
+            <option value="new_release">New song / release</option>
+            <option value="milestone">Milestone / thank you</option>
+            <option value="poll">Poll question</option>
+            <option value="behind_scenes">Behind the scenes</option>
+            <option value="livestream">Livestream reminder</option>
+            <option value="prayer">Prayer request / encouragement</option>
+          </select>
+          <div class="hint">Pick the vibe. You can add details below.</div>
+        </div>
+
+        <div>
+          <label for="tone">Tone</label>
+          <select id="tone">
+            <option value="hype">Hype / energetic</option>
+            <option value="warm">Warm / thankful</option>
+            <option value="bold">Bold / declarative</option>
+            <option value="gentle">Gentle / encouraging</option>
+            <option value="funny">Light / playful</option>
+          </select>
+          <div class="hint">This influences emojis + wording.</div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="grid">
+        <div>
+          <label for="cta">Call to action</label>
+          <select id="cta">
+            <option value="watch">Watch / click the video</option>
+            <option value="comment">Comment your favorite line</option>
+            <option value="share">Share with a friend</option>
+            <option value="subscribe">Subscribe + turn on bell</option>
+            <option value="pray">Drop a 🙏 for prayer</option>
+            <option value="vote">Vote in the poll</option>
+          </select>
+        </div>
+        <div>
+          <label for="scriptureRef">Scripture (optional)</label>
+          <input id="scriptureRef" placeholder="e.g., Psalm 46:1 (or leave blank)" />
+          <div class="hint">Leave blank if you don’t want scripture included.</div>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <label for="details">Extra details (optional)</label>
+        <textarea id="details" class="smallText" placeholder="Examples: song title, link note, release time, what the post should mention, inside joke, etc."></textarea>
+      </div>
+
+      <div class="splitBtns">
+        <button class="btn primary" id="btnGenerate">Generate</button>
+        <button class="btn" id="btnClear">Clear</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between; align-items:center;">
+        <h2 style="margin:0;">ChatGPT Prompt</h2>
+        <button class="btn copy" id="btnCopyPrompt">Copy</button>
+      </div>
+      <textarea id="outPrompt" class="mono" placeholder="Click Generate…"></textarea>
+      <div class="hint">Paste this into ChatGPT to generate your final community post text.</div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between; align-items:center;">
+        <h2 style="margin:0;">Image Prompt (Canva 1920×1080)</h2>
+        <button class="btn copy" id="btnCopyImage">Copy</button>
+      </div>
+      <textarea id="outImage" class="mono" placeholder="Click Generate…"></textarea>
+      <div class="hint">Paste into Canva AI (or your image tool). Keep text area clear for overlay if you add text later.</div>
+    </div>
+  </div>
+
+<script type="module">
+  import { supabase, requireSessionOrRedirect } from "./app.js";
+
+  const $ = (id) => document.getElementById(id);
+  const ARTISTS = "artists";
+
+  const session = await requireSessionOrRedirect();
+  $("who").textContent = `Signed in: ${session.user.email}`;
+
+  const params = new URLSearchParams(window.location.search);
+  const artist_id = params.get("id");
+  if (!artist_id) {
+    alert("Missing artist id. Use youtube-community-post.html?id=...");
+  }
+
+  function safe(v){ return (v ?? "").toString().trim(); }
+
+  function getHandle(a){
+    // Try a few common field names, fall back to placeholder
+    return safe(a.channel_handle || a.youtube_handle || a.handle || a.yt_handle || a.channel || "") || "@YourChannelHandle";
+  }
+
+  let artist = null;
+
+  function renderArtist(){
+    if (!artist) return;
+    $("title").textContent = `${artist.name || "Artist"} — Community Post`;
+
+    $("pMain").textContent = `main: ${artist.main_genre || "—"}`;
+    $("pSec").textContent = `secondary: ${artist.secondary_genre || "—"}`;
+    $("pVoice").textContent = `voice: ${artist.voice_identity || "—"}`;
+    $("pLane").textContent = `lane: ${artist.default_lane || "—"}`;
+    $("pHandle").textContent = `handle: ${getHandle(artist)}`;
+    $("pMust").textContent = `must include: ${artist.must_include || "—"}`;
+    $("pNever").textContent = `never include: ${artist.never_include || "—"}`;
+  }
+
+  function mapGoal(v){
+    const m = {
+      new_video: "a YouTube community post announcing a NEW VIDEO drop",
+      new_release: "a YouTube community post announcing a NEW SONG/RELEASE",
+      milestone: "a YouTube community post celebrating a milestone and thanking the community",
+      poll: "a YouTube community post that is a POLL question (include 3–4 answer options)",
+      behind_scenes: "a YouTube community post sharing behind-the-scenes / process updates",
+      livestream: "a YouTube community post reminding viewers about an upcoming LIVESTREAM",
+      prayer: "a YouTube community post that encourages and invites PRAYER requests"
+    };
+    return m[v] || "a YouTube community post";
+  }
+
+  function mapTone(v){
+    const m = {
+      hype: "energetic, exciting, punchy",
+      warm: "warm, grateful, heartfelt",
+      bold: "bold, confident, declarative",
+      gentle: "gentle, comforting, encouraging",
+      funny: "light, playful, clean humor"
+    };
+    return m[v] || "warm";
+  }
+
+  function mapCTA(v){
+    const m = {
+      watch: "ask them to watch/click the video",
+      comment: "ask a specific comment question",
+      share: "ask them to share with someone",
+      subscribe: "ask them to subscribe and turn on notifications",
+      pray: "ask them to comment 🙏 for prayer",
+      vote: "ask them to vote in the poll"
+    };
+    return m[v] || "ask them to engage";
+  }
+
+  function buildPrompt(){
+    if (!artist) return "";
+    const goal = $("goal").value;
+    const tone = $("tone").value;
+    const cta = $("cta").value;
+    const scripture = safe($("scriptureRef").value);
+    const details = safe($("details").value);
+
+    const handle = getHandle(artist);
+
+    const personaBits = [
+      artist.voice_identity ? `Voice identity: ${artist.voice_identity}` : null,
+      artist.must_include ? `Must include: ${artist.must_include}` : null,
+      artist.never_include ? `Never include: ${artist.never_include}` : null,
+    ].filter(Boolean).join("\n");
+
+    const genreLine = [safe(artist.main_genre), safe(artist.secondary_genre)].filter(Boolean).join(" / ") || "—";
+
+    return [
+`You are helping me write ${mapGoal(goal)} for my artist.`,
+``,
+`ARTIST`,
+`- name: ${artist.name || "—"}`,
+`- channel handle: ${handle}`,
+`- genres: ${genreLine}`,
+`- lane: ${artist.default_lane || "—"}`,
+`${personaBits ? "- " + personaBits.replace(/\n/g, "\n- ") : ""}`,
+``,
+`POST REQUIREMENTS`,
+`- tone: ${mapTone(tone)}`,
+`- length: 1–3 short paragraphs (mobile-friendly)`,
+`- include 3–6 relevant emojis (match the tone)`,
+`- include a strong hook in the first line`,
+`- include one clear CTA (${mapCTA(cta)})`,
+`- include 6–10 hashtags at the end (no more than 2 lines)`,
+`- keep it clean and brand-safe`,
+`${scripture ? `- include a short scripture line (reference: ${scripture})` : "- no scripture unless I add one"}`,
+``,
+`EXTRA DETAILS (if any):`,
+`${details || "—"}`,
+``,
+`OUTPUT FORMAT (exact):`,
+`COMMUNITY_POST_TEXT:`,
+`(your post)`,
+`HASHTAGS:`,
+`(hashtags only)`,
+``
+    ].join("\n");
+  }
+
+  function buildImagePrompt(){
+    if (!artist) return "";
+    const goal = $("goal").value;
+    const tone = $("tone").value;
+    const details = safe($("details").value);
+
+    const moodByTone = {
+      hype: "high-energy, dynamic, bold lighting, dramatic contrast",
+      warm: "warm, uplifting, soft glow, inviting",
+      bold: "strong, powerful, high-contrast, heroic",
+      gentle: "soft, peaceful, comforting, smooth gradients",
+      funny: "bright, playful, friendly, clean"
+    }[tone] || "warm, uplifting";
+
+    const vibeByGoal = {
+      new_video: "YouTube premiere vibe, spotlight, subtle play-button shapes (abstract, not logos)",
+      new_release: "new release announcement vibe, celebratory, subtle music notes (abstract)",
+      milestone: "celebration vibe, confetti light bokeh, gratitude",
+      poll: "question/poll vibe, clean space for large question text",
+      behind_scenes: "studio / creative process vibe, equipment silhouettes, candid feel",
+      livestream: "live event vibe, stage lights, streaming energy",
+      prayer: "encouraging faith vibe, gentle light rays, peaceful atmosphere"
+    }[goal] || "announcement vibe";
+
+    const genre = [safe(artist.main_genre), safe(artist.secondary_genre)].filter(Boolean).join(" / ") || "music";
+    const lane = safe(artist.default_lane) || "brand";
+    const voice = safe(artist.voice_identity) || "artist";
+
+    // Keep it tool-agnostic (Canva AI) and avoid copyrighted logos.
+    return [
+`Create a 1920×1080 (16:9) community-post image background for the artist "${artist.name || "Artist"}".`,
+`Style: ${lane} / ${genre}.`,
+`Mood: ${moodByTone}.`,
+`Concept: ${vibeByGoal}.`,
+`Subject: an artist-themed scene that matches "${voice}" (no real celebrity likeness).`,
+`Background: cinematic gradients + light rays/bokeh, subtle texture, clean and modern.`,
+`Composition: rule of thirds; keep the CENTER and upper-middle area clean for text overlay; avoid clutter.`,
+`Color palette: deep navy/charcoal base with tasteful accent colors that fit the genre; premium lighting.`,
+`Details to incorporate (optional): ${details || "—"}`,
+`No watermarks, no copyrighted logos, no explicit text baked in.`
+    ].join("\n");
+  }
+
+  function generate(){
+    $("outPrompt").value = buildPrompt();
+    $("outImage").value = buildImagePrompt();
+  }
+
+  async function loadArtist(){
+    const ar = await supabase.from(ARTISTS).select("*").eq("id", artist_id).single();
+    if (ar.error) throw ar.error;
+    artist = ar.data;
+    renderArtist();
+  }
+
+  function copyFrom(id){
+    const el = $(id);
+    el.select();
+    el.setSelectionRange(0, 999999);
+    document.execCommand("copy");
+  }
+
+  $("btnGenerate").onclick = generate;
+  $("btnClear").onclick = () => {
+    $("details").value = "";
+    $("scriptureRef").value = "";
+    $("outPrompt").value = "";
+    $("outImage").value = "";
+  };
+  $("btnCopyPrompt").onclick = () => copyFrom("outPrompt");
+  $("btnCopyImage").onclick = () => copyFrom("outImage");
+
+  $("btnBack").onclick = () => {
+    // return to artist view
+    window.location.href = `./artist_view_filtered.html?id=${encodeURIComponent(artist_id)}`;
+  };
+
+  $("btnOpenChatGPT").onclick = () => {
+    window.open("https://chat.openai.com/", "_blank");
+  };
+
+  try{
+    await loadArtist();
+  }catch(e){
+    console.error(e);
+    alert("Failed to load artist. Check console.");
+  }
+</script>
+</body>
+</html>
