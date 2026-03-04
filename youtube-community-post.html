@@ -165,6 +165,8 @@
     // Try a few common field names, fall back to placeholder
     return safe(a.channel_handle || a.youtube_handle || a.handle || a.yt_handle || a.channel || "") || "@YourChannelHandle";
 
+  }
+
   function detectPreset(a){
     const name = (a?.name || "").toLowerCase();
     const lane = (a?.default_lane || "").toLowerCase();
