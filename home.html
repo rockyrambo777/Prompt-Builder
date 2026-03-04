@@ -76,22 +76,20 @@
         </div>
 
         <div class="card" style="margin:0;">
-          <h3 style="margin:0 0 8px;">Albums & Production</h3>
+          <h3 style="margin:0 0 8px;">Albums</h3>
           <div class="row">
             <button id="btnAlbums" class="btn secondary">Albums</button>
-            <button id="btnProduction" class="btn secondary">Production</button>
           </div>
-          <div class="hint">Production page needs <span style="font-family:monospace;">album_id</span>. Open an album and click its Production button.</div>
+          <div class="hint">Open an artist to view albums and manage your workflow.</div>
         </div>
 
         <div class="card" style="margin:0;">
-          <h3 style="margin:0 0 8px;">Publish & Distribution</h3>
+          <h3 style="margin:0 0 8px;">Distribution</h3>
           <div class="row">
-            <button id="btnPackaging" class="btn secondary">YouTube Packaging</button>
             <button id="btnDitto" class="btn secondary">Distribution – Ditto</button>
             <button id="btnBandcamp" class="btn secondary">Distribution – Bandcamp</button>
           </div>
-          <div class="hint">These pages generate prompts only (nothing saved).</div>
+          <div class="hint">These pages generate distribution copy/prompts only (nothing saved).</div>
         </div>
       </div>
     </div>
@@ -256,10 +254,9 @@
       $("globalChips").appendChild(pill(shortNeed ? "warn" : "ok", "shorts needs packaging: " + shortNeed));
     }
 
-    $("btnArtistsScroll").onclick = () => window.location.href = "./artists.html";    $("btnArtistNew").onclick = () => window.location.href = "./artist-new.html";
+    $("btnArtistsScroll").onclick = () => window.location.href = "./artists.html";
+    $("btnArtistNew").onclick = () => window.location.href = "./artist-new.html";
     $("btnAlbums").onclick = () => window.location.href = "./albums.html";
-    $("btnProduction").onclick = () => window.location.href = "./albums.html";
-    $("btnPackaging").onclick = () => window.location.href = "./youtube-packaging.html";
     $("btnDitto").onclick = () => window.location.href = "./distribution-ditto.html";
     $("btnBandcamp").onclick = () => window.location.href = "./distribution-bandcamp.html";
     $("btnRefresh").onclick = loadDashboard;
