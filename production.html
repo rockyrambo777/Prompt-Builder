@@ -1063,8 +1063,7 @@ ${buildSongContextBlock()}
   out.push("- YOUTUBE_TITLE: Shorts-friendly (<= 60 chars if possible), hook + song idea, include artist name if it fits.");
   out.push("- YOUTUBE_DESCRIPTION: 2–4 lines max, includes 1 short CTA (like/subscribe/share) + optional scripture reference (no long quotes).");
   out.push("- YOUTUBE_HASHTAGS: 6–10 hashtags (space separated) including the artist brand name tag if possible.");
-  return out.join("
-");
+  return out.join("\n");
 }
 
     // Override existing buildLongPrompt/buildShortsPrompt if they exist
