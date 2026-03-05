@@ -181,11 +181,41 @@
 function safeText(v){ return (v === null || v === undefined) ? "" : String(v); }
 
     function parseTracksInput(text){
-      const t = (text || "").trim();
+      let t = (text || "").trim();
       if (!t) return null;
-      try { const v = JSON.parse(t); if (Array.isArray(v)) return v; } catch {}
+
+      // Strip common ChatGPT code fences ```json ... ```
+      t = t.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
+
+      // Try JSON parse first
+      try {
+        const v = JSON.parse(t);
+        if (Array.isArray(v)) return v;
+
+        // Support wrapper objects e.g. { "tracks": [...] } or { "TRACKS_JSON": [...] }
+        if (v && typeof v === "object") {
+          const keys = ["tracks","TRACKS_JSON","tracklist","songs","data","items"];
+          for (const k of keys){
+            if (Array.isArray(v[k])) return v[k];
+          }
+        }
+      } catch {}
+
+      // Try to recover if user pasted extra text around JSON
+      const firstArr = t.indexOf("[");
+      const lastArr = t.lastIndexOf("]");
+      if (firstArr !== -1 && lastArr !== -1 && lastArr > firstArr){
+        const sub = t.slice(firstArr, lastArr + 1);
+        try {
+          const v2 = JSON.parse(sub);
+          if (Array.isArray(v2)) return v2;
+        } catch {}
+      }
+
+      // Fallback: treat as list of titles (one per line or comma separated)
       const lines = t.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
       if (lines.length) return lines;
+
       const parts = t.split(",").map(s => s.trim()).filter(Boolean);
       return parts.length ? parts : null;
     }
@@ -367,24 +397,59 @@ tr.querySelector("[data-lyrics]").onclick = () => {
     }
 
     function normalizeTracks(arr){
+      const gospel = !!window.__isGospelArtist;
+
       if (!Array.isArray(arr)) return [];
+
+      // If it's an array of strings, treat as titles
       if (arr.every(x => typeof x === "string")) {
-        return arr.map((title, idx) => ({
-          track_number: idx + 1,
-          title: String(title).replace(/^"+|"+$/g,"").trim(),
-          suno_prompt: null, keywords: null, scripture: null,
-        })).filter(t => t.title);
+        return arr
+          .map((title, idx) => ({
+            track_number: idx + 1,
+            title: String(title).replace(/^["“”]+|["“”]+$/g,"").trim(),
+            suno_prompt: null,
+            keywords: null,
+            scripture: null,
+          }))
+          .filter(t => t.title);
       }
-      return arr.map((x, idx) => {
-        const track_number = Number(x.track_number || (idx+1));
+
+      // Array of objects (preferred)
+      const cleaned = arr.map((x, idx) => {
+        const tnRaw = (x && typeof x === "object") ? x.track_number : null;
+        const tn = Number(tnRaw);
+        const hasTN = Number.isFinite(tn) && tn > 0;
+
+        const title = (x && typeof x === "object") ? safeText(x.title).trim() : "";
+        const suno = (x && typeof x === "object" && x.suno_prompt) ? safeText(x.suno_prompt).trim() : null;
+
         return {
-          track_number,
-          title: safeText(x.title).trim(),
-          suno_prompt: (x.suno_prompt ? safeText(x.suno_prompt).trim() : null),
-          keywords: (x.keywords ? safeText(x.keywords).trim() : null),
-          scripture: (gospelArtist && x.scripture ? safeText(x.scripture).trim() : null),
+          _idx: idx,
+          _hasTN: hasTN,
+          track_number: hasTN ? tn : null,
+          title,
+          suno_prompt: suno || null,
+          keywords: (x && typeof x === "object" && x.keywords) ? safeText(x.keywords).trim() : null,
+          scripture: (gospel && x && typeof x === "object" && x.scripture) ? safeText(x.scripture).trim() : null,
         };
       }).filter(t => t.title);
+
+      // Sort by provided track_number (if present), otherwise keep original order
+      cleaned.sort((a,b) => {
+        if (a._hasTN && b._hasTN) return a.track_number - b.track_number;
+        if (a._hasTN && !b._hasTN) return -1;
+        if (!a._hasTN && b._hasTN) return 1;
+        return a._idx - b._idx;
+      });
+
+      // Re-assign track numbers sequentially to avoid duplicates/missing numbers
+      return cleaned.map((t, idx) => ({
+        track_number: idx + 1,
+        title: t.title,
+        suno_prompt: t.suno_prompt,
+        keywords: t.keywords,
+        scripture: t.scripture,
+      }));
     }
 
     async function saveAlbum(){
