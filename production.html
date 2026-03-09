@@ -1013,6 +1013,7 @@ ${buildSongContextBlock()}
       out.push("Video requirements:");
       out.push(`- Type: ${isMusicVideo ? "MUSIC VIDEO (use Grok image-to-video)" : "LYRIC VIDEO (visuals support on-screen lyrics)"}`);
       out.push(`- Use artist reference image: ${useRef}`);
+      out.push('- If Use artist reference image is YES, IMAGE_PROMPT must explicitly say: use the reference image to generate the image.');
       out.push("- IMAGE_PROMPT: 1920x1080 (16:9), Canva/Flow-ready, NO baked text.");
       out.push("- GROK_VIDEO_PROMPT: max 10 seconds, say 'image-to-video', describe motion/camera.");
       out.push("- LYRICS_RANGE: exact lines used in that scene.");
@@ -1066,6 +1067,7 @@ ${buildSongContextBlock()}
 
   out.push("Shorts Requirements:");
   out.push(`- Use artist reference image: ${useRef}`);
+  out.push('- If Use artist reference image is YES, IMAGE_PROMPT must explicitly say: use the reference image to generate the image.');
   out.push("- Each SHORT must choose the BEST hook moments from the lyrics.");
   out.push("- Each SHORT is ONE 10 second video.");
   out.push("- ONSCREEN_TEXT must be short and readable.");
