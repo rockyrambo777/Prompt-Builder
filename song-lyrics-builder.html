@@ -117,9 +117,9 @@ input[type="checkbox"], input[type="radio"]{ width:18px; height:18px; accent-col
         <div>
           <label>Structure</label>
           <select id="structure">
-            <option value="standard" selected>Verse 1, Pre, Chorus, Verse 2, Pre, Chorus, Bridge, Final Chorus</option>
-            <option value="simple">Verse 1, Chorus, Verse 2, Chorus, Bridge, Final Chorus</option>
-            <option value="anthem">Verse 1, Pre, Chorus, Verse 2, Pre, Chorus, Bridge, Key Change, Final Chorus</option>
+            <option value="standard" selected>Standard Short Worship / Song</option>
+            <option value="simple">Simple Short Worship / Song</option>
+            <option value="anthem">Bigger Worship Build</option>
           </select>
 
           <label>Length target</label>
@@ -290,13 +290,73 @@ const session = await requireSessionOrRedirect();
       $("statusLine").textContent = "Ready ✅";
     }
 
+    function getLengthRules(lengthValue){
+      if (lengthValue === "2-3") {
+        return `Length Rules:
+- Target finished song duration: 2:30–3:10.
+- Keep lyrics around 170–220 words.
+- Use short sections only.
+- Short intro under 8 seconds.
+- Begin vocals quickly.
+- No long instrumental breaks.
+- One short bridge only.
+- Clean ending, no extended outro.`;
+      }
+
+      if (lengthValue === "4-5") {
+        return `Length Rules:
+- Target finished song duration: 4:00–4:45.
+- Keep lyrics around 300–380 words.
+- Allow a slightly longer worship build if it fits the artist style.
+- One moderate bridge.
+- One short instrumental moment allowed.
+- Avoid excessive repeated choruses.
+- Clean ending, no extended outro.`;
+      }
+
+      return `Length Rules:
+- Target finished song duration: 3:15–3:50.
+- Keep lyrics around 220–280 words.
+- Maximum 2 verses.
+- Maximum 2 pre-choruses.
+- Maximum 2 full choruses plus one final chorus variation.
+- One short bridge only, 4–8 lines max.
+- Short intro under 10 seconds.
+- Begin vocals quickly.
+- Minimal instrumental breaks.
+- Clean ending, no extended outro.
+- Do not repeat choruses many times just to extend the song.`;
+    }
+
+    function getStructureRules(structureValue){
+      if (structureValue === "simple") {
+        return `Structure Rules:
+- Use this structure: Verse 1, Chorus, Verse 2, Chorus, Short Bridge, Final Chorus, Short Outro.
+- Keep it direct, simple, and easy to sing.`;
+      }
+
+      if (structureValue === "anthem") {
+        return `Structure Rules:
+- Use this structure: Verse 1, Pre-Chorus, Chorus, Verse 2, Pre-Chorus, Chorus, Short Bridge, Final Chorus, Short Outro.
+- Make the final chorus feel bigger, but avoid a long key-change section unless absolutely necessary.
+- Keep the arrangement concise and streaming-friendly.`;
+      }
+
+      return `Structure Rules:
+- Use this structure: Verse 1, Pre-Chorus, Chorus, Verse 2, Pre-Chorus, Chorus, Short Bridge, Final Chorus, Short Outro.
+- Keep the arrangement complete but concise.`;
+    }
+
     function buildPrompt(){
       if (!song) return;
 
+      const lengthValue = $("length").value;
+      const structureValue = $("structure").value;
       const out = [];
+
       out.push("Write original song lyrics AND a Suno prompt for the track below.");
       out.push("");
-      out.push("Return ONLY these sections (no extra commentary):");
+      out.push("Return ONLY these sections, with no extra commentary:");
       out.push("UPDATED_SUNO_PROMPT:");
       out.push("LYRICS:");
       out.push("```");
@@ -308,20 +368,37 @@ const session = await requireSessionOrRedirect();
       out.push(`- Lead type: ${safe(song.lead_type || song.lead || "solo")}`);
       out.push(`- Keywords: ${trimOrNone($("keywords").value)}`);
       out.push(`- Scripture (optional): ${trimOrNone($("scripture").value)}`);
-      out.push(`- Length: ${$("length").value} minutes`);
-      out.push(`- Structure: ${$("structure").value}`);
+      out.push(`- Target Length: ${lengthValue} minutes`);
+      out.push(`- Structure Profile: ${structureValue}`);
       out.push(`- Notes: ${trimOrNone($("notes").value)}`);
       out.push("");
       out.push("Artist DNA (must follow):");
       out.push(artistDNABlock(artist));
       out.push("");
-      out.push("Rules:");
-      out.push("- Suno prompt must include instruments (never instrument-less).");
-      out.push("- Keep voice identity consistent (use Suno voice anchor if provided).");
-      out.push("- Keep genre aligned to artist main/secondary genres.");
-      out.push("- Gospel/worship content must be clean language, no profanity.");
-      out.push("- Make lyrics singable, not overly long lines.");
+      out.push(getLengthRules(lengthValue));
+      out.push("");
+      out.push(getStructureRules(structureValue));
+      out.push("");
+      out.push("Suno Prompt Rules:");
       out.push("- UPDATED_SUNO_PROMPT must be <= 1000 characters.");
+      out.push("- Suno prompt must include instruments; never create an instrument-less prompt.");
+      out.push("- Suno prompt must include: genre/style, instruments, vocal style, tempo feel, mood, arrangement, and production atmosphere.");
+      out.push("- Add this arrangement instruction naturally: commercial streaming arrangement, short intro, vocals start quickly, minimal instrumental sections, one short bridge, clean ending.");
+      out.push("- Avoid prompt words that often cause long tracks unless needed: extended, long build, worship flow, spontaneous, live version, soak section, repeated refrain, endless, medley.");
+      out.push("- Keep the prompt faithful to the Artist DNA and do not contradict banned elements.");
+      out.push("");
+      out.push("Lyric Rules:");
+      out.push("- Make lyrics singable, emotionally memorable, and easy to follow.");
+      out.push("- Keep lines short and natural for singing.");
+      out.push("- Do not make the song too wordy.");
+      out.push("- Avoid overly repeated tags, chants, or long outros.");
+      out.push("- Gospel/worship content must be clean, reverent, and scripture-aligned.");
+      out.push("- Do not quote long scripture passages directly.");
+      out.push("- Create a memorable chorus/hook suitable for streaming and repeat listening.");
+      out.push("");
+      out.push("Important:");
+      out.push("- The goal is a finished Suno song close to the target length, not a long worship version.");
+      out.push("- Keep the song complete but concise.");
 
       $("output").value = out.join("\n");
       $("statusLine").textContent = "Prompt built ✅";
