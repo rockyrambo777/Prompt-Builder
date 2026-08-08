@@ -123,6 +123,7 @@
             <option value="in_progress">In progress</option>
             <option value="ready">Ready</option>
             <option value="distributed">Distributed</option>
+            <option value="released">Released</option>
           </select>
         </div>
         <div class="field" style="max-width:260px;">
@@ -212,10 +213,14 @@
     let out = albums.filter(a => {
       const title = (a.title||"").toLowerCase();
       if (q && !title.includes(q)) return false;
-      if (st !== "all") {
-        const s = normStatus(a.status);
-        if (s !== st) return false;
-      }
+
+      const s = normStatus(a.status);
+
+      // Keep released albums out of the normal Artist View.
+      // They remain available by choosing Status = Released.
+      if (st === "all" && s === "released") return false;
+
+      if (st !== "all" && s !== st) return false;
       return true;
     });
 
@@ -250,7 +255,7 @@
 
       const st = normStatus(a.status);
       const stPill = document.createElement("span");
-      stPill.className = "pill " + (st==="ready" || st==="distributed" ? "ok" : "warn");
+      stPill.className = "pill " + (st==="ready" || st==="distributed" || st==="released" ? "ok" : "warn");
       stPill.textContent = "status: " + st;
 
       const ready = (a.is_ready_for_distribution || a.ready_for_distro) ? "ready ✅" : "not ready";
