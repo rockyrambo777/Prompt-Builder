@@ -127,7 +127,14 @@
       const q = $("q").value.trim().toLowerCase();
 
       if (af) query = query.eq("artist_id", af);
-      if (sf) query = query.eq("status", sf);
+
+      // Hide released albums by default.
+      // If a specific status is selected, show only that status.
+      if (sf) {
+        query = query.eq("status", sf);
+      } else {
+        query = query.neq("status", "released");
+      }
 
       const { data } = await query;
 
