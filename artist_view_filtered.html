@@ -245,7 +245,7 @@
     // sort
     const byTitle = (x,y) => (x.title||"").localeCompare(y.title||"");
     const byCreated = (x,y) => new Date(x.created_at||0) - new Date(y.created_at||0);
-    const byUpdated = (x,y) => new Date(x.updated_at||x.created_at||0) - new Date(y.updated_at||x.created_at||0);
+    const byUpdated = (x,y) => new Date(x.updated_at||x.created_at||0) - new Date(y.updated_at||y.created_at||0);
 
     if (sort==="title_asc") out.sort(byTitle);
     if (sort==="title_desc") out.sort((a,b)=>byTitle(b,a));
