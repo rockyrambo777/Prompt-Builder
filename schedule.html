@@ -20,7 +20,13 @@
     </div>
     <div id="msg" class="msg muted"></div>
     <div class="card">
-      <div class="muted">Calendar events plus planned publish times from packages (when those tables exist).</div>
+      <div class="row">
+        <label class="field" style="margin:0; min-width:220px;">
+          <span>Artist</span>
+          <select id="fArtist"><option value="">All artists</option></select>
+        </label>
+      </div>
+      <div class="muted" style="margin-top:10px;">Calendar events plus planned publish times from packages and Ditto/Bandcamp (when those tables exist).</div>
       <div id="tableHost" style="margin-top:12px;"></div>
     </div>
   </div>
@@ -37,17 +43,33 @@
     function tableMissing(err) {
       if (!err) return false;
       const m = (err.message || "") + " " + (err.code || "");
-      return /does not exist|schema cache|PGRST/i.test(m) || err.code === "42P01" || err.code === "PGRST205";
+      return /relation .* does not exist|Could not find the table|schema cache|PGRST205/i.test(m)
+        || err.code === "42P01" || err.code === "PGRST205";
+    }
+    function columnMissing(err) {
+      if (!err) return false;
+      const m = (err.message || "") + " " + (err.code || "");
+      return /column .* does not exist|Could not find the .* column|PGRST204/i.test(m)
+        || err.code === "42703" || err.code === "PGRST204";
     }
     function fmtWhen(v) {
       if (!v) return "";
       const d = new Date(v);
       if (Number.isNaN(d.getTime())) return String(v);
-      return d.toISOString().replace("T", " ").slice(0, 16) + " UTC";
+      try {
+        const fmt = new Intl.DateTimeFormat("en-ZA", {
+          timeZone: "Africa/Johannesburg",
+          year: "numeric", month: "2-digit", day: "2-digit",
+          hour: "2-digit", minute: "2-digit", hour12: false
+        });
+        return fmt.format(d) + " SAST";
+      } catch {
+        return d.toISOString().replace("T", " ").slice(0, 16) + " UTC";
+      }
     }
 
     async function loadNames() {
-      const { data: artists } = await supabase.from("artists").select("id,name,is_active").eq("is_active", true);
+      const { data: artists } = await supabase.from("artists").select("id,name,is_active").eq("is_active", true).order("name");
       const { data: albums } = await supabase.from("albums").select("id,title,artist_id");
       const { data: songs } = await supabase.from("songs").select("id,title,album_id,track_number");
       const artist = {};
@@ -56,7 +78,7 @@
       for (const a of albums || []) album[a.id] = a;
       const song = {};
       for (const s of songs || []) song[s.id] = s;
-      return { artist, album, song };
+      return { artist, album, song, artists: artists || [] };
     }
 
     async function trySelect(table, cols) {
@@ -68,24 +90,43 @@
       return { rows: data || [], missing: false };
     }
 
+    let allRows = [];
+    let skipped = [];
+
     async function load() {
       $("msg").textContent = "Loading schedule…";
       const names = await loadNames();
-      const rows = [];
-      const skipped = [];
+      const sel = $("fArtist");
+      const prev = sel.value;
+      sel.innerHTML = "<option value=''>All artists</option>";
+      for (const a of names.artists) {
+        const o = document.createElement("option");
+        o.value = a.id;
+        o.textContent = a.name || "(unnamed)";
+        sel.appendChild(o);
+      }
+      if ([...sel.options].some((o) => o.value === prev)) sel.value = prev;
 
-      const events = await trySelect("schedule_events", "id,artist_id,album_id,song_id,title,notes,link,event_date,created_at");
+      const rows = [];
+      skipped = [];
+
+      let events = await trySelect("schedule_events", "id,artist_id,album_id,song_id,title,notes,link,event_date,created_at,kind,platform,publication_status,source");
+      if (events.error && columnMissing(events.error)) {
+        events = await trySelect("schedule_events", "id,artist_id,album_id,song_id,title,notes,link,event_date,created_at");
+      }
       if (events.error) { $("msg").textContent = "Error: " + events.error.message; return; }
       if (events.missing) skipped.push("schedule_events");
       for (const e of events.rows) {
         rows.push({
           when: e.event_date,
-          kind: "event",
+          kind: e.kind || "event",
+          platform: e.platform || "",
           title: e.title || "(untitled)",
           artist: names.artist[e.artist_id] || "",
+          artist_id: e.artist_id,
           album: e.album_id && names.album[e.album_id] ? names.album[e.album_id].title : "",
           song: e.song_id && names.song[e.song_id] ? names.song[e.song_id].title : "",
-          status: "",
+          status: e.publication_status || "",
           link: e.link || "",
           notes: e.notes || ""
         });
@@ -101,8 +142,10 @@
         rows.push({
           when: p.planned_publish_at,
           kind: "long video",
+          platform: "youtube",
           title: p.youtube_title || (s && s.title) || "(long video)",
           artist: al ? (names.artist[al.artist_id] || "") : "",
+          artist_id: al ? al.artist_id : "",
           album: al ? al.title : "",
           song: s ? s.title : "",
           status: p.publication_status || "",
@@ -121,8 +164,10 @@
         rows.push({
           when: p.planned_publish_at,
           kind: "short " + (p.short_number != null ? p.short_number : ""),
+          platform: "youtube",
           title: p.title || (s && s.title) || "(short)",
           artist: al ? (names.artist[al.artist_id] || "") : "",
+          artist_id: al ? al.artist_id : "",
           album: al ? al.title : "",
           song: s ? s.title : "",
           status: p.publication_status || "",
@@ -141,8 +186,10 @@
         rows.push({
           when: p.planned_publish_at,
           kind: "community",
+          platform: "youtube",
           title: safe(p.body).slice(0, 80) || "(community post)",
           artist: names.artist[p.artist_id] || "",
+          artist_id: p.artist_id,
           album: al ? al.title : "",
           song: s ? s.title : "",
           status: p.publication_status || "",
@@ -151,15 +198,47 @@
         });
       }
 
-      rows.sort((a, b) => String(a.when || "").localeCompare(String(b.when || "")));
+      let distro = await trySelect("distribution_releases", "id,album_id,channel,pipeline_status,planned_publish_at,release_date,result_url,store_url,approval_status");
+      if (distro.error && columnMissing(distro.error)) {
+        distro = await trySelect("distribution_releases", "id,album_id,channel,release_date,result_url,approval_status");
+      }
+      if (distro.missing) skipped.push("distribution_releases");
+      else if (distro.error) { $("msg").textContent = "Error: " + distro.error.message; return; }
+      for (const r of distro.rows || []) {
+        const when = r.planned_publish_at || r.release_date;
+        if (!when) continue;
+        const al = names.album[r.album_id];
+        const channel = r.channel || "";
+        rows.push({
+          when,
+          kind: channel || "distro",
+          platform: channel,
+          title: (al ? al.title : "release") + " · " + channel,
+          artist: al ? (names.artist[al.artist_id] || "") : "",
+          artist_id: al ? al.artist_id : "",
+          album: al ? al.title : "",
+          song: "",
+          status: r.pipeline_status || r.approval_status || "",
+          link: r.store_url || r.result_url || "",
+          notes: ""
+        });
+      }
 
+      rows.sort((a, b) => String(a.when || "").localeCompare(String(b.when || "")));
+      allRows = rows;
+      render();
+    }
+
+    function render() {
+      const artistId = $("fArtist").value;
+      const rows = allRows.filter((r) => !artistId || r.artist_id === artistId);
       const host = $("tableHost");
       if (!rows.length) {
         host.innerHTML = "<div class='muted'>Nothing scheduled yet.</div>";
       } else {
         const table = document.createElement("table");
         table.className = "data";
-        table.innerHTML = "<thead><tr><th>When</th><th>Type</th><th>Artist</th><th>Album</th><th>Song</th><th>Title</th><th>Status</th><th>Link</th></tr></thead>";
+        table.innerHTML = "<thead><tr><th>When</th><th>Kind</th><th>Platform</th><th>Artist</th><th>Album</th><th>Song</th><th>Title</th><th>Status</th><th>Link</th></tr></thead>";
         const tb = document.createElement("tbody");
         for (const r of rows) {
           const tr = document.createElement("tr");
@@ -169,6 +248,7 @@
           tr.innerHTML =
             "<td>" + fmtWhen(r.when) + "</td>" +
             "<td>" + safe(r.kind) + "</td>" +
+            "<td>" + safe(r.platform) + "</td>" +
             "<td>" + safe(r.artist) + "</td>" +
             "<td>" + safe(r.album) + "</td>" +
             "<td>" + safe(r.song) + "</td>" +
@@ -188,6 +268,7 @@
     }
 
     $("btnRefresh").onclick = load;
+    $("fArtist").onchange = render;
     await load();
   </script>
 </body>
