@@ -57,6 +57,9 @@
       "title", "track_number", "persona_id", "theme", "production_status",
       "wav_drive_url", "mp3_drive_url", "edit_notes"
     ];
+    const CATALOGUE_KEYS = [
+      "official_release_date", "isrc", "youtube_video_id", "youtube_url", "youtube_published_at"
+    ];
 
     function safe(v) { return (v === null || v === undefined) ? "" : String(v); }
     function el(tag, cls, text) {
@@ -249,6 +252,25 @@
       drive.appendChild(fieldInput("MP3 Drive URL", "f_mp3_drive_url", song.mp3_drive_url));
       card.appendChild(drive);
 
+      const catKeysPresent = CATALOGUE_KEYS.filter((k) => knownHas(song, k));
+      if (catKeysPresent.length) {
+        card.appendChild(el("div", "hint", "Official music dates are not YouTube publish dates. These fields are stored separately and never copied into each other on save."));
+        const cat = el("div", "form-grid");
+        if (knownHas(song, "official_release_date")) {
+          cat.appendChild(fieldInput("Official release date", "f_official_release_date", song.official_release_date ? String(song.official_release_date).slice(0, 10) : "", { type: "date" }));
+        }
+        if (knownHas(song, "isrc")) cat.appendChild(fieldInput("ISRC", "f_isrc", song.isrc));
+        if (knownHas(song, "youtube_video_id")) cat.appendChild(fieldInput("YouTube video id", "f_youtube_video_id", song.youtube_video_id));
+        if (knownHas(song, "youtube_url")) cat.appendChild(fieldInput("YouTube URL", "f_youtube_url", song.youtube_url));
+        if (knownHas(song, "youtube_published_at")) {
+          cat.appendChild(fieldInput("YouTube published at", "f_youtube_published_at", song.youtube_published_at));
+        }
+        card.appendChild(cat);
+        for (const k of catKeysPresent) {
+          if (!SAVE_KEYS.includes(k)) SAVE_KEYS.push(k);
+        }
+      }
+
       panel.appendChild(card);
       $("msg").textContent = "Loaded.";
     }
@@ -297,7 +319,13 @@
         wav_drive_url: val("f_wav_drive_url"),
         mp3_drive_url: val("f_mp3_drive_url"),
         edit_notes: val("f_edit_notes"),
+        official_release_date: val("f_official_release_date") || null,
+        isrc: val("f_isrc"),
+        youtube_video_id: val("f_youtube_video_id"),
+        youtube_url: val("f_youtube_url"),
+        youtube_published_at: val("f_youtube_published_at") || null,
       };
+      // Never copy youtube_published_at into official_release_date (or the reverse).
       const payload = {};
       for (const k of SAVE_KEYS) {
         if (knownHas(songRow, k)) {
@@ -309,6 +337,7 @@
       if (knownHas(songRow, "lyrics_done") && knownHas(songRow, "lyrics")) {
         payload.lyrics_done = !!(payload.lyrics && String(payload.lyrics).trim());
       }
+      // official_release_date and youtube_published_at stay on their own keys; never assign one from the other.
 
       let q = supabase.from("songs").update(payload).eq("id", songRow.id);
       if (knownHas(songRow, "version")) {
