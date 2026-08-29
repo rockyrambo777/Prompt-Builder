@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <title>Artist Overview</title>
   <style>
 
@@ -33,7 +34,7 @@
       display:inline-block; padding:4px 10px; border-radius:999px;
       border:1px solid #2a3a5c; background:var(--card2); font-size:12px;
     }
-    .pill.ok{ border-color:#1f6b45; }
+    .pill.ok{ border-color:#1f6b45; color:#7CFFB2; background:rgba(31,107,69,.28); }
     .pill.warn{ border-color:#6b4c1d; }
     .pill.bad{ border-color:#6b2a2a; }
     .hint { font-size:12px; color:var(--muted); margin-top:6px; line-height:1.4; }
@@ -63,7 +64,7 @@
   .albumCard:hover{transform: translateY(-1px); border-color:#35507e;}
   .albumTitle{font-size:18px; font-weight:900; margin:0 0 8px;}
   .albumMeta{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
-  .pill.ok{border-color: rgba(124,255,178,.35);}
+  .pill.ok{border-color: rgba(124,255,178,.55); color:#7CFFB2; background:rgba(31,107,69,.28);}
   .pill.warn{border-color: rgba(255,204,102,.35);}
   .rightBtns{display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; margin-top:12px;}
   .empty{padding:18px; border:1px dashed var(--border); border-radius:16px; color:var(--muted); margin-top:14px;}
@@ -119,7 +120,9 @@
           <select id="status">
             <option value="all">All</option>
             <option value="draft">Draft</option>
+            <option value="ideation">Ideation</option>
             <option value="approved">Approved</option>
+            <option value="producing">Producing</option>
             <option value="in_progress">In progress</option>
             <option value="ready">Ready</option>
             <option value="distributed">Distributed</option>
@@ -169,6 +172,7 @@
 
   let artist = null;
   let albums = [];
+  let songsByAlbum = new Map();
 
   function safe(v) {
     return (v ?? "").toString();
@@ -190,8 +194,20 @@
     const st = safe(a.youtube_recon_status || a.youtube_status).toLowerCase();
     return st === "matched" || st === "published" || st === "live";
   }
-  function albumIsReady(a) {
+  function songIsReleased(s) {
+    const st = normStatus(s.production_status || s.status);
+    return st === "released" || st === "distributed";
+  }
+  function displayStatus(a) {
+    if (dittoIsLive(a) && youtubeIsLive(a)) return "released";
+    const albumSongs = songsByAlbum.get(a.id) || [];
+    if (albumSongs.length && albumSongs.every(songIsReleased)) return "released";
     const s = normStatus(a.status);
+    if (s === "released" || s === "distributed") return "released";
+    return s;
+  }
+  function albumIsReady(a) {
+    const s = displayStatus(a);
     return !!(a.is_ready_for_distribution || a.ready_for_distro || s === "ready" || s === "released" || s === "distributed" || dittoIsLive(a));
   }
 
@@ -230,19 +246,18 @@
       const title = (a.title||"").toLowerCase();
       if (q && !title.includes(q)) return false;
 
-      const s = normStatus(a.status);
+      const s = displayStatus(a);
+      if (st === "all") return true;
       if (st === "distributed" && !(dittoIsLive(a) || s === "distributed" || s === "released")) return false;
       else if (st === "ready" && !albumIsReady(a)) return false;
-      else if (st !== "all" && st !== "distributed" && st !== "ready" && s !== st) return false;
+      else if (st !== "distributed" && st !== "ready" && s !== st) return false;
       return true;
     });
 
-    // counts
     $("countAlbums").textContent = `albums: ${albums.length}`;
     const readyCount = albums.filter(albumIsReady).length;
     $("countReady").textContent = `ready: ${readyCount}`;
 
-    // sort
     const byTitle = (x,y) => (x.title||"").localeCompare(y.title||"");
     const byCreated = (x,y) => new Date(x.created_at||0) - new Date(y.created_at||0);
     const byUpdated = (x,y) => new Date(x.updated_at||x.created_at||0) - new Date(y.updated_at||y.created_at||0);
@@ -266,7 +281,7 @@
       const card = document.createElement("div");
       card.className = "albumCard";
 
-      const st = normStatus(a.status);
+      const st = displayStatus(a);
       const stPill = document.createElement("span");
       stPill.className = "pill " + (st==="ready" || st==="distributed" || st==="released" ? "ok" : "warn");
       stPill.textContent = "status: " + st;
@@ -322,16 +337,29 @@
   }
 
   async function loadAll() {
-    // artist
     const ar = await supabase.from(ARTISTS).select("*").eq("id", artist_id).single();
     if (ar.error) throw ar.error;
     artist = ar.data;
     renderArtist();
 
-    // albums
     const res = await supabase.from(ALBUMS).select("*").eq("artist_id", artist_id);
     if (res.error) throw res.error;
     albums = res.data || [];
+
+    songsByAlbum = new Map();
+    const albumIds = albums.map((a) => a.id);
+    if (albumIds.length) {
+      const sg = await supabase
+        .from("songs")
+        .select("id,album_id,status,production_status,title")
+        .in("album_id", albumIds);
+      if (!sg.error) {
+        for (const s of sg.data || []) {
+          if (!songsByAlbum.has(s.album_id)) songsByAlbum.set(s.album_id, []);
+          songsByAlbum.get(s.album_id).push(s);
+        }
+      }
+    }
     applyFilters();
   }
 

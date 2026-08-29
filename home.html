@@ -219,7 +219,7 @@
         }
 
         card.onclick = () => {
-          window.location.href = "./artist_view_filtered.html?id=" + encodeURIComponent(ar.id);
+          window.location.href = "./artist_view_filtered.html?id=" + encodeURIComponent(ar.id) + "&v=20260829b";
         };
 
         $("artistGrid").appendChild(card);
@@ -247,7 +247,7 @@
 
     $("btnArtistsScroll").onclick = () => window.location.href = "./artists.html";
     $("btnArtistNew").onclick = () => window.location.href = "./artist-new.html";
-    $("btnAlbums").onclick = () => window.location.href = "./album.html";
+    $("btnAlbums").onclick = () => window.location.href = "./albums.html";
     $("btnDitto").onclick = () => window.location.href = "./distribution-ditto.html";
     $("btnBandcamp").onclick = () => window.location.href = "./distribution-bandcamp.html";
     $("btnRefresh").onclick = loadDashboard;

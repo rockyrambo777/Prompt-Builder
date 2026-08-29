@@ -91,7 +91,7 @@
       for (const a of data) {
         const li = document.createElement("li");
         li.className = "item";
-        li.onclick = () => window.location.href = `./artist-view.html?id=${encodeURIComponent(a.id)}`;
+        li.onclick = () => window.location.href = `./artist_view_filtered.html?id=${encodeURIComponent(a.id)}`;
 
         const left = document.createElement("div");
         const name = document.createElement("div");
