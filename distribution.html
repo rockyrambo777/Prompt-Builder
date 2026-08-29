@@ -8,16 +8,546 @@
 </head>
 <body>
   <div id="svs-nav"></div>
-  <div class="wrap wrap-narrow">
-    <h1>Distribution</h1>
-    <div id="who" class="muted"></div>
-    <div class="card coming">Ditto / Bandcamp readiness and submit workflow — coming in this build.</div>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1>Distribution</h1>
+        <div id="who" class="muted"></div>
+      </div>
+      <div class="row">
+        <button id="btnRefresh" class="btn secondary">Refresh</button>
+      </div>
+    </div>
+    <div id="msg" class="msg muted"></div>
+
+    <div class="card">
+      <h2>Filters</h2>
+      <div class="row">
+        <label class="field" style="margin:0; min-width:200px;">
+          <span>Artist</span>
+          <select id="fArtist"><option value="">All artists</option></select>
+        </label>
+        <label class="field" style="margin:0; min-width:200px;">
+          <span>Album</span>
+          <select id="fAlbum"><option value="">All albums</option></select>
+        </label>
+        <label class="field" style="margin:0; min-width:180px;">
+          <span>Platform</span>
+          <select id="fPlatform">
+            <option value="">All</option>
+            <option value="youtube">YouTube</option>
+            <option value="ditto">Ditto</option>
+            <option value="bandcamp">Bandcamp</option>
+          </select>
+        </label>
+        <label class="field" style="margin:0; min-width:180px;">
+          <span>Status</span>
+          <select id="fStatus">
+            <option value="">All statuses</option>
+            <option value="missing">Missing</option>
+            <option value="not_prepared">not_prepared</option>
+            <option value="needs_review">Needs Review</option>
+            <option value="draft">Draft</option>
+            <option value="ready">Ready</option>
+            <option value="preparing">preparing</option>
+            <option value="ready_for_approval">ready_for_approval</option>
+            <option value="uploaded_draft">uploaded_draft</option>
+            <option value="approved">approved</option>
+            <option value="submitted">submitted</option>
+            <option value="released">Released / Published / Synced</option>
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Albums</h2>
+      <div class="hint">Missing work is marked in red. Album name opens the album page.</div>
+      <div id="tableHost" style="margin-top:12px;"></div>
+    </div>
+
+    <div class="card">
+      <h2>YouTube per artist</h2>
+      <div id="ytHost" class="muted">Loading…</div>
+    </div>
+
+    <div class="card">
+      <h2>Bandcamp artist pages</h2>
+      <div class="hint">One Bandcamp profile per artist. Personas are not separate Bandcamp artists.</div>
+      <div id="bcHost" class="muted">Loading…</div>
+    </div>
+
+    <div class="card">
+      <h2>Ditto accounts</h2>
+      <div class="hint">Shared Ditto logins are separate from artist rows. Assign an artist to an account; do not treat a Ditto login as an artist.</div>
+      <div id="dittoForm" style="display:none; margin-top:10px;">
+        <div class="form-grid">
+          <label class="field" style="margin:0;">
+            <span>New account label</span>
+            <input id="dittoLabel" type="text" placeholder="e.g. Shared Ditto" />
+          </label>
+          <label class="field" style="margin:0;">
+            <span>Notes</span>
+            <input id="dittoNotes" type="text" />
+          </label>
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button id="btnAddDitto" class="btn primary">Add Ditto account</button>
+        </div>
+      </div>
+      <div id="dittoHost" class="muted" style="margin-top:12px;">Loading…</div>
+    </div>
   </div>
+
   <script type="module" src="svs-nav.js"></script>
   <script type="module">
-    import { requireSessionOrRedirect } from "./app.js";
+    import { supabase, requireSessionOrRedirect } from "./app.js";
+    const $ = (id) => document.getElementById(id);
+
     const session = await requireSessionOrRedirect();
-    document.getElementById("who").textContent = "Signed in: " + session.user.email;
+    $("who").textContent = "Signed in: " + session.user.email;
+
+    const { data: meRow } = await supabase
+      .from("app_users")
+      .select("role,status")
+      .eq("auth_user_id", session.user.id)
+      .maybeSingle();
+    const isOwner = !!(meRow && meRow.role === "owner" && meRow.status === "approved");
+    if (isOwner) $("dittoForm").style.display = "";
+
+    function safe(v) { return (v === null || v === undefined) ? "" : String(v); }
+    function esc(v) {
+      return safe(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    }
+    function tableMissing(err) {
+      if (!err) return false;
+      const m = (err.message || "") + " " + (err.code || "");
+      return /relation .* does not exist|Could not find the table|schema cache|PGRST205/i.test(m)
+        || err.code === "42P01" || err.code === "PGRST205";
+    }
+    function columnMissing(err) {
+      if (!err) return false;
+      const m = (err.message || "") + " " + (err.code || "");
+      return /column .* does not exist|Could not find the .* column|PGRST204/i.test(m)
+        || err.code === "42703" || err.code === "PGRST204";
+    }
+    async function trySelect(table, cols, apply) {
+      let q = supabase.from(table).select(cols);
+      if (apply) q = apply(q);
+      const { data, error } = await q;
+      if (error) {
+        if (tableMissing(error)) return { rows: [], missing: true };
+        return { rows: [], missing: false, error };
+      }
+      return { rows: data || [], missing: false };
+    }
+    function fmtWhen(v) {
+      if (!v) return "never";
+      const d = new Date(v);
+      if (Number.isNaN(d.getTime())) return String(v);
+      try {
+        const fmt = new Intl.DateTimeFormat("en-ZA", {
+          timeZone: "Africa/Johannesburg",
+          year: "numeric", month: "2-digit", day: "2-digit",
+          hour: "2-digit", minute: "2-digit", hour12: false
+        });
+        return fmt.format(d) + " SAST";
+      } catch {
+        return d.toISOString().replace("T", " ").slice(0, 16) + " UTC";
+      }
+    }
+    function pillClass(status) {
+      const s = safe(status).toLowerCase();
+      if (!s || s === "missing" || s === "missing externally" || s === "not_prepared" || s === "missing_externally" || s === "missing_in_svs") return "bad";
+      if (s === "released" || s === "published" || s === "synced" || s === "ok") return "ok";
+      if (s === "needs review" || s === "needs_review" || s === "draft" || s === "ready" || s === "ready_for_approval"
+        || s === "preparing" || s === "uploaded_draft" || s === "approved" || s === "submitted") return "warn";
+      return "warn";
+    }
+    function statusLabel(row, fallback) {
+      if (!row) return fallback || "Missing";
+      return row.pipeline_status || row.sync_status || row.submission_status || row.approval_status || fallback || "Missing";
+    }
+    function artistBcUrl(ar) {
+      return ar.bandcamp_url || ar.bandcamp_ur || "";
+    }
+    function songHasYt(song, ytBySong) {
+      if (safe(song.youtube_url).trim()) return true;
+      const hits = ytBySong[song.id] || [];
+      return hits.some((c) => c.song_id && (c.mapped_status === "matched" || c.url || c.youtube_video_id));
+    }
+    function statusMatches(filter, values) {
+      if (!filter) return true;
+      const f = filter.toLowerCase();
+      const norm = values.map((v) => safe(v).toLowerCase());
+      if (f === "missing") return norm.some((v) => !v || v === "missing" || v === "not_prepared" || v === "missing externally");
+      if (f === "released") return norm.some((v) => v === "released" || v === "published" || v === "synced");
+      if (f === "ready") return norm.some((v) => v === "ready" || v === "ready_for_approval");
+      if (f === "needs_review") return norm.some((v) => v === "needs_review" || v === "needs review");
+      if (f === "draft") return norm.some((v) => v === "draft" || v === "uploaded_draft");
+      return norm.some((v) => v === f);
+    }
+
+    let artists = [];
+    let albums = [];
+    let songs = [];
+    let releases = [];
+    let ytContent = [];
+    let ytProposals = [];
+    let bcProfiles = [];
+    let dittoAccounts = [];
+    const skipped = [];
+
+    function fillSelect(sel, items, valKey, labelKey, keepFirst) {
+      const cur = sel.value;
+      sel.innerHTML = keepFirst ? sel.options[0].outerHTML : "";
+      for (const it of items) {
+        const o = document.createElement("option");
+        o.value = it[valKey];
+        o.textContent = it[labelKey] || "(unnamed)";
+        sel.appendChild(o);
+      }
+      if ([...sel.options].some((o) => o.value === cur)) sel.value = cur;
+    }
+
+    async function loadData() {
+      skipped.length = 0;
+      $("msg").textContent = "Loading…";
+
+      const aRes = await trySelect("artists", "*", (q) => q.eq("is_active", true).order("name"));
+      if (aRes.error && !aRes.missing) { $("msg").textContent = "Error: " + aRes.error.message; return false; }
+      artists = aRes.rows;
+
+      const alRes = await trySelect("albums", "*", (q) => q.order("title"));
+      if (alRes.error && !alRes.missing) { $("msg").textContent = "Error: " + alRes.error.message; return false; }
+      albums = alRes.rows;
+
+      let sRes = await trySelect("songs", "id,album_id,title,track_number,youtube_url");
+      if (sRes.error && columnMissing(sRes.error)) sRes = await trySelect("songs", "id,album_id,title,track_number");
+      if (sRes.error && !sRes.missing) { $("msg").textContent = "Error: " + sRes.error.message; return false; }
+      songs = sRes.rows;
+
+      const rRes = await trySelect("distribution_releases", "*");
+      if (rRes.missing) skipped.push("distribution_releases");
+      else if (rRes.error) { $("msg").textContent = "Error: " + rRes.error.message; return false; }
+      releases = rRes.rows;
+
+      const yRes = await trySelect("youtube_content", "id,artist_id,song_id,mapped_status,url,youtube_video_id,title");
+      if (yRes.missing) skipped.push("youtube_content");
+      else if (yRes.error && columnMissing(yRes.error)) {
+        const y2 = await trySelect("youtube_content", "id,artist_id,song_id,mapped_status,url,title");
+        ytContent = y2.rows;
+      } else if (yRes.error) { $("msg").textContent = "Error: " + yRes.error.message; return false; }
+      else ytContent = yRes.rows;
+
+      const pRes = await trySelect("youtube_change_proposals", "id,artist_id,status");
+      if (pRes.missing) skipped.push("youtube_change_proposals");
+      else if (pRes.error) { /* ignore extra */ }
+      else ytProposals = pRes.rows;
+
+      const bRes = await trySelect("artist_bandcamp_profiles", "*");
+      if (bRes.missing) skipped.push("artist_bandcamp_profiles");
+      else if (bRes.error) { /* ignore */ }
+      else bcProfiles = bRes.rows;
+
+      const dRes = await trySelect("ditto_accounts", "*");
+      if (dRes.missing) skipped.push("ditto_accounts");
+      else if (dRes.error) { /* ignore */ }
+      else dittoAccounts = dRes.rows;
+
+      fillSelect($("fArtist"), artists, "id", "name", true);
+      rebuildAlbumFilter();
+      return true;
+    }
+
+    function rebuildAlbumFilter() {
+      const artistId = $("fArtist").value;
+      const list = albums.filter((al) => !artistId || al.artist_id === artistId);
+      fillSelect($("fAlbum"), list.map((al) => ({ id: al.id, title: al.title || "(untitled)" })), "id", "title", true);
+    }
+
+    function renderTable() {
+      const host = $("tableHost");
+      if (skipped.includes("distribution_releases") && skipped.includes("youtube_content")) {
+        host.innerHTML = "<div class='muted'>Distribution tables are not present yet.</div>";
+        return;
+      }
+      const artistId = $("fArtist").value;
+      const albumId = $("fAlbum").value;
+      const platform = $("fPlatform").value;
+      const statusF = $("fStatus").value;
+
+      const artistName = {};
+      for (const a of artists) artistName[a.id] = a.name || "(unnamed)";
+      const songsByAlbum = {};
+      for (const s of songs) {
+        (songsByAlbum[s.album_id] ||= []).push(s);
+      }
+      const relByAlbum = {};
+      for (const r of releases) {
+        (relByAlbum[r.album_id] ||= {})[r.channel] = r;
+      }
+      const ytBySong = {};
+      for (const c of ytContent) {
+        if (c.song_id) (ytBySong[c.song_id] ||= []).push(c);
+      }
+
+      const visibleAlbums = albums.filter((al) => {
+        if (artistId && al.artist_id !== artistId) return false;
+        if (albumId && al.id !== albumId) return false;
+        if (!artistName[al.artist_id]) return false;
+        const rels = relByAlbum[al.id] || {};
+        const dittoSt = statusLabel(rels.ditto, "Missing");
+        const bcSt = statusLabel(rels.bandcamp, "Missing");
+        const tracklist = songsByAlbum[al.id] || [];
+        const mapped = tracklist.filter((s) => songHasYt(s, ytBySong)).length;
+        const ytSt = !tracklist.length ? "" : (mapped === 0 ? "missing" : (mapped < tracklist.length ? "needs_review" : "synced"));
+        const values = platform === "ditto" ? [dittoSt]
+          : platform === "bandcamp" ? [bcSt]
+          : platform === "youtube" ? [ytSt]
+          : [dittoSt, bcSt, ytSt];
+        return statusMatches(statusF, values);
+      });
+
+      if (!visibleAlbums.length) {
+        host.innerHTML = "<div class='muted'>No albums match the filters.</div>";
+        return;
+      }
+
+      const table = document.createElement("table");
+      table.className = "data";
+      table.innerHTML = "<thead><tr><th>Artist</th><th>Album</th><th>Ditto</th><th>Bandcamp</th><th>YouTube</th></tr></thead>";
+      const tb = document.createElement("tbody");
+      for (const al of visibleAlbums) {
+        const rels = relByAlbum[al.id] || {};
+        const dittoSt = statusLabel(rels.ditto, "Missing");
+        const bcSt = statusLabel(rels.bandcamp, "Missing");
+        const tracklist = songsByAlbum[al.id] || [];
+        const mapped = tracklist.filter((s) => songHasYt(s, ytBySong)).length;
+        const ytLabel = tracklist.length ? (mapped + "/" + tracklist.length) : "0/0";
+        const ytCls = !tracklist.length ? "" : (mapped === 0 ? "bad" : (mapped < tracklist.length ? "warn" : "ok"));
+        const missingAny = dittoSt === "Missing" || bcSt === "Missing" || (tracklist.length && mapped === 0);
+        const tr = document.createElement("tr");
+        if (missingAny) tr.className = "missing-row";
+        tr.innerHTML =
+          "<td>" + esc(artistName[al.artist_id]) + "</td>" +
+          "<td><a class='link' href='./album.html?id=" + encodeURIComponent(al.id) + "'>" + esc(al.title || "(untitled)") + "</a></td>" +
+          "<td><span class='pill " + pillClass(dittoSt) + "'>" + esc(dittoSt) + "</span></td>" +
+          "<td><span class='pill " + pillClass(bcSt) + "'>" + esc(bcSt) + "</span></td>" +
+          "<td><span class='pill " + ytCls + "'>YouTube " + esc(ytLabel) + "</span></td>";
+        tb.appendChild(tr);
+      }
+      table.appendChild(tb);
+      host.innerHTML = "";
+      host.appendChild(table);
+    }
+
+    function renderYoutube() {
+      const host = $("ytHost");
+      if (!artists.length) {
+        host.innerHTML = "<div class='muted'>No artists in scope.</div>";
+        return;
+      }
+      const issuesByArtist = {};
+      for (const p of ytProposals) {
+        if (p.status === "needs_review" || p.status === "approved") {
+          issuesByArtist[p.artist_id] = (issuesByArtist[p.artist_id] || 0) + 1;
+        }
+      }
+      const ytByArtist = {};
+      for (const c of ytContent) (ytByArtist[c.artist_id] ||= []).push(c);
+
+      const wrap = document.createElement("div");
+      for (const ar of artists) {
+        const hasCols = Object.prototype.hasOwnProperty.call(ar, "youtube_matched_count")
+          || Object.prototype.hasOwnProperty.call(ar, "youtube_last_checked_at");
+        let matched = ar.youtube_matched_count;
+        let unmatched = ar.youtube_unmatched_count;
+        let issues = ar.youtube_issue_count;
+        let last = ar.youtube_last_checked_at;
+        if (matched == null || unmatched == null) {
+          const list = ytByArtist[ar.id] || [];
+          const m = list.filter((c) => c.song_id && c.mapped_status !== "unmatched").length;
+          const u = list.filter((c) => !c.song_id || c.mapped_status === "unmatched").length;
+          if (matched == null) matched = m;
+          if (unmatched == null) unmatched = u;
+        }
+        if (issues == null) issues = issuesByArtist[ar.id] || 0;
+        const line = document.createElement("div");
+        line.className = "item";
+        line.style.cursor = "pointer";
+        const left = document.createElement("div");
+        left.innerHTML = "<div class='title'>" + esc(ar.name || "(unnamed)") + "</div>"
+          + "<div class='meta'>YouTube Sync: " + (matched ?? 0) + " matched | " + (unmatched ?? 0)
+          + " unmatched | " + (issues ?? 0) + " issues | Last checked " + esc(last ? fmtWhen(last) : "never") + "</div>";
+        line.appendChild(left);
+        const pill = document.createElement("span");
+        pill.className = "pill " + ((unmatched || issues) ? "warn" : "ok");
+        pill.textContent = "Open";
+        line.appendChild(pill);
+        line.onclick = () => { location.href = "./youtube.html?artist=" + encodeURIComponent(ar.id); };
+        wrap.appendChild(line);
+      }
+      host.innerHTML = "";
+      host.appendChild(wrap);
+      if (skipped.includes("youtube_content") && !artists.some((a) => Object.prototype.hasOwnProperty.call(a, "youtube_matched_count"))) {
+        host.insertAdjacentHTML("afterbegin", "<div class='muted'>youtube_content is not present yet. Counts may be empty.</div>");
+      }
+    }
+
+    function renderBandcamp() {
+      const host = $("bcHost");
+      if (skipped.includes("artist_bandcamp_profiles") && !artists.some((a) => artistBcUrl(a))) {
+        host.innerHTML = "<div class='muted'>artist_bandcamp_profiles is not present yet.</div>";
+        return;
+      }
+      const byArtist = {};
+      for (const p of bcProfiles) byArtist[p.artist_id] = p;
+      const grid = document.createElement("div");
+      grid.className = "artistGrid";
+      for (const ar of artists) {
+        const prof = byArtist[ar.id];
+        const url = (prof && prof.page_url) || artistBcUrl(ar);
+        const setup = (prof && (prof.setup_status || prof.sync_status)) || (url ? "url on artist" : "Missing");
+        const card = document.createElement("div");
+        card.className = "artistCard";
+        card.style.cursor = "default";
+        const title = document.createElement("div");
+        title.className = "artistTitle";
+        title.textContent = ar.name || "(unnamed)";
+        const meta = document.createElement("div");
+        meta.className = "artistMeta";
+        const p = document.createElement("span");
+        p.className = "pill " + pillClass(setup === "Missing" ? "missing" : setup);
+        p.textContent = setup;
+        meta.appendChild(p);
+        if (url) {
+          const a = document.createElement("a");
+          a.className = "link";
+          a.href = url;
+          a.target = "_blank";
+          a.rel = "noopener";
+          a.textContent = url;
+          meta.appendChild(a);
+        }
+        card.appendChild(title);
+        card.appendChild(meta);
+        grid.appendChild(card);
+      }
+      host.innerHTML = "";
+      host.appendChild(grid);
+    }
+
+    function renderDitto() {
+      const host = $("dittoHost");
+      if (skipped.includes("ditto_accounts")) {
+        host.innerHTML = "<div class='muted'>ditto_accounts is not present yet.</div>";
+        return;
+      }
+      const wrap = document.createElement("div");
+      if (!dittoAccounts.length) {
+        wrap.appendChild(Object.assign(document.createElement("div"), { className: "muted", textContent: "No Ditto accounts yet." }));
+      } else {
+        const table = document.createElement("table");
+        table.className = "data";
+        table.innerHTML = "<thead><tr><th>Label</th><th>Notes</th><th>Last checked</th><th>Assigned artists</th></tr></thead>";
+        const tb = document.createElement("tbody");
+        for (const acc of dittoAccounts) {
+          const assigned = artists.filter((a) => a.ditto_account_id === acc.id).map((a) => a.name || "(unnamed)");
+          const tr = document.createElement("tr");
+          tr.innerHTML = "<td>" + esc(acc.label || "(unlabelled)") + "</td><td>" + esc(acc.notes || "")
+            + "</td><td>" + esc(acc.last_checked_at ? fmtWhen(acc.last_checked_at) : "never")
+            + "</td><td>" + esc(assigned.join(", ") || "—") + "</td>";
+          tb.appendChild(tr);
+        }
+        table.appendChild(tb);
+        wrap.appendChild(table);
+      }
+
+      const assignCard = document.createElement("div");
+      assignCard.style.marginTop = "14px";
+      assignCard.appendChild(Object.assign(document.createElement("h3"), { textContent: "Assign artists" }));
+      if (!artists.length) {
+        assignCard.appendChild(Object.assign(document.createElement("div"), { className: "muted", textContent: "No artists." }));
+      } else {
+        const table = document.createElement("table");
+        table.className = "data";
+        table.innerHTML = "<thead><tr><th>Artist</th><th>Ditto account</th></tr></thead>";
+        const tb = document.createElement("tbody");
+        for (const ar of artists) {
+          const tr = document.createElement("tr");
+          const tdA = document.createElement("td");
+          tdA.textContent = ar.name || "(unnamed)";
+          const tdS = document.createElement("td");
+          const sel = document.createElement("select");
+          sel.disabled = !isOwner;
+          const none = document.createElement("option");
+          none.value = "";
+          none.textContent = "— none —";
+          sel.appendChild(none);
+          for (const acc of dittoAccounts) {
+            const o = document.createElement("option");
+            o.value = acc.id;
+            o.textContent = acc.label || "(unlabelled)";
+            if (ar.ditto_account_id === acc.id) o.selected = true;
+            sel.appendChild(o);
+          }
+          if (isOwner) {
+            sel.onchange = async () => {
+              const val = sel.value || null;
+              const { error } = await supabase.from("artists").update({ ditto_account_id: val }).eq("id", ar.id);
+              $("msg").textContent = error ? ("Assign failed: " + error.message) : "Assigned.";
+              $("msg").className = error ? "msg error" : "msg success";
+              if (!error) { ar.ditto_account_id = val; renderDitto(); }
+            };
+          }
+          tdS.appendChild(sel);
+          tr.appendChild(tdA);
+          tr.appendChild(tdS);
+          tb.appendChild(tr);
+        }
+        table.appendChild(tb);
+        assignCard.appendChild(table);
+        if (!isOwner) {
+          assignCard.appendChild(Object.assign(document.createElement("div"), { className: "hint", textContent: "Editors can view assignments only." }));
+        }
+      }
+      wrap.appendChild(assignCard);
+      host.innerHTML = "";
+      host.appendChild(wrap);
+    }
+
+    async function load() {
+      const ok = await loadData();
+      if (!ok) return;
+      renderTable();
+      renderYoutube();
+      renderBandcamp();
+      renderDitto();
+      let line = albums.length + " album(s), " + artists.length + " artist(s).";
+      if (skipped.length) line += " Not loaded (tables not present yet): " + skipped.join(", ") + ".";
+      $("msg").textContent = line;
+      $("msg").className = "msg muted";
+    }
+
+    $("fArtist").onchange = () => { rebuildAlbumFilter(); renderTable(); };
+    $("fAlbum").onchange = renderTable;
+    $("fPlatform").onchange = renderTable;
+    $("fStatus").onchange = renderTable;
+    $("btnRefresh").onclick = load;
+    $("btnAddDitto").onclick = async () => {
+      if (!isOwner) return;
+      const label = $("dittoLabel").value.trim();
+      const notes = $("dittoNotes").value.trim();
+      if (!label) { $("msg").textContent = "Enter a label for the Ditto account."; $("msg").className = "msg error"; return; }
+      const { error } = await supabase.from("ditto_accounts").insert({ label, notes: notes || null });
+      if (error) { $("msg").textContent = "Add failed: " + error.message; $("msg").className = "msg error"; return; }
+      $("dittoLabel").value = "";
+      $("dittoNotes").value = "";
+      await load();
+    };
+
+    await load();
   </script>
 </body>
 </html>
