@@ -8,6 +8,7 @@ const LINKS = [
   { href: "distribution.html", label: "DISTRIBUTION" },
   { href: "approvals.html", label: "APPROVALS" },
   { href: "users.html", label: "ADMIN", ownerOnly: true },
+  { href: "bots.html", label: "BOTS", ownerOnly: true },
 ];
 
 function currentPage() {
