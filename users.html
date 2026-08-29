@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SVS System – Users & Access</title>
+  <style>
+    :root{
+      --bg:#0b0f19; --card:#121a2a; --card2:#0f1626; --border:#23304a;
+      --muted:#92a4c7; --text:#e8eefc; --primary:#2f6fed; --danger:#d14b4b;
+      --chip:#1c273f; --ok:#7CFFB2;
+    }
+    body { font-family: Arial, sans-serif; background:var(--bg); color:var(--text); margin:0; }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    .top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+    .muted { color:var(--muted); font-size: 14px; }
+    .btn { padding:10px 12px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); cursor:pointer; font-weight:800; }
+    .btn.primary { background:var(--primary); border:none; }
+    .btn.secondary { background:#1c273f; border:1px solid #2a3a5c; }
+    .btn.danger { background:var(--danger); border:none; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-top:14px; }
+    .layout { display:grid; grid-template-columns: 280px minmax(0,1fr); gap:14px; }
+    @media (max-width: 900px){ .layout { grid-template-columns: 1fr; } }
+    .userItem { padding:12px; border:1px solid #22304a; border-radius:14px; background:var(--card2); margin:8px 0; cursor:pointer; }
+    .userItem:hover, .userItem.active { border-color:#34507e; background:#111b2f; }
+    .name { font-weight:800; }
+    .meta { font-size:12px; color:var(--muted); margin-top:4px; }
+    .pill { display:inline-block; font-size:12px; padding:4px 10px; border-radius:999px; border:1px solid #2a3a5c; background:var(--chip); margin-right:6px; }
+    .pill.ok { border-color:#1f6b45; }
+    .pill.warn { border-color:#6b4c1d; }
+    .pill.bad { border-color:#6b2a2a; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .artistRow { display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid #22304a; border-radius:12px; background:var(--card2); margin:8px 0; }
+    .artistRow label { flex:1; cursor:pointer; font-weight:700; }
+    .hint { font-size:12px; color:var(--muted); margin-top:8px; line-height:1.4; }
+    .msg { margin-top:10px; min-height:18px; }
+    .error { color:#ff9b9b; }
+    .success { color:#8dffb0; }
+    select, input[type="checkbox"] { accent-color: var(--primary); }
+    select { padding:8px 10px; border-radius:10px; border:1px solid #2a3a5c; background:#0f1626; color:var(--text); font-weight:700; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th, td { text-align:left; padding:8px 6px; border-bottom:1px solid #22304a; }
+    th { color:var(--muted); font-weight:700; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1 style="margin:0;">Users & Access</h1>
+        <div id="who" class="muted"></div>
+      </div>
+      <div class="row">
+        <button id="btnHome" class="btn secondary">Home</button>
+        <button id="btnLogout" class="btn danger">Logout</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="muted">Owner only. Ticking an artist grants catalogue access immediately (RLS). Owners see every artist automatically. You cannot disable or demote the last active owner.</div>
+    </div>
+
+    <div class="layout">
+      <div class="card" style="margin-top:14px;">
+        <h2 style="margin:0 0 8px;">Users</h2>
+        <div id="userList"></div>
+      </div>
+
+      <div>
+        <div class="card" id="detailCard" style="margin-top:14px;">
+          <div id="detailEmpty" class="muted">Select a user.</div>
+          <div id="detailBody" style="display:none;">
+            <h2 id="detailName" style="margin:0 0 4px;"></h2>
+            <div id="detailEmail" class="muted"></div>
+            <div class="row" style="margin-top:14px;">
+              <div>
+                <div class="muted">Role</div>
+                <select id="selRole">
+                  <option value="owner">Owner</option>
+                  <option value="editor">Editor</option>
+                  <option value="viewer">Viewer</option>
+                </select>
+              </div>
+              <div>
+                <div class="muted">Status</div>
+                <select id="selStatus">
+                  <option value="approved">Approved</option>
+                  <option value="pending">Pending</option>
+                  <option value="disabled">Disabled</option>
+                </select>
+              </div>
+              <button id="btnSaveUser" class="btn primary">Save role & status</button>
+            </div>
+            <div id="userMsg" class="msg muted"></div>
+
+            <h3 style="margin:22px 0 8px;">Artist access</h3>
+            <div id="ownerNote" class="hint" style="display:none;">This user is an owner, so they already have every artist. Ticks are not used.</div>
+            <div id="artistBox"></div>
+            <div class="row" style="margin-top:10px;">
+              <button id="btnSaveArtists" class="btn primary">Save artist access</button>
+            </div>
+            <div id="artistMsg" class="msg muted"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 style="margin:0 0 8px;">Permission history</h2>
+          <div id="auditWrap" class="muted">Loading…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { supabase, requireSessionOrRedirect } from "./app.js";
+    const $ = (id) => document.getElementById(id);
+    const session = await requireSessionOrRedirect();
+    $("who").textContent = "Signed in: " + session.user.email;
+
+    const { data: me, error: meErr } = await supabase
+      .from("app_users")
+      .select("id,role,status,email,display_name")
+      .eq("auth_user_id", session.user.id)
+      .maybeSingle();
+
+    if (meErr || !me || me.role !== "owner" || me.status !== "approved") {
+      window.location.href = "./home.html";
+    }
+
+    let users = [];
+    let artists = [];
+    let selectedId = null;
+    let selectedMaps = new Set();
+
+    function setMsg(id, text, cls) {
+      $(id).className = "msg " + (cls || "muted");
+      $(id).textContent = text || "";
+    }
+
+    function pill(text, cls) {
+      return `<span class="pill ${cls || ""}">${text}</span>`;
+    }
+
+    async function loadUsers() {
+      const { data, error } = await supabase
+        .from("app_users")
+        .select("id,auth_user_id,display_name,email,role,status,approved_at,created_at")
+        .order("created_at", { ascending: true });
+      if (error) {
+        $("userList").innerHTML = "<div class='error'>" + error.message + "</div>";
+        return;
+      }
+      users = data || [];
+      renderUsers();
+    }
+
+    async function loadArtists() {
+      const { data, error } = await supabase.from("artists").select("id,name").order("name");
+      if (error) artists = [];
+      else artists = data || [];
+    }
+
+    function renderUsers() {
+      const wrap = $("userList");
+      wrap.innerHTML = "";
+      if (!users.length) {
+        wrap.innerHTML = "<div class='muted'>No users.</div>";
+        return;
+      }
+      for (const u of users) {
+        const div = document.createElement("div");
+        div.className = "userItem" + (u.id === selectedId ? " active" : "");
+        const statusCls = u.status === "approved" ? "ok" : (u.status === "disabled" ? "bad" : "warn");
+        div.innerHTML = `<div class="name">${u.display_name || u.email}</div>
+          <div class="meta">${u.email}</div>
+          <div style="margin-top:8px;">${pill(u.role)}${pill(u.status, statusCls)}</div>`;
+        div.onclick = () => selectUser(u.id);
+        wrap.appendChild(div);
+      }
+    }
+
+    async function selectUser(id) {
+      selectedId = id;
+      renderUsers();
+      const u = users.find(x => x.id === id);
+      $("detailEmpty").style.display = "none";
+      $("detailBody").style.display = "";
+      $("detailName").textContent = u.display_name || u.email;
+      $("detailEmail").textContent = u.email;
+      $("selRole").value = u.role;
+      $("selStatus").value = u.status;
+      setMsg("userMsg", "");
+      setMsg("artistMsg", "");
+      const isOwner = u.role === "owner";
+      $("ownerNote").style.display = isOwner ? "" : "none";
+      $("artistBox").style.display = isOwner ? "none" : "";
+      $("btnSaveArtists").style.display = isOwner ? "none" : "";
+
+      const { data: maps, error } = await supabase
+        .from("app_user_artists")
+        .select("id,artist_id")
+        .eq("app_user_id", u.id);
+      if (error) {
+        setMsg("artistMsg", error.message, "error");
+        selectedMaps = new Set();
+      } else {
+        selectedMaps = new Set((maps || []).map(m => m.artist_id));
+      }
+      renderArtists();
+    }
+
+    function renderArtists() {
+      const box = $("artistBox");
+      box.innerHTML = "";
+      if (!artists.length) {
+        box.innerHTML = "<div class='muted'>No artists in the catalogue.</div>";
+        return;
+      }
+      for (const a of artists) {
+        const row = document.createElement("div");
+        row.className = "artistRow";
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.id = "art-" + a.id;
+        cb.checked = selectedMaps.has(a.id);
+        const lab = document.createElement("label");
+        lab.htmlFor = cb.id;
+        lab.textContent = a.name || "(unnamed)";
+        row.appendChild(cb);
+        row.appendChild(lab);
+        box.appendChild(row);
+      }
+    }
+
+    $("btnSaveUser").onclick = async () => {
+      const u = users.find(x => x.id === selectedId);
+      if (!u) return;
+      setMsg("userMsg", "Saving…");
+      const role = $("selRole").value;
+      const status = $("selStatus").value;
+      const { error } = await supabase.from("app_users").update({
+        role,
+        status,
+        approved_at: status === "approved" ? (u.approved_at || new Date().toISOString()) : u.approved_at,
+        approved_by: session.user.id
+      }).eq("id", u.id);
+      if (error) {
+        setMsg("userMsg", error.message, "error");
+        return;
+      }
+      setMsg("userMsg", "Saved.", "success");
+      await loadUsers();
+      await selectUser(u.id);
+      await loadAudit();
+    };
+
+    $("btnSaveArtists").onclick = async () => {
+      const u = users.find(x => x.id === selectedId);
+      if (!u || u.role === "owner") return;
+      setMsg("artistMsg", "Saving…");
+      const wanted = new Set();
+      for (const a of artists) {
+        const cb = document.getElementById("art-" + a.id);
+        if (cb && cb.checked) wanted.add(a.id);
+      }
+      const toAdd = [...wanted].filter(id => !selectedMaps.has(id));
+      const toDel = [...selectedMaps].filter(id => !wanted.has(id));
+      for (const artist_id of toAdd) {
+        const { error } = await supabase.from("app_user_artists").insert({
+          app_user_id: u.id,
+          artist_id,
+          created_by: session.user.id
+        });
+        if (error) { setMsg("artistMsg", error.message, "error"); return; }
+      }
+      if (toDel.length) {
+        const { error } = await supabase.from("app_user_artists").delete()
+          .eq("app_user_id", u.id)
+          .in("artist_id", toDel);
+        if (error) { setMsg("artistMsg", error.message, "error"); return; }
+      }
+      setMsg("artistMsg", "Artist access saved.", "success");
+      await selectUser(u.id);
+      await loadAudit();
+    };
+
+    async function loadAudit() {
+      const { data, error } = await supabase
+        .from("app_permission_audit")
+        .select("created_at,actor_email,action,target_email,artist_id,old_value,new_value")
+        .order("created_at", { ascending: false })
+        .limit(40);
+      if (error) {
+        $("auditWrap").innerHTML = "<div class='error'>" + error.message + "</div>";
+        return;
+      }
+      const rows = data || [];
+      if (!rows.length) {
+        $("auditWrap").textContent = "No permission changes yet.";
+        return;
+      }
+      const artistName = (id) => {
+        const a = artists.find(x => x.id === id);
+        return a ? a.name : (id || "—");
+      };
+      let html = "<table><thead><tr><th>When</th><th>Who</th><th>Action</th><th>User</th><th>Detail</th></tr></thead><tbody>";
+      for (const r of rows) {
+        const when = r.created_at ? new Date(r.created_at).toLocaleString() : "";
+        let detail = "";
+        if (r.action === "artist_grant" || r.action === "artist_revoke") detail = artistName(r.artist_id);
+        else if (r.old_value || r.new_value) detail = JSON.stringify(r.old_value || {}) + " → " + JSON.stringify(r.new_value || {});
+        html += `<tr><td>${when}</td><td>${r.actor_email || "—"}</td><td>${r.action}</td><td>${r.target_email || "—"}</td><td>${detail}</td></tr>`;
+      }
+      html += "</tbody></table>";
+      $("auditWrap").innerHTML = html;
+    }
+
+    $("btnHome").onclick = () => window.location.href = "./home.html";
+    $("btnLogout").onclick = async () => {
+      await supabase.auth.signOut();
+      window.location.href = "./index.html";
+    };
+
+    await loadArtists();
+    await loadUsers();
+    await loadAudit();
+  </script>
+</body>
+</html>
