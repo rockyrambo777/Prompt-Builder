@@ -74,6 +74,33 @@
       const text = safe(s.lyrics).trim();
       return !done && text.length === 0;
     }
+    function dittoIsLive(a) {
+      if (!a) return false;
+      const st = safe(a.ditto_status).toLowerCase();
+      if (a.ditto_distributed === true) return true;
+      return st.includes("released") || st.includes("live") || st === "published" || st === "released_live_on_stores";
+    }
+    function youtubeIsLive(a) {
+      if (!a) return false;
+      if (a.youtube_playlist_url) return true;
+      const st = safe(a.youtube_recon_status || a.youtube_status).toLowerCase();
+      return st === "matched" || st === "published" || st === "live";
+    }
+    function displayAlbumStatus(al) {
+      if (dittoIsLive(al) && youtubeIsLive(al)) return "released";
+      const albumSongs = songs.filter((s) => s.album_id === al.id);
+      if (albumSongs.length && albumSongs.every((s) => {
+        const st = safe(s.production_status || s.status).toLowerCase();
+        return st === "released" || st === "distributed";
+      })) return "released";
+      return safe(al.status).toLowerCase();
+    }
+    function displaySongStatus(s, al) {
+      const st = safe(s.production_status || s.status).toLowerCase();
+      if (st === "released" || st === "distributed") return st || "released";
+      if (al && displayAlbumStatus(al) === "released" && st && st !== "ideation" && st !== "draft") return "released";
+      return st || safe(al && al.status);
+    }
 
     let artists = [];
     let albums = [];
@@ -110,7 +137,7 @@
       return albums.filter((al) => {
         if (artistId && al.artist_id !== artistId) return false;
         if (type && safe(al.album_type) !== type) return false;
-        if (status && safe(al.status) !== status) return false;
+        if (status && displayAlbumStatus(al) !== status && safe(al.status) !== status) return false;
         return true;
       });
     }
@@ -124,7 +151,7 @@
       const visibleAlbums = albums.filter((al) => {
         if (artistId && al.artist_id !== artistId) return false;
         if (type && safe(al.album_type) !== type) return false;
-        if (status && safe(al.status) !== status) return false;
+        if (status && displayAlbumStatus(al) !== status && safe(al.status) !== status) return false;
         return true;
       });
       const visibleAlbumIds = new Set(visibleAlbums.map((a) => a.id));
@@ -161,7 +188,7 @@
             "<td>" + (al ? "<a class='link' href='./album.html?id=" + encodeURIComponent(al.id) + "'>" + (safe(al.title) || "(untitled)") + "</a>" : "—") + "</td>" +
             "<td>" + (s.track_number != null ? s.track_number : "—") + "</td>" +
             "<td><a class='link' href='./song.html?id=" + encodeURIComponent(s.id) + "'>" + title + "</a></td>" +
-            "<td>" + safe(s.production_status || (al && al.status) || "") + "</td>";
+            "<td>" + displaySongStatus(s, al) + "</td>";
           tb.appendChild(tr);
         }
         table.appendChild(tb);
@@ -171,7 +198,7 @@
 
       const queueAlbums = visibleAlbums.filter((al) => {
         if (albumId && al.id !== albumId) return false;
-        const st = safe(al.status);
+        const st = displayAlbumStatus(al);
         return st === "producing" || st === "approved";
       });
       const albumHost = $("albumList");
@@ -188,7 +215,7 @@
             "<td>" + artistName(al.artist_id) + "</td>" +
             "<td><a class='link' href='./album.html?id=" + encodeURIComponent(al.id) + "'>" + (safe(al.title) || "(untitled)") + "</a></td>" +
             "<td>" + safe(al.album_type) + "</td>" +
-            "<td>" + safe(al.status) + "</td>" +
+            "<td>" + displayAlbumStatus(al) + "</td>" +
             "<td>" + safe(al.production_status) + "</td>";
           tb.appendChild(tr);
         }
@@ -214,7 +241,7 @@
 
       const { data: al, error: alErr } = await supabase
         .from("albums")
-        .select("id,title,status,album_type,production_status,artist_id,created_at")
+        .select("id,title,status,album_type,production_status,artist_id,created_at,ditto_status,ditto_distributed,youtube_playlist_url,youtube_recon_status")
         .order("created_at", { ascending: false });
       if (alErr) { $("msg").textContent = "Error: " + alErr.message; return; }
       albums = (al || []).filter((x) => activeIds.has(x.artist_id));
@@ -224,7 +251,7 @@
       if (albumIds.length) {
         const { data: sg, error: sErr } = await supabase
           .from("songs")
-          .select("id,album_id,title,track_number,lyrics,lyrics_done,production_status")
+          .select("id,album_id,title,track_number,lyrics,lyrics_done,production_status,status")
           .in("album_id", albumIds)
           .order("track_number");
         if (sErr) { $("msg").textContent = "Error: " + sErr.message; return; }
