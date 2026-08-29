@@ -27,6 +27,10 @@
           <span>Artist</span>
           <select id="fArtist"><option value="">Select artist…</option></select>
         </label>
+        <label class="field" style="margin:0; min-width:280px;">
+          <span>Recon run</span>
+          <select id="fRun"><option value="">No run</option></select>
+        </label>
         <div id="headline" class="muted"></div>
       </div>
       <div class="hint" style="margin-top:10px;">
@@ -277,21 +281,45 @@
     let tablesMissing = false;
 
     async function setItemStatus(item, patch) {
+      if (!item || !item.id) return { message: "missing item id" };
       const body = { ...patch, updated_at: new Date().toISOString() };
-      if (item.version != null) body.version = (item.version || 1) + 1;
-      let q = supabase.from("catalogue_recon_items").update(body).eq("id", item.id);
-      if (item.version != null) q = q.eq("version", item.version);
-      const { error } = await q;
-      return error;
+      const prevVer = item.version;
+      if (prevVer != null && prevVer !== "") body.version = Number(prevVer) + 1;
+      let q = supabase.from("catalogue_recon_items").update(body).eq("id", item.id).select("id,status,version");
+      if (prevVer != null && prevVer !== "") q = q.eq("version", prevVer);
+      let { data, error } = await q;
+      if (!error && (!data || !data.length) && prevVer != null && prevVer !== "") {
+        const retry = await supabase.from("catalogue_recon_items").update(body).eq("id", item.id).select("id,status,version");
+        data = retry.data;
+        error = retry.error;
+      }
+      if (error) return error;
+      if (!data || !data.length) {
+        return { message: "Update did not save (0 rows). Try refresh, or Approve again." };
+      }
+      item.status = data[0].status;
+      item.version = data[0].version;
+      return null;
     }
 
     async function approveItem(item) {
-      if (!isOwner) return;
-      const error = await setItemStatus(item, {
-        status: "approved",
-        approved_at: new Date().toISOString(),
-        approved_by: session.user.id
-      });
+      if (!isOwner) {
+        $("msg").textContent = "Only the owner can approve.";
+        $("msg").className = "msg error";
+        return;
+      }
+      $("msg").textContent = "Approving…";
+      $("msg").className = "msg muted";
+      let error = null;
+      const rpc = await supabase.rpc("approve_catalogue_recon_item", { p_item_id: item.id });
+      if (rpc.error || rpc.data == null) {
+        error = await setItemStatus(item, {
+          status: "approved",
+          approved_at: new Date().toISOString(),
+          approved_by: session.user.id
+        });
+        if (error && rpc.error) error = { message: error.message + " (" + rpc.error.message + ")" };
+      }
       $("msg").textContent = error ? ("Approve failed: " + error.message) : "Approved. Apply to write into SVS.";
       $("msg").className = error ? "msg error" : "msg success";
       if (!error) await load();
@@ -601,9 +629,10 @@
       wrap.className = "row";
       if (st === "proposed" || st === "needs_review") {
         const b = document.createElement("button");
+        b.type = "button";
         b.className = "btn primary";
         b.textContent = "Approve";
-        b.onclick = () => approveItem(item);
+        b.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); approveItem(item); };
         wrap.appendChild(b);
       }
       if (st === "approved" && item.match_kind === "questionable_album_map") {
@@ -675,7 +704,7 @@
       const runs = await trySelect(
         "catalogue_recon_runs",
         "*",
-        (q) => q.eq("artist_id", artistId).order("started_at", { ascending: false }).limit(1)
+        (q) => q.eq("artist_id", artistId).order("started_at", { ascending: false }).limit(20)
       );
       if (runs.missing) {
         tablesMissing = true;
@@ -690,8 +719,29 @@
         $("msg").className = "msg error";
         return;
       }
-      currentRun = (runs.rows || [])[0] || null;
-      if (!currentRun) {
+      const runSel = $("fRun");
+      const allRuns = runs.rows || [];
+      const prevRun = runSel ? runSel.value : "";
+      if (runSel) {
+        runSel.innerHTML = "";
+        const optAll = document.createElement("option");
+        optAll.value = "all";
+        optAll.textContent = allRuns.length ? ("All open runs (" + allRuns.length + ")") : "No run";
+        runSel.appendChild(optAll);
+        for (const r of allRuns) {
+          const o = document.createElement("option");
+          o.value = r.id;
+          const when = r.started_at ? fmtWhen(r.started_at) : r.id.slice(0, 8);
+          o.textContent = (r.status || "run") + " · " + when + " · " + r.id.slice(0, 8);
+          runSel.appendChild(o);
+        }
+        if (prevRun && [...runSel.options].some((o) => o.value === prevRun)) runSel.value = prevRun;
+        else if (allRuns.length > 1) runSel.value = "all";
+        else if (allRuns[0]) runSel.value = allRuns[0].id;
+      }
+      const chosen = runSel ? runSel.value : (allRuns[0] ? allRuns[0].id : "");
+      currentRun = chosen === "all" ? { id: "all", status: "open", started_at: allRuns[0] && allRuns[0].started_at } : (allRuns.find((r) => r.id === chosen) || allRuns[0] || null);
+      if (!currentRun || !allRuns.length) {
         currentItems = [];
         $("headline").textContent = "No recon run yet.";
         emptyHost($("factualHost"), "No factual matches. Bot has not proposed a run for this artist.");
@@ -703,7 +753,9 @@
       const itemsRes = await trySelect(
         "catalogue_recon_items",
         "*",
-        (q) => q.eq("run_id", currentRun.id).order("created_at", { ascending: true })
+        (q) => chosen === "all"
+          ? q.eq("artist_id", artistId).in("run_id", allRuns.map((r) => r.id)).order("created_at", { ascending: true })
+          : q.eq("run_id", currentRun.id).order("created_at", { ascending: true })
       );
       if (itemsRes.missing) {
         tablesMissing = true;
@@ -752,15 +804,31 @@
           const b = document.createElement("button");
           b.className = "btn primary";
           b.textContent = "Approve all factual";
+          b.type = "button";
           b.onclick = async () => {
+            $("msg").textContent = "Approving factual items…";
+            $("msg").className = "msg muted";
             let failed = 0;
+            const runId = currentRun && currentRun.id;
+            if (runId && runId !== "all") {
+              const rpc = await supabase.rpc("approve_catalogue_recon_factual", { p_run_id: runId });
+              if (!rpc.error) {
+                $("msg").textContent = "Approved " + (rpc.data || pendingFactual.length) + " factual items. Apply to write.";
+                $("msg").className = "msg success";
+                await load();
+                return;
+              }
+            }
             for (const it of pendingFactual) {
-              const error = await setItemStatus(it, {
-                status: "approved",
-                approved_at: new Date().toISOString(),
-                approved_by: session.user.id
-              });
-              if (error) failed++;
+              const rpc = await supabase.rpc("approve_catalogue_recon_item", { p_item_id: it.id });
+              if (rpc.error || rpc.data == null) {
+                const error = await setItemStatus(it, {
+                  status: "approved",
+                  approved_at: new Date().toISOString(),
+                  approved_by: session.user.id
+                });
+                if (error) failed++;
+              }
             }
             $("msg").textContent = failed ? ("Some approves failed (" + failed + ").") : "All factual approved. Apply to write.";
             $("msg").className = failed ? "msg error" : "msg success";
@@ -803,9 +871,14 @@
       const url = new URL(location.href);
       if (id) url.searchParams.set("artist", id);
       else url.searchParams.delete("artist");
+      url.searchParams.delete("run");
       history.replaceState({}, "", url);
+      const rs = $("fRun");
+      if (rs) rs.value = "";
       load();
     };
+    const runSelEl = $("fRun");
+    if (runSelEl) runSelEl.onchange = () => load();
     $("btnRefresh").onclick = load;
     await load();
   </script>
