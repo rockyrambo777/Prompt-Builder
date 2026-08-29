@@ -76,7 +76,11 @@
 
       $("msg").textContent = `Loaded ${data.length} artist(s).`;
       if (!data.length) {
-        $("list").innerHTML = "<li class='muted'>No artists yet. Click “Add Artist”.</li>";
+        const { data: meA } = await supabase.from("app_users").select("role,status").eq("auth_user_id", session.user.id).maybeSingle();
+        const owner = meA && meA.role === "owner" && meA.status === "approved";
+        $("list").innerHTML = owner
+          ? "<li class='muted'>No artists yet. Click “Add Artist”.</li>"
+          : "<li class='muted'>No artists assigned. Ask the owner for access.</li>";
         return;
       }
 

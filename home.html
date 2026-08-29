@@ -59,6 +59,7 @@
         <div id="who" class="muted"></div>
       </div>
       <div class="row">
+        <button id="btnAccess" class="btn secondary" style="display:none">Users & Access</button>
         <button id="btnLogout" class="btn danger">Logout</button>
       </div>
     </div>
@@ -129,6 +130,15 @@
     const session = await requireSessionOrRedirect();
     $("who").textContent = `Signed in: ${session.user.email}`;
 
+    const { data: meRow } = await supabase
+      .from("app_users")
+      .select("role,status")
+      .eq("auth_user_id", session.user.id)
+      .maybeSingle();
+    const isOwner = !!(meRow && meRow.role === "owner" && meRow.status === "approved");
+    if (isOwner) $("btnAccess").style.display = "";
+    $("btnAccess").onclick = () => window.location.href = "./users.html";
+
     const ARTISTS = "artists";
     const ALBUMS = "albums";
     const SONGS = "songs";
@@ -195,7 +205,12 @@
 
       const list = artists || [];
       if (!list.length){
-        $("statusLine").textContent = "No artists yet. Create one to start.";
+        $("statusLine").textContent = isOwner
+          ? "No artists yet. Create one to start."
+          : "No artists assigned. Ask the owner for access.";
+        if (!isOwner) {
+          $("artistGrid").innerHTML = "<div class='muted'>You can sign in, but you do not have access to any artists yet.</div>";
+        }
         return;
       }
 
