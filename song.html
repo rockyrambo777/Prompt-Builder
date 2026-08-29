@@ -44,7 +44,7 @@
   <script type="module">
     import { supabase, requireSessionOrRedirect } from "./app.js";
     import { mountPackageTabs } from "./svs-song-tabs.js";
-    import { formatSunoLyrics } from "./suno-format.js";
+    import { formatSunoLyrics } from "./suno-format.js?v=20260829c";
 
     const $ = (id) => document.getElementById(id);
     const params = new URLSearchParams(location.search);
@@ -242,6 +242,11 @@
       card.appendChild(fieldInput("Scripture", "f_scripture", song.scripture, { tag: "textarea" }));
       card.appendChild(fieldInput("Human notes", "f_edit_notes", song.edit_notes, { tag: "textarea" }));
       card.appendChild(fieldInput("Lyrics", "f_lyrics", song.lyrics, { tag: "textarea", cls: "lyrics" }));
+      const sunoLyricsBox = fieldInput("Suno lyrics (copy into Suno)", "f_lyrics_suno", formatSunoLyrics(song.lyrics), { tag: "textarea", cls: "lyrics" });
+      const sunoTa = sunoLyricsBox.querySelector("textarea");
+      if (sunoTa) sunoTa.readOnly = true;
+      card.appendChild(sunoLyricsBox);
+      card.appendChild(el("div", "hint", "COPY LYRICS copies this tagged version. Stored lyrics stay untagged for editing."));
       card.appendChild(fieldInput("Suno prompt", "f_suno_prompt", song.suno_prompt, { tag: "textarea", cls: "prompt" }));
       card.appendChild(fieldInput("Suno share URL", "f_suno_share_url", song.suno_share_url || finalSuno.url));
       card.appendChild(el("div", "hint", "Suno generated dates are not official release dates. Do not merge Suno dates into official_release_date. Recon does not auto-pick a selected final."));
@@ -414,8 +419,14 @@
       $("msg").className = "msg success";
     }
 
-    $("btnCopyLyrics").onclick = () => copyText(formatSunoLyrics(val("f_lyrics")), $("btnCopyLyrics"));
-    $("btnCopySuno").onclick = () => copyText(val("f_suno_prompt"), $("btnCopySuno"));
+    function lyricsForSuno() {
+      return formatSunoLyrics(val("f_lyrics") || (songRow && songRow.lyrics) || "");
+    }
+    function sunoPromptForCopy() {
+      return val("f_suno_prompt") || (songRow && songRow.suno_prompt) || "";
+    }
+    $("btnCopyLyrics").onclick = () => copyText(lyricsForSuno(), $("btnCopyLyrics"));
+    $("btnCopySuno").onclick = () => copyText(sunoPromptForCopy(), $("btnCopySuno"));
     $("btnSave").onclick = saveSong;
 
     if (songId) {
