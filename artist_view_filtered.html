@@ -180,6 +180,22 @@
     return v;
   }
 
+  function dittoIsLive(a) {
+    const st = safe(a.ditto_status).toLowerCase();
+    if (a.ditto_distributed === true) return true;
+    return st.includes("released") || st.includes("live") || st === "published" || st === "released_live_on_stores";
+  }
+  function youtubeIsLive(a) {
+    if (a.youtube_playlist_url) return true;
+    const st = safe(a.youtube_recon_status || a.youtube_status).toLowerCase();
+    return st === "matched" || st === "published" || st === "live";
+  }
+  function albumIsReady(a) {
+    const s = normStatus(a.status);
+    return !!(a.is_ready_for_distribution || a.ready_for_distro || s === "ready" || s === "released" || s === "distributed" || dittoIsLive(a));
+  }
+
+
   function renderArtist() {
     if (!artist) return;
     $("title").textContent = artist.name;
@@ -215,24 +231,21 @@
       if (q && !title.includes(q)) return false;
 
       const s = normStatus(a.status);
-
-      // Keep released albums out of the normal Artist View.
-      // They remain available by choosing Status = Released.
-      if (st === "all" && s === "released") return false;
-
-      if (st !== "all" && s !== st) return false;
+      if (st === "distributed" && !(dittoIsLive(a) || s === "distributed" || s === "released")) return false;
+      else if (st === "ready" && !albumIsReady(a)) return false;
+      else if (st !== "all" && st !== "distributed" && st !== "ready" && s !== st) return false;
       return true;
     });
 
     // counts
     $("countAlbums").textContent = `albums: ${albums.length}`;
-    const readyCount = albums.filter(a => (a.is_ready_for_distribution || a.ready_for_distro || normStatus(a.status)==="ready")).length;
+    const readyCount = albums.filter(albumIsReady).length;
     $("countReady").textContent = `ready: ${readyCount}`;
 
     // sort
     const byTitle = (x,y) => (x.title||"").localeCompare(y.title||"");
     const byCreated = (x,y) => new Date(x.created_at||0) - new Date(y.created_at||0);
-    const byUpdated = (x,y) => new Date(x.updated_at||x.created_at||0) - new Date(y.updated_at||y.created_at||0);
+    const byUpdated = (x,y) => new Date(x.updated_at||x.created_at||0) - new Date(y.updated_at||x.created_at||0);
 
     if (sort==="title_asc") out.sort(byTitle);
     if (sort==="title_desc") out.sort((a,b)=>byTitle(b,a));
@@ -258,15 +271,30 @@
       stPill.className = "pill " + (st==="ready" || st==="distributed" || st==="released" ? "ok" : "warn");
       stPill.textContent = "status: " + st;
 
-      const ready = (a.is_ready_for_distribution || a.ready_for_distro) ? "ready ✅" : "not ready";
+      const ready = albumIsReady(a) ? "ready" : "not ready";
       const readyPill = document.createElement("span");
-      readyPill.className = "pill " + ((a.is_ready_for_distribution || a.ready_for_distro) ? "ok" : "");
+      readyPill.className = "pill " + (albumIsReady(a) ? "ok" : "warn");
       readyPill.textContent = ready;
+
+      const dittoPill = document.createElement("span");
+      dittoPill.className = "pill " + (dittoIsLive(a) ? "ok" : "warn");
+      dittoPill.textContent = dittoIsLive(a) ? "Ditto: released" : "Ditto: not released";
+
+      const ytPill = document.createElement("span");
+      ytPill.className = "pill " + (youtubeIsLive(a) ? "ok" : "warn");
+      ytPill.textContent = youtubeIsLive(a) ? "YouTube: yes" : "YouTube: not linked";
+
+      const datePill = document.createElement("span");
+      datePill.className = "pill";
+      datePill.textContent = a.official_release_date ? ("date: " + String(a.official_release_date).slice(0,10)) : "date: —";
 
       const meta = document.createElement("div");
       meta.className = "albumMeta";
       meta.appendChild(stPill);
       meta.appendChild(readyPill);
+      meta.appendChild(dittoPill);
+      meta.appendChild(ytPill);
+      meta.appendChild(datePill);
 
       const h = document.createElement("div");
       h.className = "albumTitle";
