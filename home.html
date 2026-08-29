@@ -189,6 +189,35 @@
         card.appendChild(meta);
         card.appendChild(kpis);
 
+        const hasYt = Object.prototype.hasOwnProperty.call(ar, "youtube_matched_count")
+          || Object.prototype.hasOwnProperty.call(ar, "youtube_unmatched_count")
+          || Object.prototype.hasOwnProperty.call(ar, "youtube_issue_count")
+          || Object.prototype.hasOwnProperty.call(ar, "youtube_last_checked_at");
+        if (hasYt) {
+          const line = document.createElement("div");
+          line.className = "muted";
+          line.style.marginTop = "8px";
+          let last = "never";
+          if (ar.youtube_last_checked_at) {
+            const d = new Date(ar.youtube_last_checked_at);
+            if (!Number.isNaN(d.getTime())) {
+              try {
+                last = new Intl.DateTimeFormat("en-ZA", {
+                  timeZone: "Africa/Johannesburg",
+                  year: "numeric", month: "2-digit", day: "2-digit",
+                  hour: "2-digit", minute: "2-digit", hour12: false
+                }).format(d) + " SAST";
+              } catch {
+                last = d.toISOString().replace("T", " ").slice(0, 16) + " UTC";
+              }
+            }
+          }
+          line.textContent = "YouTube Sync: " + (ar.youtube_matched_count ?? 0) + " matched | "
+            + (ar.youtube_unmatched_count ?? 0) + " unmatched | "
+            + (ar.youtube_issue_count ?? 0) + " issues | last checked " + last;
+          card.appendChild(line);
+        }
+
         card.onclick = () => {
           window.location.href = "./artist_view_filtered.html?id=" + encodeURIComponent(ar.id);
         };

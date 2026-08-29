@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SVS – YouTube audit</title>
+  <link rel="stylesheet" href="svs.css" />
+</head>
+<body>
+  <div id="svs-nav"></div>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1>YouTube audit</h1>
+        <div id="who" class="muted"></div>
+      </div>
+      <div class="row">
+        <a class="btn secondary" href="./distribution.html">Distribution</a>
+        <button id="btnRefresh" class="btn secondary">Refresh</button>
+      </div>
+    </div>
+    <div id="msg" class="msg muted"></div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between; align-items:flex-end;">
+        <label class="field" style="margin:0; min-width:260px;">
+          <span>Artist</span>
+          <select id="fArtist"><option value="">Select artist…</option></select>
+        </label>
+        <div id="headline" class="muted"></div>
+      </div>
+      <div class="hint" style="margin-top:10px;">
+        Bot records observations automatically. Approving a change does <strong>not</strong> rewrite the public YouTube video.
+        Public rewrite waits for a later perform step after approval. This page does not call the YouTube Data API.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Matched videos</h2>
+      <div id="matchedHost" class="muted">Select an artist.</div>
+    </div>
+    <div class="card">
+      <h2>Unmatched — in YouTube, missing in SVS</h2>
+      <div id="ytMissingHost" class="muted">Select an artist.</div>
+    </div>
+    <div class="card">
+      <h2>Unmatched — in SVS, missing on YouTube</h2>
+      <div id="svsMissingHost" class="muted">Select an artist.</div>
+    </div>
+    <div class="card">
+      <h2>Issues</h2>
+      <div id="issuesHost" class="muted">Select an artist.</div>
+    </div>
+  </div>
+
+  <script type="module" src="svs-nav.js"></script>
+  <script type="module">
+    import { supabase, requireSessionOrRedirect } from "./app.js";
+    const $ = (id) => document.getElementById(id);
+    const params = new URLSearchParams(location.search);
+
+    const session = await requireSessionOrRedirect();
+    $("who").textContent = "Signed in: " + session.user.email;
+
+    const { data: meRow } = await supabase
+      .from("app_users")
+      .select("role,status")
+      .eq("auth_user_id", session.user.id)
+      .maybeSingle();
+    const isOwner = !!(meRow && meRow.role === "owner" && meRow.status === "approved");
+
+    function safe(v) { return (v === null || v === undefined) ? "" : String(v); }
+    function esc(v) {
+      return safe(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    }
+    function tableMissing(err) {
+      if (!err) return false;
+      const m = (err.message || "") + " " + (err.code || "");
+      return /relation .* does not exist|Could not find the table|schema cache|PGRST205/i.test(m)
+        || err.code === "42P01" || err.code === "PGRST205";
+    }
+    function columnMissing(err) {
+      if (!err) return false;
+      const m = (err.message || "") + " " + (err.code || "");
+      return /column .* does not exist|Could not find the .* column|PGRST204/i.test(m)
+        || err.code === "42703" || err.code === "PGRST204";
+    }
+    async function trySelect(table, cols, apply) {
+      let q = supabase.from(table).select(cols);
+      if (apply) q = apply(q);
+      const { data, error } = await q;
+      if (error) {
+        if (tableMissing(error)) return { rows: [], missing: true };
+        return { rows: [], missing: false, error };
+      }
+      return { rows: data || [], missing: false };
+    }
+    function fmtWhen(v) {
+      if (!v) return "never";
+      const d = new Date(v);
+      if (Number.isNaN(d.getTime())) return String(v);
+      try {
+        const fmt = new Intl.DateTimeFormat("en-ZA", {
+          timeZone: "Africa/Johannesburg",
+          year: "numeric", month: "2-digit", day: "2-digit",
+          hour: "2-digit", minute: "2-digit", hour12: false
+        });
+        return fmt.format(d) + " SAST";
+      } catch {
+        return d.toISOString().replace("T", " ").slice(0, 16) + " UTC";
+      }
+    }
+    function pillForStatus(st) {
+      const s = safe(st).toLowerCase();
+      if (s === "applied" || s === "synced") return "ok";
+      if (s === "needs_review" || s === "approved") return "warn";
+      if (s === "dismissed") return "";
+      return "warn";
+    }
+
+    const aRes = await trySelect("artists", "*", (q) => q.eq("is_active", true).order("name"));
+    if (aRes.error && !aRes.missing) { $("msg").textContent = "Error: " + aRes.error.message; }
+    const artists = aRes.rows;
+    const sel = $("fArtist");
+    for (const ar of artists) {
+      const o = document.createElement("option");
+      o.value = ar.id;
+      o.textContent = ar.name || "(unnamed)";
+      sel.appendChild(o);
+    }
+    const initial = (params.get("artist") || "").trim();
+    if (initial && [...sel.options].some((o) => o.value === initial)) sel.value = initial;
+
+    function emptyTable(host, message) {
+      host.innerHTML = "<div class='muted'>" + esc(message) + "</div>";
+    }
+
+    async function approveProposal(id) {
+      const { error } = await supabase.from("youtube_change_proposals").update({
+        status: "approved",
+        approved_at: new Date().toISOString(),
+        approved_by: session.user.id
+      }).eq("id", id);
+      if (error) {
+        $("msg").textContent = "Approve failed: " + error.message;
+        $("msg").className = "msg error";
+        return;
+      }
+      $("msg").textContent = "Marked approved. Public rewrite is not performed here.";
+      $("msg").className = "msg success";
+      await load();
+    }
+
+    async function load() {
+      const artistId = sel.value;
+      if (!artistId) {
+        $("headline").textContent = "";
+        emptyTable($("matchedHost"), "Select an artist.");
+        emptyTable($("ytMissingHost"), "Select an artist.");
+        emptyTable($("svsMissingHost"), "Select an artist.");
+        emptyTable($("issuesHost"), "Select an artist.");
+        $("msg").textContent = "Pick an artist to audit YouTube.";
+        return;
+      }
+      const ar = artists.find((a) => a.id === artistId) || {};
+      $("msg").textContent = "Loading YouTube audit…";
+      $("msg").className = "msg muted";
+
+      let yt = await trySelect("youtube_content", "*", (q) => q.eq("artist_id", artistId));
+      if (yt.error && columnMissing(yt.error)) {
+        yt = await trySelect("youtube_content", "id,artist_id,youtube_video_id,kind,title,url,published_at,song_id,mapped_status,observed_at,source", (q) => q.eq("artist_id", artistId));
+      }
+      if (yt.missing) {
+        emptyTable($("matchedHost"), "youtube_content is not present yet.");
+        emptyTable($("ytMissingHost"), "youtube_content is not present yet.");
+      } else if (yt.error) {
+        $("msg").textContent = "Error: " + yt.error.message;
+        $("msg").className = "msg error";
+        return;
+      }
+
+      let songs = await trySelect("songs", "id,title,album_id,youtube_url,track_number");
+      if (songs.error && columnMissing(songs.error)) songs = await trySelect("songs", "id,title,album_id,track_number");
+      const albums = await trySelect("albums", "id,title,artist_id", (q) => q.eq("artist_id", artistId));
+      const albumIds = new Set((albums.rows || []).map((a) => a.id));
+      const artistSongs = (songs.rows || []).filter((s) => albumIds.has(s.album_id));
+      const songById = {};
+      for (const s of artistSongs) songById[s.id] = s;
+
+      const content = yt.rows || [];
+      const matched = content.filter((c) => c.song_id && c.mapped_status !== "unmatched");
+      const ytMissingSvs = content.filter((c) => !c.song_id || c.mapped_status === "unmatched" || c.mapped_status === "missing_in_svs");
+      const mappedSongIds = new Set(content.filter((c) => c.song_id).map((c) => c.song_id));
+      const svsMissingYt = artistSongs.filter((s) => {
+        const hasUrl = safe(s.youtube_url).trim().length > 0;
+        return !hasUrl && !mappedSongIds.has(s.id);
+      });
+
+      let proposals = await trySelect("youtube_change_proposals", "*", (q) => q.eq("artist_id", artistId).order("created_at", { ascending: false }));
+      if (proposals.missing) proposals = { rows: [], missing: true };
+
+      let matchedCount = ar.youtube_matched_count;
+      let unmatchedCount = ar.youtube_unmatched_count;
+      let issueCount = ar.youtube_issue_count;
+      const last = ar.youtube_last_checked_at;
+      if (matchedCount == null) matchedCount = matched.length;
+      if (unmatchedCount == null) unmatchedCount = ytMissingSvs.length + svsMissingYt.length;
+      if (issueCount == null) {
+        issueCount = (proposals.rows || []).filter((p) => p.status === "needs_review" || p.status === "approved").length;
+      }
+      $("headline").textContent = "YouTube Sync: " + matchedCount + " matched | " + unmatchedCount
+        + " unmatched | " + issueCount + " issues | Last checked " + (last ? fmtWhen(last) : "never");
+
+      function renderList(host, rows, emptyMsg, mapper) {
+        if (!rows.length) { emptyTable(host, emptyMsg); return; }
+        const table = document.createElement("table");
+        table.className = "data";
+        table.innerHTML = "<thead><tr><th>Title</th><th>Kind</th><th>Song</th><th>Status</th><th>Link</th></tr></thead>";
+        const tb = document.createElement("tbody");
+        for (const r of rows) {
+          const tr = document.createElement("tr");
+          const mapped = mapper(r);
+          if (mapped.missing) tr.className = "missing-row";
+          tr.innerHTML = "<td>" + esc(mapped.title) + "</td><td>" + esc(mapped.kind)
+            + "</td><td>" + esc(mapped.song) + "</td><td><span class='pill " + mapped.cls + "'>" + esc(mapped.status)
+            + "</span></td><td>" + mapped.link + "</td>";
+          tb.appendChild(tr);
+        }
+        table.appendChild(tb);
+        host.innerHTML = "";
+        host.appendChild(table);
+      }
+
+      renderList($("matchedHost"), matched, "No matched videos.", (c) => ({
+        title: c.observed_title || c.title || c.youtube_video_id || "(untitled)",
+        kind: c.kind || "",
+        song: (c.song_id && songById[c.song_id] && songById[c.song_id].title) || "",
+        status: c.mapped_status || "matched",
+        cls: "ok",
+        link: c.url ? "<a class='link' href='" + esc(c.url).replace(/'/g,"") + "' target='_blank' rel='noopener'>open</a>" : "",
+        missing: false
+      }));
+
+      renderList($("ytMissingHost"), ytMissingSvs, "None — no unmatched YouTube videos.", (c) => ({
+        title: c.observed_title || c.title || c.youtube_video_id || "(untitled)",
+        kind: c.kind || "",
+        song: "",
+        status: c.mapped_status || "missing_in_svs",
+        cls: "bad",
+        link: c.url ? "<a class='link' href='" + esc(c.url).replace(/'/g,"") + "' target='_blank' rel='noopener'>open</a>" : "",
+        missing: true
+      }));
+
+      renderList($("svsMissingHost"), svsMissingYt, "None — every in-scope song has a YouTube mapping or URL.", (s) => ({
+        title: s.title || "(untitled song)",
+        kind: "song",
+        song: s.title || "",
+        status: "missing_externally",
+        cls: "bad",
+        link: "<a class='link' href='./song.html?id=" + encodeURIComponent(s.id) + "'>song</a>",
+        missing: true
+      }));
+
+      const issueHost = $("issuesHost");
+      if (proposals.missing) {
+        emptyTable(issueHost, "youtube_change_proposals is not present yet.");
+      } else {
+        const open = (proposals.rows || []).filter((p) => p.status !== "applied" && p.status !== "dismissed");
+        if (!open.length) {
+          emptyTable(issueHost, "No open issues.");
+        } else {
+          const table = document.createElement("table");
+          table.className = "data";
+          table.innerHTML = "<thead><tr><th>Issue</th><th>Current</th><th>Recommended</th><th>Reason</th><th>Status</th><th></th></tr></thead>";
+          const tb = document.createElement("tbody");
+          for (const p of open) {
+            const tr = document.createElement("tr");
+            if (p.status === "needs_review") tr.className = "missing-row";
+            const canApprove = isOwner && p.status === "needs_review";
+            tr.innerHTML = "<td>" + esc(p.issue_type || "") + "</td><td>" + esc(p.current_value || "")
+              + "</td><td>" + esc(p.recommended_value || "") + "</td><td>" + esc(p.reason || "")
+              + "</td><td><span class='pill " + pillForStatus(p.status) + "'>" + esc(p.status || "")
+              + "</span></td><td></td>";
+            if (canApprove) {
+              const btn = document.createElement("button");
+              btn.className = "btn primary";
+              btn.textContent = "Approve Change";
+              btn.onclick = () => approveProposal(p.id);
+              tr.lastElementChild.appendChild(btn);
+            } else if (p.status === "approved") {
+              tr.lastElementChild.textContent = "Approved — waiting for perform";
+            }
+            tb.appendChild(tr);
+          }
+          table.appendChild(tb);
+          issueHost.innerHTML = "";
+          issueHost.appendChild(table);
+        }
+      }
+
+      $("msg").textContent = "Loaded. Approve records intent only; it does not rewrite public videos.";
+      $("msg").className = "msg muted";
+    }
+
+    sel.onchange = () => {
+      const id = sel.value;
+      const url = new URL(location.href);
+      if (id) url.searchParams.set("artist", id);
+      else url.searchParams.delete("artist");
+      history.replaceState({}, "", url);
+      load();
+    };
+    $("btnRefresh").onclick = load;
+    await load();
+  </script>
+</body>
+</html>
