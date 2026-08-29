@@ -285,3 +285,13 @@ ul.plain { margin: 12px 0 0; padding: 0; list-style: none; }
   color: var(--muted);
   text-align: center;
 }
+
+table.data { overflow: auto; }
+.missing-row {
+  outline: 1px solid #6b2a2a;
+  outline-offset: -1px;
+  border-left: 3px solid var(--danger);
+}
+table.data tr.missing-row td {
+  background: rgba(209, 75, 75, 0.08);
+}

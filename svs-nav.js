@@ -23,6 +23,7 @@ function pageMatches(href, page) {
   if (page === h) return true;
   if (h === "home.html" && (page === "" || page === "index.html")) return false;
   if (h === "artists.html" && (page === "artist-view.html" || page === "artist_view_filtered.html" || page === "artist-edit.html" || page === "artist-new.html")) return true;
+  if (h === "distribution.html" && (page === "youtube.html" || page === "distribution-ditto.html" || page === "distribution-bandcamp.html")) return true;
   if (h === "home.html" && page === "home.html") return true;
   return false;
 }
