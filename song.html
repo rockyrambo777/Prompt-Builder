@@ -422,7 +422,8 @@
       await mountPackageTabs({
         songId,
         artistId: albumRow && albumRow.artist_id,
-        albumId: albumRow && albumRow.id
+        albumId: albumRow && albumRow.id,
+        personaId: songRow && songRow.persona_id
       });
     }
   </script>

@@ -38,9 +38,129 @@ async function snapshot(entityType, entityId, fieldGroup, row, reason) {
   } catch { /* table may not exist yet */ }
 }
 
+let visualIdentities = [];
+let resolvedIdentity = null;
+let tabsPersonaId = null;
+
+const VI_START = "=== VISUAL ARTIST IDENTITY ===";
+const VI_END = "=== END VISUAL ARTIST IDENTITY ===";
+
+function composeVisualPromptBlock(identity) {
+  if (!identity) return "";
+  const stored = String(identity.prompt_block || "").trim();
+  if (stored) {
+    if (stored.includes("VISUAL ARTIST IDENTITY")) return stored;
+    return VI_START + "\n" + stored + "\n" + VI_END;
+  }
+  const lines = [VI_START];
+  const add = (label, val) => { if (val && String(val).trim()) lines.push(label + ": " + String(val).trim()); };
+  add("Appearance", identity.appearance_definition);
+  add("Face and features", identity.face_and_features);
+  add("Hair and styling", identity.hair_and_styling);
+  add("Wardrobe and palette", identity.wardrobe_and_palette);
+  add("Lighting and grade", identity.lighting_and_grade);
+  add("Setting and props", identity.setting_and_props);
+  add("Camera and framing", identity.camera_and_framing);
+  add("Must include", identity.must_include);
+  add("Never include", identity.never_include);
+  lines.push(VI_END);
+  return lines.join("\n");
+}
+
+function pickDefaultIdentity(list, personaId) {
+  if (personaId) {
+    const pdef = list.find((v) => v.persona_id === personaId && v.is_default && (v.status || "active") === "active");
+    if (pdef) return pdef;
+  }
+  const adef = list.find((v) => !v.persona_id && v.is_default && (v.status || "active") === "active");
+  if (adef) return adef;
+  return list.find((v) => !v.persona_id && (v.status || "active") === "active") || null;
+}
+
+async function loadVisualIdentities(artistId) {
+  if (!artistId) return [];
+  const { data, error } = await supabase.from("visual_identities")
+    .select("*")
+    .eq("artist_id", artistId)
+    .eq("status", "active")
+    .order("is_default", { ascending: false });
+  if (error) return [];
+  return data || [];
+}
+
+function visualIdentityBar(idPrefix, selectedId, label) {
+  const wrap = el("div", "kv");
+  wrap.style.marginTop = "10px";
+  wrap.style.marginBottom = "8px";
+  const top = el("div", "row");
+  const pill = el("span", "pill" + (resolvedIdentity ? " ok" : " warn"),
+    resolvedIdentity ? ("look: " + (resolvedIdentity.name || "default")) : "look: missing");
+  top.appendChild(pill);
+  top.appendChild(el("span", "muted", label || "Visual identity"));
+  wrap.appendChild(top);
+  wrap.appendChild(el("div", "hint", "This look is injected into scene, video, Shorts, thumbnail, and cover prompts."));
+  const row = el("div", "row");
+  row.style.marginTop = "8px";
+  const sel = document.createElement("select");
+  sel.id = idPrefix + "_visual_identity_id";
+  const opt0 = document.createElement("option");
+  opt0.value = "";
+  opt0.textContent = resolvedIdentity ? ("Default: " + (resolvedIdentity.name || "default")) : "(no default identity)";
+  sel.appendChild(opt0);
+  for (const v of visualIdentities) {
+    const o = document.createElement("option");
+    o.value = v.id;
+    const scope = v.persona_id ? "persona" : "artist";
+    o.textContent = (v.name || "default") + (v.is_default ? " · default" : "") + " · " + scope;
+    if (selectedId && selectedId === v.id) o.selected = true;
+    sel.appendChild(o);
+  }
+  row.appendChild(sel);
+  const copy = el("button", "btn secondary", "Copy prompt block");
+  copy.type = "button";
+  copy.onclick = async () => {
+    const id = sel.value || (resolvedIdentity && resolvedIdentity.id);
+    const ident = visualIdentities.find((x) => x.id === id) || resolvedIdentity;
+    const block = composeVisualPromptBlock(ident);
+    try { await navigator.clipboard.writeText(block); copy.textContent = "Copied"; setTimeout(() => { copy.textContent = "Copy prompt block"; }, 1200); } catch {}
+  };
+  row.appendChild(copy);
+  wrap.appendChild(row);
+  return wrap;
+}
+
+function visualIdentitySelect(cls, selectedId) {
+  const wrap = el("label", "field");
+  wrap.appendChild(el("span", "", "Visual identity"));
+  const sel = document.createElement("select");
+  sel.className = cls;
+  const opt0 = document.createElement("option");
+  opt0.value = "";
+  opt0.textContent = resolvedIdentity ? ("Default: " + (resolvedIdentity.name || "default")) : "(inherit / none)";
+  sel.appendChild(opt0);
+  for (const v of visualIdentities) {
+    const o = document.createElement("option");
+    o.value = v.id;
+    o.textContent = (v.name || "default") + (v.is_default ? " · default" : "");
+    if (selectedId && selectedId === v.id) o.selected = true;
+    sel.appendChild(o);
+  }
+  wrap.appendChild(sel);
+  return wrap;
+}
+
+function selectedVisualId(idPrefix, fallback) {
+  const n = $(idPrefix + "_visual_identity_id");
+  const v = n ? n.value : "";
+  return v || fallback || (resolvedIdentity && resolvedIdentity.id) || null;
+}
+
 export async function mountPackageTabs(ctx) {
   const { songId, artistId } = ctx;
   if (!songId) return;
+  tabsPersonaId = ctx.personaId || null;
+  visualIdentities = await loadVisualIdentities(artistId);
+  resolvedIdentity = pickDefaultIdentity(visualIdentities, tabsPersonaId);
   await Promise.all([
     loadLong(songId),
     loadShorts(songId),
@@ -75,6 +195,7 @@ function renderLong(panel, songId, pkg, scenes) {
   const card = el("div", "card");
   card.appendChild(el("h2", "", "Long video"));
   const p = pkg || {};
+  card.appendChild(visualIdentityBar("lf", p.visual_identity_id, "Long video + thumbnail"));
   card.appendChild(field("Video concept", "lf_video_concept", p.video_concept, { tag: "textarea" }));
   card.appendChild(field("YouTube title", "lf_youtube_title", p.youtube_title));
   card.appendChild(field("YouTube description", "lf_youtube_description", p.youtube_description, { tag: "textarea" }));
@@ -83,6 +204,18 @@ function renderLong(panel, songId, pkg, scenes) {
   card.appendChild(field("Pinned comment", "lf_pinned_comment", p.pinned_comment, { tag: "textarea" }));
   card.appendChild(field("Thumbnail hook", "lf_thumbnail_hook", p.thumbnail_hook));
   card.appendChild(field("Thumbnail concept", "lf_thumbnail_concept", p.thumbnail_concept, { tag: "textarea" }));
+  const thumbChip = el("div", "row");
+  thumbChip.style.marginTop = "8px";
+  const tname = resolvedIdentity ? (resolvedIdentity.name || "default") : "missing";
+  thumbChip.appendChild(el("span", "pill" + (resolvedIdentity ? " ok" : " warn"), "thumbnail look: " + tname));
+  const tcopy = el("button", "btn secondary", "Copy prompt block");
+  tcopy.type = "button";
+  tcopy.onclick = async () => {
+    const block = composeVisualPromptBlock(resolvedIdentity);
+    try { await navigator.clipboard.writeText(block); tcopy.textContent = "Copied"; setTimeout(() => { tcopy.textContent = "Copy prompt block"; }, 1200); } catch {}
+  };
+  thumbChip.appendChild(tcopy);
+  card.appendChild(thumbChip);
   card.appendChild(field("Thumbnail prompt", "lf_thumbnail_prompt", p.thumbnail_prompt, { tag: "textarea" }));
   card.appendChild(field("Playlist name", "lf_playlist_name", p.playlist_name));
   const grid = el("div", "form-grid");
@@ -137,6 +270,7 @@ function sceneCard(s) {
   card.lastChild.querySelector("textarea").className = "sc_video";
   card.appendChild(field("Camera", "", s.camera_direction, { tag: "textarea" }));
   card.lastChild.querySelector("textarea").className = "sc_camera";
+  card.appendChild(visualIdentitySelect("sc_vi", s.visual_identity_id));
   card.appendChild(field("Status", "", s.production_status || "todo"));
   card.lastChild.querySelector("input").className = "sc_status";
   return card;
@@ -162,6 +296,7 @@ async function saveLong(songId, existing) {
     playlist_name: v("lf_playlist_name") || null,
     planned_publish_at: v("lf_planned_publish_at") || null,
     publication_status: v("lf_publication_status") || "draft",
+    visual_identity_id: selectedVisualId("lf", existing?.visual_identity_id),
     version: (existing?.version || 0) + 1,
     updated_at: new Date().toISOString()
   };
@@ -191,6 +326,7 @@ async function saveLong(songId, existing) {
       video_prompt: card.querySelector(".sc_video")?.value || null,
       camera_direction: card.querySelector(".sc_camera")?.value || null,
       production_status: card.querySelector(".sc_status")?.value || "todo",
+      visual_identity_id: card.querySelector(".sc_vi")?.value || selectedVisualId("lf", existing?.visual_identity_id),
       updated_at: new Date().toISOString()
     };
     const id = card.dataset.id;
@@ -250,6 +386,7 @@ function shortCard(s) {
   card.lastChild.querySelector("textarea").className = "sh_desc";
   card.appendChild(field("Hashtags", "", s.hashtags));
   card.lastChild.querySelector("input").className = "sh_hash";
+  card.appendChild(visualIdentitySelect("sh_vi", s.visual_identity_id));
   return card;
 }
 
@@ -258,6 +395,7 @@ function renderShorts(panel, songId, rows) {
   const card = el("div", "card");
   card.appendChild(el("h2", "", "Shorts"));
   card.appendChild(el("div", "muted", "Default is at least five. You can add more. Not capped at five."));
+  card.appendChild(visualIdentityBar("sh", resolvedIdentity && resolvedIdentity.id, "Shorts"));
   const host = el("div", "");
   host.id = "sh_host";
   const list = rows.slice();
@@ -298,6 +436,7 @@ async function saveShorts(songId) {
       video_prompt: card.querySelector(".sh_video")?.value || null,
       description: card.querySelector(".sh_desc")?.value || null,
       hashtags: card.querySelector(".sh_hash")?.value || null,
+      visual_identity_id: card.querySelector(".sh_vi")?.value || selectedVisualId("sh", resolvedIdentity && resolvedIdentity.id),
       updated_at: new Date().toISOString()
     };
     const id = card.dataset.id;
