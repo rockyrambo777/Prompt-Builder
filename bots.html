@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SVS – Bot API</title>
+  <link rel="stylesheet" href="svs.css" />
+</head>
+<body>
+  <div id="svs-nav"></div>
+  <div class="wrap wrap-narrow">
+    <div class="top">
+      <div>
+        <h1>Bot API</h1>
+        <div id="who" class="muted"></div>
+      </div>
+    </div>
+    <div id="msg" class="msg muted"></div>
+    <div class="card">
+      <div class="muted">Owner only. Each bot is one artist. The plaintext key is shown once. Store it on the Artist Producer Bot. Never put a service-role key in GitHub Pages.</div>
+    </div>
+    <div class="card">
+      <h2>New client</h2>
+      <div class="form-grid">
+        <label class="field"><span>Artist</span><select id="artistSel"><option value="">Select artist</option></select></label>
+        <label class="field"><span>Client name</span><input id="clientName" type="text" placeholder="e.g. Elara Mercy Producer" /></label>
+      </div>
+      <div class="row" style="margin-top:12px;">
+        <button id="btnCreate" class="btn primary">Create client + 90-day key</button>
+      </div>
+      <div id="onceKey" class="card" style="display:none;margin-top:14px;"></div>
+    </div>
+    <div class="card">
+      <h2>Clients</h2>
+      <div id="list" class="muted">Loading…</div>
+    </div>
+  </div>
+  <script type="module" src="svs-nav.js"></script>
+  <script type="module">
+    import { supabase, requireSessionOrRedirect } from "./app.js";
+    const $ = (id) => document.getElementById(id);
+    const session = await requireSessionOrRedirect();
+    $("who").textContent = "Signed in: " + session.user.email;
+
+    const { data: me } = await supabase.from("app_users").select("role,status").eq("auth_user_id", session.user.id).maybeSingle();
+    if (!(me && me.role === "owner" && me.status === "approved")) {
+      $("msg").textContent = "Owner only.";
+      $("msg").className = "msg error";
+      throw new Error("not owner");
+    }
+
+    function safe(v) { return v == null ? "" : String(v); }
+    function tableMissing(err) {
+      if (!err) return false;
+      const m = (err.message || "") + " " + (err.code || "");
+      return /does not exist|schema cache|PGRST/i.test(m) || err.code === "42P01" || err.code === "PGRST205";
+    }
+    async function sha256hex(s) {
+      const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+      return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+    }
+    function randomKey() {
+      const b = new Uint8Array(24);
+      crypto.getRandomValues(b);
+      return Array.from(b).map((x) => x.toString(16).padStart(2, "0")).join("");
+    }
+
+    async function loadArtists() {
+      const { data, error } = await supabase.from("artists").select("id,name").eq("is_active", true).order("name");
+      if (error) { $("msg").textContent = error.message; return []; }
+      const sel = $("artistSel");
+      sel.innerHTML = '<option value="">Select artist</option>';
+      for (const a of data || []) {
+        const o = document.createElement("option");
+        o.value = a.id;
+        o.textContent = a.name || a.id;
+        sel.appendChild(o);
+      }
+      return data || [];
+    }
+
+    async function loadClients() {
+      const host = $("list");
+      const { data, error } = await supabase.from("bot_api_clients").select("id,name,artist_id,is_active,created_at,artists(name)").order("created_at", { ascending: false });
+      if (error) {
+        host.textContent = tableMissing(error) ? "Bot tables are not applied yet." : error.message;
+        return;
+      }
+      if (!data?.length) { host.textContent = "No clients yet."; return; }
+      const { data: keys } = await supabase.from("bot_api_keys").select("id,client_id,key_prefix,expires_at,revoked_at,last_used_at").order("created_at", { ascending: false });
+      host.innerHTML = "";
+      const table = document.createElement("table");
+      table.innerHTML = "<thead><tr><th>Client</th><th>Artist</th><th>Key prefix</th><th>Expires</th><th>Revoked</th></tr></thead>";
+      const tb = document.createElement("tbody");
+      for (const c of data) {
+        const ks = (keys || []).filter((k) => k.client_id === c.id);
+        const k = ks[0] || {};
+        const tr = document.createElement("tr");
+        const artistName = (c.artists && c.artists.name) || c.artist_id;
+        tr.innerHTML = "";
+        const cells = [c.name || "", artistName, k.key_prefix || "", k.expires_at ? String(k.expires_at).slice(0, 10) : "", k.revoked_at ? "yes" : ""];
+        for (const v of cells) {
+          const td = document.createElement("td");
+          td.textContent = safe(v);
+          tr.appendChild(td);
+        }
+        tb.appendChild(tr);
+      }
+      table.appendChild(tb);
+      host.appendChild(table);
+    }
+
+    $("btnCreate").onclick = async () => {
+      $("msg").textContent = "";
+      $("onceKey").style.display = "none";
+      const artistId = $("artistSel").value;
+      const name = ($("clientName").value || "").trim();
+      if (!artistId || !name) {
+        $("msg").textContent = "Pick an artist and name the client.";
+        $("msg").className = "msg error";
+        return;
+      }
+      const { data: existing } = await supabase.from("bot_api_clients").select("id").eq("artist_id", artistId).maybeSingle();
+      let clientId = existing?.id;
+      if (!clientId) {
+        const { data, error } = await supabase.from("bot_api_clients").insert({
+          name, artist_id: artistId, scopes: ["write"], is_active: true, created_by: session.user.id
+        }).select("id").single();
+        if (error) { $("msg").textContent = error.message; $("msg").className = "msg error"; return; }
+        clientId = data.id;
+      }
+      const raw = randomKey();
+      const hash = await sha256hex(raw);
+      const expires = new Date(Date.now() + 90 * 24 * 3600 * 1000).toISOString();
+      const { error: kErr } = await supabase.from("bot_api_keys").insert({
+        client_id: clientId,
+        key_hash: hash,
+        key_prefix: raw.slice(0, 8),
+        expires_at: expires
+      });
+      if (kErr) { $("msg").textContent = kErr.message; $("msg").className = "msg error"; return; }
+      const box = $("onceKey");
+      box.style.display = "";
+      box.innerHTML = "";
+      const h = document.createElement("h3");
+      h.textContent = "Copy this key now. It will not be shown again.";
+      const pre = document.createElement("textarea");
+      pre.readOnly = true;
+      pre.value = raw;
+      pre.style.minHeight = "70px";
+      const hint = document.createElement("div");
+      hint.className = "hint";
+      hint.textContent = "Prefix " + raw.slice(0, 8) + " · expires " + expires.slice(0, 10) + ". Put it on the Artist Producer Bot as Authorization: Bearer <key>. Endpoint will be the Edge Function URL after deploy.";
+      box.appendChild(h);
+      box.appendChild(pre);
+      box.appendChild(hint);
+      $("msg").textContent = "Key created.";
+      $("msg").className = "msg success";
+      await loadClients();
+    };
+
+    await loadArtists();
+    await loadClients();
+  </script>
+</body>
+</html>
