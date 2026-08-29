@@ -1,1 +1,781 @@
-<PLACEHOLDER_USE_FILE>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SVS System – Artist</title>
+  <style>
+    :root{
+      --bg:#0b0f19; --card:#121a2a; --card2:#0f1626; --border:#23304a;
+      --muted:#92a4c7; --text:#e8eefc; --primary:#2f6fed; --danger:#d14b4b;
+      --ok:#7CFFB2; --warn:#ffcc66;
+    }
+    body { font-family: Arial, sans-serif; background:var(--bg); color:var(--text); margin:0; }
+    .wrap { max-width: 1150px; margin: 0 auto; padding: 24px; }
+    .top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+    .muted { color:var(--muted); font-size: 14px; }
+    .btn { padding:12px 14px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); cursor:pointer; font-weight:800; text-decoration:none; display:inline-block; }
+    .btn.primary { background:var(--primary); border:none; }
+    .btn.secondary { background:#1c273f; border:1px solid #2a3a5c; }
+    .btn.danger { background:var(--danger); border:none; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-top:14px; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between; }
+    .grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; margin-top:12px; }
+    @media (max-width: 900px){ .grid { grid-template-columns: 1fr; } }
+    .kv{
+      border:1px solid #22304a; border-radius:14px; padding:12px; background:var(--card2);
+    }
+    .k{ font-size:12px; color:var(--muted); margin-bottom:6px; }
+    .v{ font-size:14px; color:var(--text); white-space:pre-wrap; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .divider { border:0; border-top:1px solid #22304a; margin:16px 0; }
+    .pill{
+      display:inline-block; padding:6px 10px; border-radius:999px;
+      border:1px solid #2a3a5c; background:var(--card2); font-size:12px;
+    }
+    .pill.ok { border-color:#1f6b45; }
+    .pill.warn { border-color:#6b4c1d; }
+    a { color:#9ec2ff; }
+    .codeBox {
+      border:1px solid #22304a; border-radius:14px; padding:12px;
+      background:#0f1626; white-space:pre-wrap;
+    }
+    /* svs-nav (artist-view keeps its own page styles) */
+    .svs-nav {
+      background:#0d1422; border-bottom:1px solid #23304a;
+      padding:10px 28px; display:flex; justify-content:space-between;
+      align-items:center; gap:12px; flex-wrap:wrap;
+    }
+    .svs-nav-links { display:flex; gap:4px; flex-wrap:wrap; align-items:center; }
+    .svs-nav a {
+      display:inline-block; padding:8px 12px; border-radius:10px;
+      font-size:12px; font-weight:800; letter-spacing:0.04em;
+      color:var(--muted); background:transparent; border:1px solid transparent;
+    }
+    .svs-nav a:hover { color:var(--text); background:#0f1626; border-color:#2a3a5c; }
+    .svs-nav a.active { color:var(--text); background:var(--primary); border-color:var(--primary); }
+    .svs-nav-right { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .svs-nav .who { font-size:12px; color:var(--muted); }
+    label.field { display:block; margin-top:12px; }
+    label.field > span { display:block; font-size:12px; color:var(--muted); margin-bottom:6px; }
+    input, textarea, select {
+      padding:10px 12px; border-radius:12px; border:1px solid #2a3a5c;
+      background:var(--card2); color:var(--text); width:100%;
+      font-family:inherit; font-size:14px; box-sizing:border-box;
+    }
+    textarea { min-height:88px; resize:vertical; }
+    input[type="checkbox"] { width:auto; }
+    input[type="file"] { padding:8px 0; border:none; background:transparent; }
+    .vi-item {
+      border:1px solid #22304a; border-radius:14px; padding:12px;
+      background:var(--card2); cursor:pointer; margin-top:10px;
+    }
+    .vi-item.active { border-color:var(--primary); }
+    .vi-thumbs { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    .vi-thumbs .thumb {
+      width:88px; position:relative;
+    }
+    .vi-thumbs img {
+      width:88px; height:88px; object-fit:cover; border-radius:10px;
+      border:1px solid #22304a; display:block;
+    }
+    .vi-thumbs .cap { font-size:11px; color:var(--muted); margin-top:4px; }
+    .vi-status { font-size:13px; color:var(--muted); margin-top:8px; }
+    .chk { display:flex; align-items:center; gap:8px; margin-top:12px; }
+  </style>
+</head>
+<body>
+  <div id="svs-nav"></div>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1 style="margin:0;" id="title">Artist</h1>
+        <div id="who" class="muted"></div>
+        <div id="statusLine" class="muted"></div>
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <a class="btn" href="./artists.html">Artists</a>
+        <a id="btnEdit" class="btn primary" href="#">Edit</a>
+        <button id="btnLogout" class="btn danger">Logout</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <span class="pill" id="pillSetup">Setup: —</span>
+          <span class="pill" id="pillLane">lane: —</span>
+          <span class="pill" id="pillPersona">persona: —</span>
+          <span class="pill" id="pillHandle">handle: —</span>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="kv">
+          <div class="k">Name</div>
+          <div class="v" id="name">—</div>
+        </div>
+        <div class="kv">
+          <div class="k">YouTube Channel Name</div>
+          <div class="v" id="ytChan">—</div>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="kv">
+          <div class="k">Tagline</div>
+          <div class="v" id="tagline">—</div>
+        </div>
+        <div class="kv">
+          <div class="k">Artist About</div>
+          <div class="v" id="artistAbout">—</div>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <h2 style="margin:0 0 8px;">Artist DNA Preview</h2>
+      <div class="muted">This block is injected into album + production + packaging prompt builders.</div>
+
+      <div class="grid">
+        <div class="kv">
+          <div class="k">Main Genre</div>
+          <div class="v" id="mainGenre">—</div>
+        </div>
+        <div class="kv">
+          <div class="k">Secondary Genre</div>
+          <div class="v" id="secondaryGenre">—</div>
+        </div>
+      </div>
+
+      <div class="grid" style="margin-top:12px;">
+        <div class="kv">
+          <div class="k">Voice Identity</div>
+          <div class="v mono" id="voiceIdentity">—</div>
+        </div>
+        <div class="kv">
+          <div class="k">Must Include</div>
+          <div class="v mono" id="mustInclude">—</div>
+        </div>
+      </div>
+
+      <div class="grid" style="margin-top:12px;">
+        <div class="kv">
+          <div class="k">Never Include</div>
+          <div class="v mono" id="neverInclude">—</div>
+        </div>
+        <div class="kv">
+          <div class="k">Suno Voice Anchor</div>
+          <div class="v mono" id="sunoVoiceAnchor">—</div>
+        </div>
+      </div>
+      <div class="kv" style="margin-top:12px;">
+        <div class="k">Copy/Paste Injection Block</div>
+        <div class="v mono" id="dnaPreview">—</div>
+        <div style="margin-top:10px;">
+          <button id="btnCopyDNA" class="btn secondary">Copy Artist DNA</button>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <h2 style="margin:0 0 8px;">Visual Artist Identity</h2>
+      <div class="muted">This look is injected into scene, video, Shorts, thumbnail, and cover prompts so the artist keeps a consistent appearance. Packaging thumbnail styles stay packaging defaults.</div>
+      <div id="viStatus" class="vi-status"></div>
+      <div id="viList"></div>
+      <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+        <button id="btnViNew" class="btn secondary" type="button">Add identity</button>
+        <button id="btnCopyVi" class="btn secondary" type="button">Copy prompt block</button>
+      </div>
+
+      <div id="viForm" class="kv" style="margin-top:14px; display:none;">
+        <input type="hidden" id="vi_id" />
+        <div class="grid">
+          <label class="field"><span>Name</span><input id="vi_name" placeholder="default" /></label>
+          <label class="field"><span>Persona (blank = artist-level)</span><select id="vi_persona"><option value="">Artist-level</option></select></label>
+        </div>
+        <label class="chk"><input type="checkbox" id="vi_is_default" /> Default look (bots use this unless a package pins another)</label>
+        <label class="field"><span>Appearance definition</span><textarea id="vi_appearance" placeholder="Canonical look for prompts"></textarea></label>
+        <div class="grid">
+          <label class="field"><span>Face and features</span><textarea id="vi_face"></textarea></label>
+          <label class="field"><span>Hair and styling</span><textarea id="vi_hair"></textarea></label>
+        </div>
+        <div class="grid">
+          <label class="field"><span>Wardrobe and palette</span><textarea id="vi_wardrobe"></textarea></label>
+          <label class="field"><span>Lighting and grade</span><textarea id="vi_lighting"></textarea></label>
+        </div>
+        <div class="grid">
+          <label class="field"><span>Setting and props</span><textarea id="vi_setting"></textarea></label>
+          <label class="field"><span>Camera and framing</span><textarea id="vi_camera"></textarea></label>
+        </div>
+        <div class="grid">
+          <label class="field"><span>Must include</span><textarea id="vi_must"></textarea></label>
+          <label class="field"><span>Never include</span><textarea id="vi_never"></textarea></label>
+        </div>
+        <label class="field"><span>Prompt block (auto-filled from fields if left blank on save)</span><textarea id="vi_prompt" class="mono" style="min-height:120px;"></textarea></label>
+        <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+          <button id="btnViSave" class="btn primary" type="button">Save identity</button>
+          <button id="btnViCancel" class="btn secondary" type="button">Cancel</button>
+        </div>
+
+        <hr class="divider">
+        <h3 style="margin:0 0 8px;">Reference images</h3>
+        <div class="muted">Upload to the private visual-identity bucket, or paste a URL. Missing bucket is shown as an error — the rest of the page still loads.</div>
+        <div id="viRefs" class="vi-thumbs"></div>
+        <div class="grid" style="margin-top:12px;">
+          <label class="field"><span>Upload image</span><input type="file" id="vi_file" accept="image/*" /></label>
+          <label class="field"><span>Or paste URL</span><input id="vi_url" placeholder="https://…" /></label>
+        </div>
+        <div class="grid">
+          <label class="field"><span>Caption</span><input id="vi_caption" /></label>
+          <label class="field"><span>Kind</span>
+            <select id="vi_kind">
+              <option value="face">face</option>
+              <option value="full_body">full_body</option>
+              <option value="wardrobe">wardrobe</option>
+              <option value="palette">palette</option>
+              <option value="cover">cover</option>
+              <option value="thumbnail">thumbnail</option>
+              <option value="scene">scene</option>
+              <option value="other">other</option>
+            </select>
+          </label>
+        </div>
+        <div style="margin-top:10px;">
+          <button id="btnViAddRef" class="btn secondary" type="button">Add reference</button>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <h2 style="margin:0 0 8px;">Packaging Defaults</h2>
+      <div class="grid">
+        <div class="kv">
+          <div class="k">Default include artist image in thumbnails (Long)</div>
+          <div class="v" id="thumbDefault">—</div>
+        </div>
+        <div class="kv">
+          <div class="k">YouTube About (override)</div>
+          <div class="v" id="ytAbout">—</div>
+        </div>
+      </div>
+
+      <div class="kv" style="margin-top:12px;">
+        <div class="k">Thumbnail Style (Long)</div>
+        <div class="v" id="thumbLong">—</div>
+      </div>
+
+      <hr class="divider">
+
+      <h2 style="margin:0 0 8px;">Blueprint JSON (Advanced)</h2>
+      <div class="muted">Extra presets you don’t want as columns.</div>
+      <div class="codeBox mono" id="blueprintBox">—</div>
+
+      <hr class="divider">
+
+      <h2 style="margin:0 0 8px;">Links</h2>
+      <div class="grid" id="linksGrid"></div>
+    
+        <div class="card">
+          <div class="cardHead">
+            <div>
+              <div class="h2">Default Playlist</div>
+              <div class="muted">Used by packaging to recommend where songs should be added.</div>
+            </div>
+          </div>
+          <div id="playlistBox" class="box">
+            <div class="row">
+              <span class="pill" id="plEnabled">enabled: —</span>
+              <span class="pill" id="plTitle">title: —</span>
+            </div>
+            <div class="muted" style="margin-top:10px; white-space:pre-wrap;" id="plDesc">—</div>
+          </div>
+        </div>
+
+</div>
+  </div>
+
+  <script type="module">
+    import { supabase, requireSessionOrRedirect } from "./app.js";
+    const $ = (id) => document.getElementById(id);
+
+    const session = await requireSessionOrRedirect();
+    $("who").textContent = `Signed in: ${session.user.email}`;
+
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("id");
+    if (!id) { alert("Missing artist id"); window.location.href = "./artists.html"; }
+
+    const safe = (v) => (v === null || v === undefined || v === "") ? "—" : String(v);
+
+    function addLink(grid, label, url){
+      if (!url) return;
+      const el = document.createElement("div");
+      el.className = "kv";
+      el.innerHTML = `
+        <div class="k">${label}</div>
+        <div class="v"><a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a></div>
+      `;
+      grid.appendChild(el);
+    }
+
+    function setupPill(data, visualGap){
+      const required = [
+        ["name", data.name],
+        ["main_genre", data.main_genre],
+        ["secondary_genre", data.secondary_genre],
+        ["voice_identity", data.voice_identity],
+        ["must_include", data.must_include],
+        ["never_include", data.never_include],
+        ["suno_voice_anchor", data.suno_voice_anchor],
+      ];
+      const missing = required.filter(([,v]) => !(v || "").toString().trim()).map(([k]) => k);
+      if (visualGap) missing.push("visual_identity");
+      const pill = $("pillSetup");
+      if (missing.length) {
+        pill.textContent = `Setup: missing ${missing.length}`;
+        pill.classList.remove("ok");
+        pill.classList.add("warn");
+        pill.title = "Missing: " + missing.join(", ");
+      } else {
+        pill.textContent = "Setup: complete ✅";
+        pill.classList.remove("warn");
+        pill.classList.add("ok");
+        pill.title = "All required Artist DNA fields filled.";
+      }
+    }
+
+    const VI_START = "=== VISUAL ARTIST IDENTITY ===";
+    const VI_END = "=== END VISUAL ARTIST IDENTITY ===";
+    let viRows = [];
+    let viPersonas = [];
+    let viSelectedId = null;
+    let viImages = [];
+
+    function isUuid(v) {
+      return typeof v === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v.trim());
+    }
+
+    function composeViBlock(row) {
+      if (!row) return "";
+      const stored = (row.prompt_block || "").trim();
+      if (stored) {
+        if (stored.includes("VISUAL ARTIST IDENTITY")) return stored;
+        return VI_START + "\n" + stored + "\n" + VI_END;
+      }
+      const lines = [VI_START];
+      const add = (label, val) => { if (val && String(val).trim()) lines.push(label + ": " + String(val).trim()); };
+      add("Appearance", row.appearance_definition);
+      add("Face and features", row.face_and_features);
+      add("Hair and styling", row.hair_and_styling);
+      add("Wardrobe and palette", row.wardrobe_and_palette);
+      add("Lighting and grade", row.lighting_and_grade);
+      add("Setting and props", row.setting_and_props);
+      add("Camera and framing", row.camera_and_framing);
+      add("Must include", row.must_include);
+      add("Never include", row.never_include);
+      lines.push(VI_END);
+      return lines.join("\n");
+    }
+
+    async function loadPersonas() {
+      let q = await supabase.from("artists_personas").select("id,label,is_active").eq("artists_id", id);
+      if (q.error) q = await supabase.from("artists_personas").select("id,label").eq("artists_id", id);
+      if (q.error) return [];
+      return (q.data || []).filter((p) => p.is_active !== false);
+    }
+
+    async function loadIdentities() {
+      const { data, error } = await supabase
+        .from("visual_identities")
+        .select("*")
+        .eq("artist_id", id)
+        .order("created_at", { ascending: true });
+      if (error) {
+        const st = $("viStatus");
+        if (st) st.textContent = "Visual identity not available yet: " + error.message;
+        return [];
+      }
+      return data || [];
+    }
+
+    async function loadViImages(identityId) {
+      if (!identityId) return [];
+      const { data, error } = await supabase
+        .from("visual_reference_images")
+        .select("*")
+        .eq("visual_identity_id", identityId)
+        .order("sort_order", { ascending: true });
+      if (error) return [];
+      return data || [];
+    }
+
+    async function refSrc(img) {
+      if (img.public_url) return img.public_url;
+      if (img.storage_path) {
+        const { data, error } = await supabase.storage.from("visual-identity").createSignedUrl(img.storage_path, 3600);
+        if (error) return "";
+        return (data && data.signedUrl) || "";
+      }
+      return "";
+    }
+
+    function personaLabel(personaId) {
+      if (!personaId) return "artist-level";
+      const p = viPersonas.find((x) => x.id === personaId);
+      return p ? ("persona: " + (p.label || "persona")) : "persona";
+    }
+
+    function renderViList() {
+      const host = $("viList");
+      if (!host) return;
+      host.innerHTML = "";
+      if (!viRows.length) {
+        const empty = document.createElement("div");
+        empty.className = "muted";
+        empty.style.marginTop = "10px";
+        empty.textContent = "No visual identity yet. Add a default artist-level look.";
+        host.appendChild(empty);
+        return;
+      }
+      for (const row of viRows) {
+        const el = document.createElement("div");
+        el.className = "vi-item" + (row.id === viSelectedId ? " active" : "");
+        const preview = (row.appearance_definition || row.prompt_block || "").slice(0, 180);
+        el.innerHTML =
+          "<div class='row'>" +
+            "<strong>" + safe(row.name || "default") + "</strong>" +
+            "<span class='pill" + (row.is_default ? " ok" : "") + "'>" + (row.is_default ? "default" : "alt") + "</span>" +
+            "<span class='pill'>" + personaLabel(row.persona_id) + "</span>" +
+          "</div>" +
+          "<div class='muted' style='margin-top:8px; white-space:pre-wrap;'>" + (preview || "—") + "</div>";
+        el.onclick = () => openViForm(row);
+        host.appendChild(el);
+      }
+    }
+
+    function fillPersonaSelect(selected) {
+      const sel = $("vi_persona");
+      sel.innerHTML = "";
+      const blank = document.createElement("option");
+      blank.value = "";
+      blank.textContent = "Artist-level";
+      sel.appendChild(blank);
+      for (const p of viPersonas) {
+        const o = document.createElement("option");
+        o.value = p.id;
+        o.textContent = p.label || "Persona";
+        if (selected && selected === p.id) o.selected = true;
+        sel.appendChild(o);
+      }
+    }
+
+    function clearViForm() {
+      $("vi_id").value = "";
+      $("vi_name").value = "default";
+      $("vi_persona").value = "";
+      $("vi_is_default").checked = true;
+      $("vi_appearance").value = "";
+      $("vi_face").value = "";
+      $("vi_hair").value = "";
+      $("vi_wardrobe").value = "";
+      $("vi_lighting").value = "";
+      $("vi_setting").value = "";
+      $("vi_camera").value = "";
+      $("vi_must").value = "";
+      $("vi_never").value = "";
+      $("vi_prompt").value = "";
+      $("vi_url").value = "";
+      $("vi_caption").value = "";
+      $("vi_kind").value = "face";
+      $("vi_file").value = "";
+      $("viRefs").innerHTML = "";
+    }
+
+    async function openViForm(row) {
+      $("viForm").style.display = "block";
+      fillPersonaSelect(row && row.persona_id);
+      if (!row) {
+        viSelectedId = null;
+        viImages = [];
+        clearViForm();
+        renderViList();
+        return;
+      }
+      viSelectedId = row.id;
+      $("vi_id").value = row.id;
+      $("vi_name").value = row.name || "default";
+      $("vi_persona").value = row.persona_id || "";
+      $("vi_is_default").checked = !!row.is_default;
+      $("vi_appearance").value = row.appearance_definition || "";
+      $("vi_face").value = row.face_and_features || "";
+      $("vi_hair").value = row.hair_and_styling || "";
+      $("vi_wardrobe").value = row.wardrobe_and_palette || "";
+      $("vi_lighting").value = row.lighting_and_grade || "";
+      $("vi_setting").value = row.setting_and_props || "";
+      $("vi_camera").value = row.camera_and_framing || "";
+      $("vi_must").value = row.must_include || "";
+      $("vi_never").value = row.never_include || "";
+      $("vi_prompt").value = row.prompt_block || "";
+      viImages = await loadViImages(row.id);
+      await renderViRefs();
+      renderViList();
+    }
+
+    async function renderViRefs() {
+      const host = $("viRefs");
+      host.innerHTML = "";
+      for (const img of viImages) {
+        const wrap = document.createElement("div");
+        wrap.className = "thumb";
+        const pic = document.createElement("img");
+        pic.alt = img.caption || img.kind || "reference";
+        pic.src = await refSrc(img);
+        wrap.appendChild(pic);
+        const cap = document.createElement("div");
+        cap.className = "cap";
+        cap.textContent = (img.kind || "other") + (img.caption ? " · " + img.caption : "");
+        wrap.appendChild(cap);
+        const rm = document.createElement("button");
+        rm.type = "button";
+        rm.className = "btn secondary";
+        rm.textContent = "Remove";
+        rm.style.marginTop = "4px";
+        rm.style.padding = "6px 8px";
+        rm.style.fontSize = "11px";
+        rm.onclick = async (ev) => {
+          ev.stopPropagation();
+          const { error } = await supabase.from("visual_reference_images").delete().eq("id", img.id);
+          if (error) { $("viStatus").textContent = "Remove failed: " + error.message; return; }
+          viImages = viImages.filter((x) => x.id !== img.id);
+          await renderViRefs();
+        };
+        wrap.appendChild(rm);
+        host.appendChild(wrap);
+      }
+    }
+
+    function fieldsToRow() {
+      return {
+        name: $("vi_name").value.trim() || "default",
+        persona_id: $("vi_persona").value || null,
+        is_default: $("vi_is_default").checked,
+        appearance_definition: $("vi_appearance").value || null,
+        face_and_features: $("vi_face").value || null,
+        hair_and_styling: $("vi_hair").value || null,
+        wardrobe_and_palette: $("vi_wardrobe").value || null,
+        lighting_and_grade: $("vi_lighting").value || null,
+        setting_and_props: $("vi_setting").value || null,
+        camera_and_framing: $("vi_camera").value || null,
+        must_include: $("vi_must").value || null,
+        never_include: $("vi_never").value || null,
+        prompt_block: $("vi_prompt").value || null,
+        status: "active",
+      };
+    }
+
+    async function saveVi() {
+      const payload = fieldsToRow();
+      if (!(payload.prompt_block || "").trim()) payload.prompt_block = composeViBlock(payload);
+      payload.artist_id = id;
+      payload.updated_at = new Date().toISOString();
+      const existingId = $("vi_id").value || null;
+      if (payload.is_default) {
+        let q = supabase.from("visual_identities").update({ is_default: false, updated_at: payload.updated_at })
+          .eq("artist_id", id).eq("is_default", true);
+        q = payload.persona_id ? q.eq("persona_id", payload.persona_id) : q.is("persona_id", null);
+        if (existingId) q = q.neq("id", existingId);
+        const unset = await q;
+        if (unset.error) $("viStatus").textContent = "Could not unset other defaults: " + unset.error.message;
+      }
+      let res;
+      if (existingId) {
+        const cur = viRows.find((x) => x.id === existingId);
+        payload.version = ((cur && cur.version) || 1) + 1;
+        res = await supabase.from("visual_identities").update(payload).eq("id", existingId).eq("artist_id", id).select("*").single();
+      } else {
+        res = await supabase.from("visual_identities").insert(payload).select("*").single();
+      }
+      if (res.error) { $("viStatus").textContent = "Save failed: " + res.error.message; return; }
+      $("viStatus").textContent = "Identity saved.";
+      $("vi_prompt").value = res.data.prompt_block || payload.prompt_block || "";
+      await refreshVisual(res.data.id);
+    }
+
+    async function addViRef() {
+      const identityId = $("vi_id").value;
+      if (!identityId) { $("viStatus").textContent = "Save the identity first, then add images."; return; }
+      const file = $("vi_file").files && $("vi_file").files[0];
+      const pasted = ($("vi_url").value || "").trim();
+      let storage_path = null;
+      let public_url = pasted || null;
+      if (file) {
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "_");
+        const path = id + "/" + identityId + "/" + Date.now() + "-" + safeName;
+        const up = await supabase.storage.from("visual-identity").upload(path, file, { upsert: false });
+        if (up.error) {
+          $("viStatus").textContent = "Storage upload failed: " + up.error.message;
+          if (!pasted) return;
+        } else {
+          storage_path = path;
+        }
+      }
+      if (!storage_path && !public_url) {
+        $("viStatus").textContent = "Choose a file or paste a URL.";
+        return;
+      }
+      const maxOrder = viImages.reduce((m, x) => Math.max(m, x.sort_order || 0), 0);
+      const { data, error } = await supabase.from("visual_reference_images").insert({
+        visual_identity_id: identityId,
+        artist_id: id,
+        storage_path,
+        public_url,
+        caption: $("vi_caption").value || null,
+        kind: $("vi_kind").value || "other",
+        sort_order: maxOrder + 1,
+      }).select("*").single();
+      if (error) { $("viStatus").textContent = "Image row failed: " + error.message; return; }
+      viImages.push(data);
+      $("vi_file").value = "";
+      $("vi_url").value = "";
+      $("vi_caption").value = "";
+      await renderViRefs();
+      $("viStatus").textContent = "Reference added.";
+    }
+
+    async function refreshVisual(selectId) {
+      viRows = await loadIdentities();
+      if (selectId) viSelectedId = selectId;
+      const hasDefaultArtist = viRows.some((v) => !v.persona_id && v.is_default && (v.status || "active") === "active");
+      return hasDefaultArtist;
+    }
+
+    async function load(){
+      $("statusLine").textContent = "Loading…";
+
+      const { data, error } = await supabase.from("artists").select("*").eq("id", id).single();
+      if (error) { $("statusLine").textContent = "Error: " + error.message; return; }
+
+      $("title").textContent = data.name ? data.name : "Artist";
+      $("name").textContent = safe(data.name);
+      $("ytChan").textContent = safe(data.youtube_chan);
+
+      $("tagline").textContent = safe(data.tagline);
+      $("artistAbout").textContent = safe(data.artist_about);
+
+      $("pillLane").textContent = `lane: ${data.default_lane || "—"}`;
+      $("pillPersona").textContent = `persona: ${data.default_perso ? "set" : "—"}`;
+      $("pillHandle").textContent = `handle: ${data.channel_hand ? ("@" + String(data.channel_hand).replace(/^@/,"")) : "—"}`;
+
+      viPersonas = await loadPersonas();
+      fillPersonaSelect(null);
+      const hasDefaultArtist = await refreshVisual(null);
+      setupPill(data, !hasDefaultArtist);
+      renderViList();
+
+      $("mainGenre").textContent = safe(data.main_genre);
+      $("secondaryGenre").textContent = safe(data.secondary_genre);
+      $("voiceIdentity").textContent = data.voice_identity ? data.voice_identity : "—";
+      $("mustInclude").textContent = data.must_include ? data.must_include : "—";
+      $("neverInclude").textContent = data.never_include ? data.never_include : "—";
+      $("sunoVoiceAnchor").textContent = data.suno_voice_anchor ? data.suno_voice_anchor : "—";
+
+      // Default playlist (single)
+      const plEnabledPill = $("plEnabled");
+      const plTitle = $("plTitle");
+      const plDesc = $("plDesc");
+
+      if (!data.default_playlist_enabled){
+        plEnabledPill.textContent = "enabled: NO";
+        plEnabledPill.classList.remove("ok");
+        plEnabledPill.classList.add("warn");
+        plTitle.textContent = "title: —";
+        plDesc.textContent = "Default playlists are disabled for this artist.";
+      } else {
+        plEnabledPill.textContent = "enabled: YES ✅";
+        plEnabledPill.classList.remove("warn");
+        plEnabledPill.classList.add("ok");
+
+        const { data: pls, error: plErr } = await supabase
+          .from("artist_playlists")
+          .select("id,title,description,sort_order")
+          .eq("artist_id", id);
+
+        if (plErr){
+          plTitle.textContent = "title: —";
+          plDesc.textContent = "Could not load playlists: " + safe(plErr.message);
+        } else if (!pls || !pls.length){
+          plTitle.textContent = "title: —";
+          plDesc.textContent = "No default playlists saved yet.";
+        } else {
+          // Sort client-side to avoid PostgREST 400 if sort_order isn't exposed
+          const sorted = [...pls].sort((a,b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+          const p = sorted[0]; // default = first by sort_order
+          plTitle.textContent = "title: " + safe(p.title);
+          plDesc.textContent = p.description ? String(p.description) : "—";
+        }
+      }
+
+      const dna = [
+        "=== ARTIST DNA ===",
+        `Main Genre: ${safe(data.main_genre)}`,
+        `Secondary Genre: ${safe(data.secondary_genre)}`,
+        `Voice Identity: ${data.voice_identity ? data.voice_identity : "—"}`,
+        `Must Include: ${data.must_include ? data.must_include : "—"}`,
+        `Never Include: ${data.never_include ? data.never_include : "—"}`,
+        `Suno Voice Anchor: ${data.suno_voice_anchor ? data.suno_voice_anchor : "—"}`,
+      ].join("\\n");
+      $("dnaPreview").textContent = dna;
+
+      $("btnCopyDNA").onclick = async () => {
+        try { await navigator.clipboard.writeText(dna); } catch {}
+      };
+
+      $("thumbDefault").textContent = data.thumb_use_artist_default ? "YES" : "NO";
+      $("ytAbout").textContent = data.youtube_about ? data.youtube_about : "—";
+      $("thumbLong").textContent = data.thumbnail_style_long ? data.thumbnail_style_long : "—";
+
+      // Blueprint display
+      try {
+        $("blueprintBox").textContent = data.blueprint ? JSON.stringify(data.blueprint, null, 2) : "{}";
+      } catch {
+        $("blueprintBox").textContent = "(invalid json in blueprint)";
+      }
+
+      const linksGrid = $("linksGrid");
+      linksGrid.innerHTML = "";
+      addLink(linksGrid, "Spotify", data.spotify_url);
+      addLink(linksGrid, "Bandcamp", data.bandcamp_ur);
+      addLink(linksGrid, "Apple Music", data.apple_music_);
+      addLink(linksGrid, "SoundCloud", data.soundcloud_u);
+      addLink(linksGrid, "YouTube", data.youtube_url);
+      addLink(linksGrid, "Website", data.website_url);
+      addLink(linksGrid, "Beacons", data.beacons_url);
+      addLink(linksGrid, "TikTok", data.tiktok_url);
+      addLink(linksGrid, "Facebook", data.facebook_url);
+
+      $("btnEdit").href = `./artist-edit.html?id=${encodeURIComponent(id)}`;
+
+      $("statusLine").textContent = "Ready ✅";
+    }
+
+    $("btnLogout").onclick = async () => {
+      await supabase.auth.signOut();
+      window.location.href = "./index.html";
+    };
+
+    $("btnViNew").onclick = () => openViForm(null);
+    $("btnViCancel").onclick = () => { $("viForm").style.display = "none"; viSelectedId = null; renderViList(); };
+    $("btnViSave").onclick = saveVi;
+    $("btnViAddRef").onclick = addViRef;
+    $("btnCopyVi").onclick = async () => {
+      const row = viRows.find((x) => x.id === viSelectedId) || viRows.find((x) => !x.persona_id && x.is_default) || viRows[0];
+      const block = composeViBlock(row);
+      try { await navigator.clipboard.writeText(block); } catch {}
+    };
+
+    await load();
+  </script>
+  <script type="module" src="svs-nav.js"></script>
+</body>
+</html>
