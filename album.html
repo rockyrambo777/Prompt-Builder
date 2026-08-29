@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SVS – Album</title>
+  <link rel="stylesheet" href="svs.css" />
+</head>
+<body>
+  <div id="svs-nav"></div>
+  <div class="wrap wrap-narrow">
+    <div class="top">
+      <div>
+        <h1 id="pageTitle">Album</h1>
+        <div id="who" class="muted"></div>
+      </div>
+      <div class="row">
+        <button id="btnSave" class="btn primary" style="display:none">Save</button>
+      </div>
+    </div>
+    <div id="msg" class="msg muted"></div>
+    <div id="listView" style="display:none"></div>
+    <div id="detailView" style="display:none"></div>
+  </div>
+
+  <script type="module" src="svs-nav.js"></script>
+  <script type="module">
+    import { supabase, requireSessionOrRedirect } from "./app.js";
+
+    const $ = (id) => document.getElementById(id);
+    const params = new URLSearchParams(location.search);
+    const albumId = (params.get("id") || "").trim() || null;
+
+    const session = await requireSessionOrRedirect();
+    $("who").textContent = "Signed in: " + session.user.email;
+
+    function safe(v) { return (v === null || v === undefined) ? "" : String(v); }
+    function el(tag, cls, text) {
+      const n = document.createElement(tag);
+      if (cls) n.className = cls;
+      if (text != null) n.textContent = text;
+      return n;
+    }
+    function field(label, id, value, tag) {
+      const wrap = el("label", "field");
+      wrap.appendChild(el("span", "", label));
+      const input = document.createElement(tag || "input");
+      input.id = id;
+      if (tag === "textarea") input.value = safe(value);
+      else if (tag === "select") { /* filled by caller */ }
+      else { input.type = "text"; input.value = safe(value); }
+      wrap.appendChild(input);
+      return wrap;
+    }
+    function knownHas(row, key) { return row && Object.prototype.hasOwnProperty.call(row, key); }
+    function pickPayload(row, fields) {
+      const payload = {};
+      for (const [k, v] of Object.entries(fields)) {
+        if (knownHas(row, k)) payload[k] = v === "" ? null : v;
+      }
+      return payload;
+    }
+    function lyricsReady(song) {
+      return !!song.lyrics_done || safe(song.lyrics).trim().length > 0;
+    }
+
+    async function loadPersonas(artistId) {
+      const { data, error } = await supabase
+        .from("artists_personas")
+        .select("id,label,is_active")
+        .eq("artists_id", artistId)
+        .order("label");
+      if (error) return [];
+      return (data || []).filter((p) => p.is_active !== false);
+    }
+
+    async function loadAlbumList() {
+      $("pageTitle").textContent = "Albums";
+      $("listView").style.display = "";
+      $("detailView").style.display = "none";
+      $("btnSave").style.display = "none";
+      $("msg").textContent = "Loading albums…";
+
+      const { data: artists, error: aErr } = await supabase
+        .from("artists")
+        .select("id,name,is_active")
+        .eq("is_active", true)
+        .order("name");
+      if (aErr) { $("msg").textContent = "Error: " + aErr.message; return; }
+
+      const activeIds = new Set((artists || []).map((a) => a.id));
+      const nameById = {};
+      for (const a of artists || []) nameById[a.id] = a.name || "(unnamed)";
+
+      const { data: albums, error } = await supabase
+        .from("albums")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) { $("msg").textContent = "Error: " + error.message; return; }
+
+      const list = (albums || []).filter((al) => activeIds.has(al.artist_id));
+      $("msg").textContent = list.length ? list.length + " album(s) for active artists." : "No albums for active artists.";
+
+      const host = $("listView");
+      host.innerHTML = "";
+      const card = el("div", "card");
+      if (!list.length) {
+        card.appendChild(el("div", "muted", "No albums yet."));
+        host.appendChild(card);
+        return;
+      }
+      const ul = el("ul", "plain");
+      for (const al of list) {
+        const li = el("li", "item");
+        li.onclick = () => { location.href = "./album.html?id=" + encodeURIComponent(al.id); };
+        const left = el("div");
+        left.appendChild(el("div", "title", safe(al.title) || "(untitled album)"));
+        const meta = [
+          nameById[al.artist_id] || "Artist",
+          al.album_type || "",
+          al.status || "",
+          al.production_status || ""
+        ].filter(Boolean).join(" · ");
+        left.appendChild(el("div", "meta", meta));
+        li.appendChild(left);
+        li.appendChild(el("div", "pill", "Open"));
+        ul.appendChild(li);
+      }
+      card.appendChild(ul);
+      host.appendChild(card);
+    }
+
+    let albumRow = null;
+    let artistRow = null;
+
+    async function loadAlbumDetail() {
+      $("listView").style.display = "none";
+      $("detailView").style.display = "";
+      $("btnSave").style.display = "";
+      $("msg").textContent = "Loading album…";
+
+      const { data: album, error } = await supabase.from("albums").select("*").eq("id", albumId).maybeSingle();
+      if (error) { $("msg").textContent = "Error: " + error.message; return; }
+      if (!album) { $("msg").textContent = "Album not found."; return; }
+      albumRow = album;
+
+      const { data: artist } = await supabase.from("artists").select("*").eq("id", album.artist_id).maybeSingle();
+      artistRow = artist || {};
+      $("pageTitle").textContent = safe(album.title) || "Album";
+
+      const personas = await loadPersonas(album.artist_id);
+
+      const { data: songs, error: sErr } = await supabase
+        .from("songs")
+        .select("*")
+        .eq("album_id", album.id)
+        .order("track_number", { ascending: true });
+      if (sErr) { $("msg").textContent = "Error: " + sErr.message; return; }
+      const tracklist = songs || [];
+      const lyricsCount = tracklist.filter(lyricsReady).length;
+
+      const host = $("detailView");
+      host.innerHTML = "";
+
+      const head = el("div", "card");
+      const chips = el("div", "chips");
+      chips.appendChild(el("span", "chip", "Artist: " + (safe(artistRow.name) || "—")));
+      if (album.album_type) chips.appendChild(el("span", "chip", "Type: " + album.album_type));
+      if (album.status) chips.appendChild(el("span", "pill", "status: " + album.status));
+      if (album.production_status) chips.appendChild(el("span", "pill", "prod: " + album.production_status));
+      head.appendChild(chips);
+
+      const progress = el("div", "chips");
+      progress.style.marginTop = "12px";
+      progress.appendChild(el("span", lyricsCount === tracklist.length && tracklist.length ? "pill ok" : "pill warn",
+        "Music " + lyricsCount + "/" + tracklist.length + " lyrics"));
+      progress.appendChild(el("span", "pill", "Long video — later"));
+      progress.appendChild(el("span", "pill", "Shorts — later"));
+      progress.appendChild(el("span", "pill", "Community — later"));
+      progress.appendChild(el("span", "pill", "Distro — later"));
+      progress.appendChild(el("span", "pill", "YouTube — later"));
+      head.appendChild(progress);
+      host.appendChild(head);
+
+      const form = el("div", "card");
+      form.appendChild(el("h2", "", "Album details"));
+      const grid = el("div", "form-grid");
+
+      const titleF = field("Title", "f_title", album.title);
+      grid.appendChild(titleF);
+
+      const artistF = el("label", "field");
+      artistF.appendChild(el("span", "", "Artist"));
+      const artistIn = document.createElement("input");
+      artistIn.type = "text";
+      artistIn.value = safe(artistRow.name);
+      artistIn.readOnly = true;
+      artistF.appendChild(artistIn);
+      grid.appendChild(artistF);
+
+      const personaF = el("label", "field");
+      personaF.appendChild(el("span", "", "Persona"));
+      if (personas.length) {
+        const sel = document.createElement("select");
+        sel.id = "f_persona_id";
+        const empty = document.createElement("option");
+        empty.value = "";
+        empty.textContent = "Default (artist DNA)";
+        sel.appendChild(empty);
+        for (const p of personas) {
+          const o = document.createElement("option");
+          o.value = p.id;
+          o.textContent = p.label || "Persona";
+          if (album.persona_id === p.id) o.selected = true;
+          sel.appendChild(o);
+        }
+        personaF.appendChild(sel);
+      } else {
+        personaF.appendChild(el("div", "muted", "No personas on this artist."));
+        const hidden = document.createElement("input");
+        hidden.type = "hidden";
+        hidden.id = "f_persona_id";
+        hidden.value = safe(album.persona_id);
+        personaF.appendChild(hidden);
+      }
+      grid.appendChild(personaF);
+
+      const typeF = field("Album type", "f_album_type", album.album_type);
+      grid.appendChild(typeF);
+
+      const statusF = el("label", "field");
+      statusF.appendChild(el("span", "", "Album status"));
+      const statusSel = document.createElement("select");
+      statusSel.id = "f_status";
+      for (const s of ["", "draft", "ideation", "approved", "producing", "released"]) {
+        const o = document.createElement("option");
+        o.value = s;
+        o.textContent = s || "—";
+        if ((album.status || "") === s) o.selected = true;
+        statusSel.appendChild(o);
+      }
+      statusF.appendChild(statusSel);
+      grid.appendChild(statusF);
+
+      const prodF = field("Production status", "f_production_status", album.production_status);
+      grid.appendChild(prodF);
+      form.appendChild(grid);
+
+      form.appendChild(field("Concept / theme", "f_concept", album.concept || album.theme, "textarea"));
+      if (knownHas(album, "theme") && album.theme && album.theme !== album.concept) {
+        const themeNote = el("div", "hint", "Existing theme column: " + safe(album.theme));
+        form.appendChild(themeNote);
+        const themeHidden = field("Theme", "f_theme", album.theme, "textarea");
+        form.appendChild(themeHidden);
+      } else {
+        const themeHidden = document.createElement("input");
+        themeHidden.type = "hidden";
+        themeHidden.id = "f_theme";
+        themeHidden.value = safe(album.theme || album.concept);
+        form.appendChild(themeHidden);
+      }
+
+      const moodGrid = el("div", "form-grid");
+      moodGrid.appendChild(field("Mood", "f_mood", album.mood));
+      moodGrid.appendChild(field("Style", "f_style", album.style));
+      form.appendChild(moodGrid);
+
+      form.appendChild(field("Human direction", "f_human_direction", album.human_direction, "textarea"));
+      form.appendChild(field("Notes", "f_notes", album.notes, "textarea"));
+      form.appendChild(field("Release strategy", "f_release_strategy", album.release_strategy, "textarea"));
+
+      const artGrid = el("div", "form-grid");
+      artGrid.appendChild(field("Artwork URL", "f_artwork_url", album.artwork_url));
+      artGrid.appendChild(field("Artwork notes", "f_artwork_notes", album.artwork_notes));
+      artGrid.appendChild(field("Drive folder URL", "f_drive_folder_url", album.drive_folder_url));
+      artGrid.appendChild(field("Drive folder id", "f_drive_folder_id", album.drive_folder_id));
+      form.appendChild(artGrid);
+      host.appendChild(form);
+
+      const tracks = el("div", "card");
+      tracks.appendChild(el("h2", "", "Track order"));
+      if (!tracklist.length) {
+        tracks.appendChild(el("div", "muted", "No songs on this album yet."));
+      } else {
+        const table = el("table", "data");
+        table.innerHTML = "<thead><tr><th>#</th><th>Title</th><th>Lyrics</th><th>Status</th></tr></thead>";
+        const tb = document.createElement("tbody");
+        for (const s of tracklist) {
+          const tr = document.createElement("tr");
+          const ready = lyricsReady(s);
+          tr.innerHTML =
+            "<td>" + (s.track_number != null ? s.track_number : "—") + "</td>" +
+            "<td><a class='link' href='./song.html?id=" + encodeURIComponent(s.id) + "'>" +
+            (safe(s.title) || "(untitled)") + "</a></td>" +
+            "<td>" + (ready ? "yes" : "missing") + "</td>" +
+            "<td>" + safe(s.production_status || "") + "</td>";
+          tb.appendChild(tr);
+        }
+        table.appendChild(tb);
+        tracks.appendChild(table);
+      }
+      host.appendChild(tracks);
+
+      $("msg").textContent = "Loaded.";
+    }
+
+    async function saveAlbum() {
+      if (!albumRow) return;
+      $("msg").textContent = "Saving…";
+      $("msg").className = "msg muted";
+      const fields = {
+        title: $("f_title")?.value,
+        persona_id: $("f_persona_id")?.value || null,
+        album_type: $("f_album_type")?.value,
+        status: $("f_status")?.value,
+        production_status: $("f_production_status")?.value,
+        concept: $("f_concept")?.value,
+        theme: $("f_theme")?.value,
+        mood: $("f_mood")?.value,
+        style: $("f_style")?.value,
+        human_direction: $("f_human_direction")?.value,
+        notes: $("f_notes")?.value,
+        release_strategy: $("f_release_strategy")?.value,
+        artwork_url: $("f_artwork_url")?.value,
+        artwork_notes: $("f_artwork_notes")?.value,
+        drive_folder_url: $("f_drive_folder_url")?.value,
+        drive_folder_id: $("f_drive_folder_id")?.value,
+      };
+      const payload = pickPayload(albumRow, fields);
+      let q = supabase.from("albums").update(payload).eq("id", albumRow.id);
+      if (knownHas(albumRow, "version")) {
+        payload.version = (albumRow.version || 1) + 1;
+        if (knownHas(albumRow, "updated_at")) payload.updated_at = new Date().toISOString();
+        q = supabase.from("albums").update(payload).eq("id", albumRow.id).eq("version", albumRow.version);
+      }
+      const { data, error } = await q.select("*");
+      if (error) {
+        $("msg").textContent = "Save failed: " + error.message;
+        $("msg").className = "msg error";
+        return;
+      }
+      if (knownHas(albumRow, "version") && (!data || !data.length)) {
+        $("msg").textContent = "Someone else saved this album. Refresh, then save again.";
+        $("msg").className = "msg error";
+        return;
+      }
+      albumRow = (data && data[0]) || albumRow;
+      $("msg").textContent = "Saved.";
+      $("msg").className = "msg success";
+    }
+
+    $("btnSave").onclick = saveAlbum;
+
+    if (albumId) await loadAlbumDetail();
+    else await loadAlbumList();
+  </script>
+</body>
+</html>
