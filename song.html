@@ -43,6 +43,7 @@
   <script type="module" src="svs-nav.js"></script>
   <script type="module">
     import { supabase, requireSessionOrRedirect } from "./app.js";
+    import { mountPackageTabs } from "./svs-song-tabs.js";
 
     const $ = (id) => document.getElementById(id);
     const params = new URLSearchParams(location.search);
@@ -342,7 +343,14 @@
     $("btnCopySuno").onclick = () => copyText(val("f_suno_prompt"), $("btnCopySuno"));
     $("btnSave").onclick = saveSong;
 
-    if (songId) await loadSong();
+    if (songId) {
+      await loadSong();
+      await mountPackageTabs({
+        songId,
+        artistId: albumRow && albumRow.artist_id,
+        albumId: albumRow && albumRow.id
+      });
+    }
   </script>
 </body>
 </html>
