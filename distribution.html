@@ -38,6 +38,7 @@
             <option value="youtube">YouTube</option>
             <option value="ditto">Ditto</option>
             <option value="bandcamp">Bandcamp</option>
+            <option value="suno">Suno</option>
           </select>
         </label>
         <label class="field" style="margin:0; min-width:180px;">
@@ -45,6 +46,8 @@
           <select id="fStatus">
             <option value="">All statuses</option>
             <option value="missing">Missing</option>
+            <option value="not_planned">Not Planned</option>
+            <option value="missing_expected">Missing — Expected</option>
             <option value="not_prepared">not_prepared</option>
             <option value="needs_review">Needs Review</option>
             <option value="draft">Draft</option>
@@ -62,7 +65,7 @@
 
     <div class="card">
       <h2>Albums</h2>
-      <div class="hint">Missing work is marked in red. Album name opens the album page.</div>
+      <div class="hint">Missing work is marked in red. Bandcamp Not Planned is healthy (pill.ok), not missing. Missing — Expected is the only Bandcamp-absent error. Album name opens the album page.</div>
       <div id="tableHost" style="margin-top:12px;"></div>
     </div>
 
@@ -156,17 +159,51 @@
         return d.toISOString().replace("T", " ").slice(0, 16) + " UTC";
       }
     }
+    function isNotPlanned(status) {
+      const s = safe(status).toLowerCase();
+      return s === "not_planned" || s === "not planned" || s === "not distributed on bandcamp";
+    }
+    function isMissingExpected(status) {
+      const s = safe(status).toLowerCase();
+      return s === "missing_expected" || s === "missing — expected" || s === "missing-expected";
+    }
     function pillClass(status) {
       const s = safe(status).toLowerCase();
+      if (isNotPlanned(s)) return "ok";
+      if (isMissingExpected(s)) return "bad";
       if (!s || s === "missing" || s === "missing externally" || s === "not_prepared" || s === "missing_externally" || s === "missing_in_svs") return "bad";
-      if (s === "released" || s === "published" || s === "synced" || s === "ok") return "ok";
+      if (s === "released" || s === "published" || s === "synced" || s === "ok" || s === "matched") return "ok";
       if (s === "needs review" || s === "needs_review" || s === "draft" || s === "ready" || s === "ready_for_approval"
-        || s === "preparing" || s === "uploaded_draft" || s === "approved" || s === "submitted") return "warn";
+        || s === "preparing" || s === "uploaded_draft" || s === "approved" || s === "submitted" || s === "planned") return "warn";
       return "warn";
     }
     function statusLabel(row, fallback) {
       if (!row) return fallback || "Missing";
       return row.pipeline_status || row.sync_status || row.submission_status || row.approval_status || fallback || "Missing";
+    }
+    function bandcampStatusLabel(al, rel) {
+      if (rel) {
+        const st = rel.pipeline_status || rel.sync_status || rel.submission_status || rel.approval_status;
+        if (st) {
+          if (isNotPlanned(st)) return "Not Planned";
+          if (isMissingExpected(st)) return "Missing — Expected";
+          return st;
+        }
+      }
+      const intention = al && (al.bandcamp_intention || al.bandcamp_recon_status);
+      if (intention) {
+        if (isNotPlanned(intention)) return "Not Planned";
+        if (isMissingExpected(intention)) return "Missing — Expected";
+        return intention;
+      }
+      if (al && al.bandcamp_intended === false) return "Not Planned";
+      return "Missing";
+    }
+    function songHasSuno(song) {
+      const st = safe(song.suno_recon_status).toLowerCase();
+      if (st === "matched" || st === "synced") return true;
+      if (st && (st.indexOf("missing") >= 0 || st.indexOf("different") >= 0 || st.indexOf("multiple") >= 0 || st === "no match" || st === "no_match")) return false;
+      return !!(safe(song.suno_share_url).trim() || safe(song.lyrics).trim());
     }
     function artistBcUrl(ar) {
       return ar.bandcamp_url || ar.bandcamp_ur || "";
@@ -180,8 +217,13 @@
       if (!filter) return true;
       const f = filter.toLowerCase();
       const norm = values.map((v) => safe(v).toLowerCase());
-      if (f === "missing") return norm.some((v) => !v || v === "missing" || v === "not_prepared" || v === "missing externally");
-      if (f === "released") return norm.some((v) => v === "released" || v === "published" || v === "synced");
+      if (f === "missing") return norm.some((v) => {
+        if (isNotPlanned(v)) return false;
+        return !v || v === "missing" || v === "not_prepared" || v === "missing externally" || v === "missing_externally" || isMissingExpected(v);
+      });
+      if (f === "not_planned") return norm.some((v) => isNotPlanned(v));
+      if (f === "missing_expected") return norm.some((v) => isMissingExpected(v));
+      if (f === "released") return norm.some((v) => v === "released" || v === "published" || v === "synced" || v === "matched");
       if (f === "ready") return norm.some((v) => v === "ready" || v === "ready_for_approval");
       if (f === "needs_review") return norm.some((v) => v === "needs_review" || v === "needs review");
       if (f === "draft") return norm.some((v) => v === "draft" || v === "uploaded_draft");
@@ -222,7 +264,9 @@
       if (alRes.error && !alRes.missing) { $("msg").textContent = "Error: " + alRes.error.message; return false; }
       albums = alRes.rows;
 
-      let sRes = await trySelect("songs", "id,album_id,title,track_number,youtube_url");
+      let sRes = await trySelect("songs", "id,album_id,title,track_number,youtube_url,suno_recon_status,suno_share_url");
+      if (sRes.error && columnMissing(sRes.error)) sRes = await trySelect("songs", "id,album_id,title,track_number,youtube_url,suno_share_url");
+      if (sRes.error && columnMissing(sRes.error)) sRes = await trySelect("songs", "id,album_id,title,track_number,youtube_url");
       if (sRes.error && columnMissing(sRes.error)) sRes = await trySelect("songs", "id,album_id,title,track_number");
       if (sRes.error && !sRes.missing) { $("msg").textContent = "Error: " + sRes.error.message; return false; }
       songs = sRes.rows;
@@ -298,14 +342,17 @@
         if (!artistName[al.artist_id]) return false;
         const rels = relByAlbum[al.id] || {};
         const dittoSt = statusLabel(rels.ditto, "Missing");
-        const bcSt = statusLabel(rels.bandcamp, "Missing");
+        const bcSt = bandcampStatusLabel(al, rels.bandcamp);
         const tracklist = songsByAlbum[al.id] || [];
         const mapped = tracklist.filter((s) => songHasYt(s, ytBySong)).length;
         const ytSt = !tracklist.length ? "" : (mapped === 0 ? "missing" : (mapped < tracklist.length ? "needs_review" : "synced"));
+        const sunoN = tracklist.filter(songHasSuno).length;
+        const sunoSt = !tracklist.length ? "" : (sunoN === 0 ? "missing" : (sunoN < tracklist.length ? "needs_review" : "matched"));
         const values = platform === "ditto" ? [dittoSt]
           : platform === "bandcamp" ? [bcSt]
           : platform === "youtube" ? [ytSt]
-          : [dittoSt, bcSt, ytSt];
+          : platform === "suno" ? [sunoSt]
+          : [dittoSt, bcSt, ytSt, sunoSt];
         return statusMatches(statusF, values);
       });
 
@@ -316,17 +363,21 @@
 
       const table = document.createElement("table");
       table.className = "data";
-      table.innerHTML = "<thead><tr><th>Artist</th><th>Album</th><th>Ditto</th><th>Bandcamp</th><th>YouTube</th></tr></thead>";
+      table.innerHTML = "<thead><tr><th>Artist</th><th>Album</th><th>Ditto</th><th>Bandcamp</th><th>YouTube</th><th>Suno</th></tr></thead>";
       const tb = document.createElement("tbody");
       for (const al of visibleAlbums) {
         const rels = relByAlbum[al.id] || {};
         const dittoSt = statusLabel(rels.ditto, "Missing");
-        const bcSt = statusLabel(rels.bandcamp, "Missing");
+        const bcSt = bandcampStatusLabel(al, rels.bandcamp);
         const tracklist = songsByAlbum[al.id] || [];
         const mapped = tracklist.filter((s) => songHasYt(s, ytBySong)).length;
         const ytLabel = tracklist.length ? (mapped + "/" + tracklist.length) : "0/0";
         const ytCls = !tracklist.length ? "" : (mapped === 0 ? "bad" : (mapped < tracklist.length ? "warn" : "ok"));
-        const missingAny = dittoSt === "Missing" || bcSt === "Missing" || (tracklist.length && mapped === 0);
+        const sunoN = tracklist.filter(songHasSuno).length;
+        const sunoLabel = tracklist.length ? (sunoN + "/" + tracklist.length) : "0/0";
+        const sunoCls = !tracklist.length ? "" : (sunoN === 0 ? "bad" : (sunoN < tracklist.length ? "warn" : "ok"));
+        const bcIsMissing = isMissingExpected(bcSt) || (bcSt === "Missing" && !isNotPlanned(bcSt));
+        const missingAny = dittoSt === "Missing" || bcIsMissing || (tracklist.length && mapped === 0);
         const tr = document.createElement("tr");
         if (missingAny) tr.className = "missing-row";
         tr.innerHTML =
@@ -334,7 +385,8 @@
           "<td><a class='link' href='./album.html?id=" + encodeURIComponent(al.id) + "'>" + esc(al.title || "(untitled)") + "</a></td>" +
           "<td><span class='pill " + pillClass(dittoSt) + "'>" + esc(dittoSt) + "</span></td>" +
           "<td><span class='pill " + pillClass(bcSt) + "'>" + esc(bcSt) + "</span></td>" +
-          "<td><span class='pill " + ytCls + "'>YouTube " + esc(ytLabel) + "</span></td>";
+          "<td><span class='pill " + ytCls + "'>YouTube " + esc(ytLabel) + "</span></td>" +
+          "<td><span class='pill " + sunoCls + "'>Suno " + esc(sunoLabel) + "</span></td>";
         tb.appendChild(tr);
       }
       table.appendChild(tb);
