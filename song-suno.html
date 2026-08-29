@@ -51,29 +51,47 @@
       <div class="row" style="justify-content:space-between;">
         <div class="muted" id="statusLine"></div>
         <div class="row">
-          <button id="btnCopyPack" class="btn copy">Copy Pack</button>
+          <button id="btnProduction" class="btn secondary">Production</button>
+          <button id="btnVideo" class="btn secondary">Video</button>
+          <button id="btnPackaging" class="btn secondary">Packaging</button>
           <button id="btnSaveBack" class="btn primary">Save & Back</button>
         </div>
       </div>
 
-      <h2 style="margin:18px 0 8px;">Suno Copy Pack (paste into Suno)</h2>
-      <textarea id="pack" class="mono" readonly></textarea>
-      <div class="hint">
-        This is cleaned for easy Suno paste (no <code>```</code> fences).  
-        Title is included so you can quickly copy it into Suno’s title field.
+      <h2 style="margin:18px 0 8px;">1. Title</h2>
+      <input id="titleField" class="mono" readonly />
+      <div class="row" style="margin-top:8px;">
+        <button id="btnCopyTitle" class="btn copy">Copy Title</button>
       </div>
 
-      <h2 style="margin:18px 0 8px;">Suno Share URL (paste after song is created)</h2>
+      <h2 style="margin:18px 0 8px;">2. Style of Music (Suno prompt)</h2>
+      <textarea id="styleField" class="mono" style="min-height:140px;"></textarea>
+      <div class="row" style="margin-top:8px;">
+        <button id="btnCopyStyle" class="btn copy">Copy Style Prompt</button>
+      </div>
+      <div class="hint">Paste this into Suno’s Style of Music box.</div>
+
+      <h2 style="margin:18px 0 8px;">3. Lyrics (Suno sections)</h2>
+      <textarea id="lyricsField" class="mono" style="min-height:360px;"></textarea>
+      <div class="row" style="margin-top:8px;">
+        <button id="btnCopyLyrics" class="btn copy">Copy Lyrics</button>
+        <button id="btnCopyBoth" class="btn copy">Copy Style + Lyrics</button>
+      </div>
+      <div class="hint">
+        Paste this into Suno’s Lyrics box. Tagged as [Chorus], [Verse 1], [Bridge] so the musical build is clear.
+        Already-tagged lyrics are kept. Untagged lyrics are grouped into those sections.
+      </div>
+
+      <h2 style="margin:18px 0 8px;">Suno Share URL (paste after the song is created)</h2>
       <label for="suno_share_url">Suno Share Link</label>
       <input id="suno_share_url" placeholder="https://suno.com/song/..." />
-      <div class="hint">
-        Click <b>Save & Back</b> to store this link and return to the album edit page.
-      </div>
+      <div class="hint">Click <b>Save & Back</b> to store this link and return to the album.</div>
     </div>
   </div>
 
   <script type="module">
     import { supabase, requireSessionOrRedirect } from "./app.js";
+    import { formatSunoLyrics } from "./suno-format.js";
     const $ = (id) => document.getElementById(id);
 
     const SONGS = "songs";
@@ -107,32 +125,17 @@
       if (song?.track_number) c.appendChild(chip("track: " + song.track_number));
     }
 
-    function cleanLyrics(raw){
-      let t = (raw || "").toString().trim();
-      if (!t) return "";
-      t = t.replace(/^LYRICS:\s*/i, "");
-      t = t.replace(/^```[a-zA-Z]*\s*/m, "");
-      t = t.replace(/```$/m, "");
-      t = t.trim();
-      t = t.replace(/\n{3,}/g, "\n\n");
-      return t;
+    function fillPack(){
+      $("titleField").value = (song?.title || "").trim();
+      $("styleField").value = (song?.suno_prompt || "").trim();
+      $("lyricsField").value = formatSunoLyrics(song?.lyrics || "");
     }
 
-    function buildPack(){
-      const title = (song?.title || "").trim();
-      const sp = (song?.suno_prompt || "").trim();
-      const lyr = cleanLyrics(song?.lyrics || "");
-
-      return [
-        "TITLE:",
-        title || "(set title in Suno)",
-        "",
-        "SUNO_PROMPT:",
-        sp || "(no suno prompt saved)",
-        "",
-        "LYRICS:",
-        lyr || "(no lyrics saved)"
-      ].join("\n");
+    async function copyField(id, label){
+      const t = ($(id)?.value || "").trim();
+      if (!t) return alert("Nothing to copy for " + label + ".");
+      await navigator.clipboard.writeText(t);
+      $("statusLine").textContent = "Copied " + label + " ✅";
     }
 
     async function load(){
@@ -157,7 +160,7 @@
       }
 
       $("pageTitle").textContent = `Suno Copy Pack: ${song.title || "(Untitled)"}`;
-      $("pack").value = buildPack();
+      fillPack();
       $("suno_share_url").value = song.suno_share_url || "";
       setChips();
       $("statusLine").textContent = `Song ID: ${song.id}`;
@@ -169,11 +172,27 @@
       else window.location.href = "./albums.html";
     }
 
-    $("btnCopyPack").onclick = async () => {
-      const t = $("pack").value.trim();
+    $("btnCopyTitle").onclick = () => copyField("titleField", "title");
+    $("btnCopyStyle").onclick = () => copyField("styleField", "style prompt");
+    $("btnCopyLyrics").onclick = () => copyField("lyricsField", "lyrics");
+    $("btnCopyBoth").onclick = async () => {
+      const style = ($("styleField").value || "").trim();
+      const lyrics = ($("lyricsField").value || "").trim();
+      const t = [style, lyrics].filter(Boolean).join("\n\n");
       if (!t) return alert("Nothing to copy.");
       await navigator.clipboard.writeText(t);
-      $("statusLine").textContent = "Copied ✅";
+      $("statusLine").textContent = "Copied style + lyrics ✅";
+    };
+    $("btnProduction").onclick = () => {
+      window.location.href = "./song.html?id=" + encodeURIComponent(songId);
+    };
+    $("btnVideo").onclick = () => {
+      const albumId = song?.album_id || albumIdFromUrl || "";
+      window.location.href = "./song-video.html?id=" + encodeURIComponent(songId) + (albumId ? "&album_id=" + encodeURIComponent(albumId) : "");
+    };
+    $("btnPackaging").onclick = () => {
+      const albumId = song?.album_id || albumIdFromUrl || "";
+      window.location.href = "./song-packaging.html?song_id=" + encodeURIComponent(songId) + (albumId ? "&album_id=" + encodeURIComponent(albumId) : "");
     };
 
     $("btnSaveBack").onclick = async () => {
