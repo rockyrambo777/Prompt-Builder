@@ -90,13 +90,13 @@
       if (dittoIsLive(al) && youtubeIsLive(al)) return "released";
       const albumSongs = songs.filter((s) => s.album_id === al.id);
       if (albumSongs.length && albumSongs.every((s) => {
-        const st = safe(s.production_status || s.status).toLowerCase();
+        const st = safe(s.production_status).toLowerCase();
         return st === "released" || st === "distributed";
       })) return "released";
       return safe(al.status).toLowerCase();
     }
     function displaySongStatus(s, al) {
-      const st = safe(s.production_status || s.status).toLowerCase();
+      const st = safe(s.production_status).toLowerCase();
       if (st === "released" || st === "distributed") return st || "released";
       if (al && displayAlbumStatus(al) === "released" && st && st !== "ideation" && st !== "draft") return "released";
       return st || safe(al && al.status);
@@ -198,7 +198,7 @@
 
       const queueAlbums = visibleAlbums.filter((al) => {
         if (albumId && al.id !== albumId) return false;
-        const st = displayAlbumStatus(al);
+        const st = safe(al.status);
         return st === "producing" || st === "approved";
       });
       const albumHost = $("albumList");
@@ -251,7 +251,7 @@
       if (albumIds.length) {
         const { data: sg, error: sErr } = await supabase
           .from("songs")
-          .select("id,album_id,title,track_number,lyrics,lyrics_done,production_status,status")
+          .select("id,album_id,title,track_number,lyrics,lyrics_done,production_status")
           .in("album_id", albumIds)
           .order("track_number");
         if (sErr) { $("msg").textContent = "Error: " + sErr.message; return; }
