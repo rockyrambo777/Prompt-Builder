@@ -30,10 +30,13 @@
         <div id="headline" class="muted"></div>
       </div>
       <div class="hint" style="margin-top:10px;">
-        YouTube is not the source of album structure. Official music dates are not YouTube publish dates.
-        Ditto is the source for official albums, track lists, track order, UPC, ISRC, and official release dates.
-        Factual matches wait for owner approve, then apply. Ambiguous / duplicate / date conflict / missing track / questionable album map need review (no bulk approve).
+        Full chain: SVS ↔ Suno ↔ Ditto ↔ YouTube ↔ Bandcamp. SVS is the source of truth; each platform has a different purpose.
+        Suno is creation (share URL, versions, lyrics used, prompt/style, generated date). Do not overwrite good SVS lyrics or suno_prompt when Suno differs.
+        Ditto is official commercial release (official_release_date, UPC, ISRC). YouTube is videos/Shorts/performance — never album structure; official dates are not YouTube or Suno dates.
+        Bandcamp is optional. Not Planned is healthy, not an error. Missing — Expected is the only Bandcamp-absent error.
+        Factual matches wait for owner approve, then apply. Needs review: ambiguous, duplicate, date conflict, missing track, questionable album map, different lyrics, multiple Suno versions, uncertain Bandcamp match, missing prompt, missing Suno link (propose, do not auto-write).
       </div>
+      <div id="platformHost" style="margin-top:12px;"></div>
     </div>
 
     <div class="card">
@@ -47,7 +50,7 @@
 
     <div class="card">
       <h2>Needs review</h2>
-      <div class="hint">Ambiguous titles, duplicates, date conflicts, missing tracks, questionable album mappings. No bulk approve. Questionable album mapping needs Approve then a second Confirm album mapping. Still no YouTube-derived album structure.</div>
+      <div class="hint">Ambiguous titles, duplicates, date conflicts, missing tracks, questionable album mappings, different lyrics, multiple Suno versions, uncertain Bandcamp match, missing prompt, missing Suno link. No bulk approve. Questionable album mapping needs Approve then a second Confirm album mapping. Still no YouTube-derived album structure. Do not overwrite good lyrics/prompts.</div>
       <div id="reviewHost" class="muted">Select an artist.</div>
     </div>
   </div>
@@ -70,7 +73,13 @@
 
     const REVIEW_KINDS = new Set([
       "ambiguous", "duplicate", "date_conflict", "missing_track",
-      "questionable_album_map", "missing_in_svs", "missing_externally"
+      "questionable_album_map", "missing_in_svs", "missing_externally",
+      "different", "different_lyrics", "multiple_suno_versions",
+      "uncertain_bandcamp_match", "missing_prompt", "missing_suno_link"
+    ]);
+    const PROTECTED_SONG = new Set(["lyrics", "suno_prompt"]);
+    const SUNO_VERSION_FIELDS = new Set([
+      "suno_share_url", "label", "generation_id", "lyrics", "suno_prompt", "suno_style", "generated_at"
     ]);
     const YT_FIELDS = new Set(["youtube_published_at", "youtube_url", "youtube_video_id"]);
     const OFFICIAL_FIELDS = new Set(["official_release_date"]);
@@ -170,6 +179,26 @@
       const pv = item.proposed_value;
       return !!(pv && typeof pv === "object" && !Array.isArray(pv) && pv.confirmed === true);
     }
+    function replaceExistingFlag(pv) {
+      return !!(pv && typeof pv === "object" && !Array.isArray(pv) && pv.replace_existing === true);
+    }
+    function existingNonEmptyText(currentValue, fieldName) {
+      if (currentValue == null) return false;
+      if (typeof currentValue !== "object" || Array.isArray(currentValue)) {
+        return String(currentValue).trim().length > 0;
+      }
+      const x = Object.prototype.hasOwnProperty.call(currentValue, fieldName)
+        ? currentValue[fieldName]
+        : (currentValue.value !== undefined ? currentValue.value : null);
+      return x != null && String(x).trim().length > 0;
+    }
+    function reconPillClass(status) {
+      const s = safe(status).toLowerCase();
+      if (s === "not_planned" || s === "not planned" || s === "matched" || s === "published" || s === "synced" || s === "ok") return "ok";
+      if (s === "missing_expected" || s === "missing — expected" || s === "missing" || s.indexOf("different") >= 0) return "bad";
+      if (!s) return "warn";
+      return "warn";
+    }
     function entityLabel(item) {
       const pv = item.proposed_value;
       const cv = item.current_value;
@@ -198,6 +227,49 @@
 
     function emptyHost(host, message) {
       host.innerHTML = "<div class='muted'>" + esc(message) + "</div>";
+    }
+    function renderPlatformChips(albums) {
+      const host = $("platformHost");
+      if (!host) return;
+      if (!albums || !albums.length) { host.innerHTML = ""; return; }
+      const hasRecon = albums.some((al) =>
+        Object.prototype.hasOwnProperty.call(al, "suno_recon_status")
+        || Object.prototype.hasOwnProperty.call(al, "ditto_recon_status")
+        || Object.prototype.hasOwnProperty.call(al, "youtube_recon_status")
+        || Object.prototype.hasOwnProperty.call(al, "bandcamp_recon_status")
+        || Object.prototype.hasOwnProperty.call(al, "bandcamp_intention")
+      );
+      if (!hasRecon) { host.innerHTML = ""; return; }
+      const wrap = document.createElement("div");
+      for (const al of albums) {
+        const chips = document.createElement("div");
+        chips.className = "chips";
+        chips.style.marginTop = "6px";
+        const title = document.createElement("span");
+        title.className = "muted";
+        title.textContent = (al.title || "(untitled)") + ":";
+        chips.appendChild(title);
+        const pairs = [
+          ["Suno", al.suno_recon_status],
+          ["Ditto", al.ditto_recon_status],
+          ["YouTube", al.youtube_recon_status],
+          ["Bandcamp", al.bandcamp_recon_status || al.bandcamp_intention]
+        ];
+        for (const [lab, st] of pairs) {
+          if (!st && lab !== "Bandcamp") continue;
+          const shown = lab === "Bandcamp" && (!st || String(st).toLowerCase() === "not_planned") && al.bandcamp_intended === false
+            ? "Not Planned"
+            : (String(st).toLowerCase() === "not_planned" ? "Not Planned" : (st || ""));
+          if (!shown) continue;
+          const pill = document.createElement("span");
+          pill.className = "pill " + reconPillClass(shown);
+          pill.textContent = lab + ": " + shown;
+          chips.appendChild(pill);
+        }
+        wrap.appendChild(chips);
+      }
+      host.innerHTML = "";
+      host.appendChild(wrap);
     }
 
     let currentRun = null;
@@ -252,6 +324,12 @@
       }
       if (officialDateLeak(field, pv)) {
         return { ok: false, reason: "refused_official_date_as_youtube" };
+      }
+      if (field === "official_release_date" && pv && typeof pv === "object" && !Array.isArray(pv)) {
+        const src = String(pv.source || pv.from || "");
+        if (/suno/i.test(src) || (pv.generated_at != null && pv.official_release_date == null && pv.value == null)) {
+          return { ok: false, reason: "refused_suno_date_as_official" };
+        }
       }
       if ((field === "track_number" || field === "album_id") && item.match_kind !== "factual") {
         if (!(item.match_kind === "questionable_album_map" && (confirmAlbumMap || isConfirmedAlbumMap(item)))) {
@@ -355,6 +433,102 @@
         const albumId = value;
         const { error } = await supabase.from("songs").update({ album_id: albumId }).eq("id", item.svs_song_id);
         writeErr = error;
+      } else if (item.entity_type === "suno_version" || field === "suno_version") {
+        if (!item.svs_song_id) return { ok: false, reason: "missing_svs_song_id" };
+        const obj = (pv && typeof pv === "object" && !Array.isArray(pv)) ? pv : {};
+        const row = { song_id: item.svs_song_id };
+        for (const k of SUNO_VERSION_FIELDS) {
+          if (obj[k] !== undefined) row[k] = obj[k];
+        }
+        if (field && SUNO_VERSION_FIELDS.has(field) && row[field] === undefined && value !== undefined) row[field] = value;
+        delete row.is_selected_final;
+        if (item.suno_version_id) {
+          const { error } = await supabase.from("suno_versions").update(row).eq("id", item.suno_version_id);
+          writeErr = error;
+        } else if (row.suno_share_url) {
+          const { data: existing } = await supabase.from("suno_versions").select("id").eq("song_id", item.svs_song_id).eq("suno_share_url", row.suno_share_url).maybeSingle();
+          if (existing) {
+            const { error } = await supabase.from("suno_versions").update(row).eq("id", existing.id);
+            writeErr = error;
+          } else {
+            const { error } = await supabase.from("suno_versions").insert(row);
+            writeErr = error;
+          }
+        } else {
+          const { error } = await supabase.from("suno_versions").insert(row);
+          writeErr = error;
+        }
+      } else if (PROTECTED_SONG.has(field) || field === "suno_share_url" || field === "bandcamp_track_url"
+        || ((field === "suno_recon_status" || field === "bandcamp_recon_status") && item.svs_song_id)) {
+        if (!item.svs_song_id) return { ok: false, reason: "missing_svs_song_id" };
+        if (PROTECTED_SONG.has(field)) {
+          const { data: live } = await supabase.from("songs").select(field).eq("id", item.svs_song_id).maybeSingle();
+          const liveText = live && live[field] != null ? String(live[field]) : "";
+          const existing = (liveText && liveText.trim()) || existingNonEmptyText(item.current_value, field);
+          const replace = replaceExistingFlag(pv) && item.match_kind === "factual";
+          if (existing && !replace) {
+            return { ok: false, reason: "refused_overwrite_existing_" + field };
+          }
+        }
+        const songPatch = {};
+        songPatch[field] = value == null || value === "" ? null : value;
+        const { error } = await supabase.from("songs").update(songPatch).eq("id", item.svs_song_id);
+        writeErr = error;
+        if (!writeErr && field === "suno_share_url" && value) {
+          const row = { song_id: item.svs_song_id, suno_share_url: value };
+          const { data: existing } = await supabase.from("suno_versions").select("id").eq("song_id", item.svs_song_id).eq("suno_share_url", value).maybeSingle();
+          if (existing) {
+            await supabase.from("suno_versions").update(row).eq("id", existing.id);
+          } else {
+            await supabase.from("suno_versions").insert(row);
+          }
+        }
+      } else if (field === "bandcamp_intention" || field === "bandcamp_intended" || field === "ditto_intended" || field === "youtube_intended"
+        || field === "bandcamp_album_url" || field === "bandcamp_published_at"
+        || field === "ditto_recon_status" || field === "youtube_recon_status"
+        || ((field === "suno_recon_status" || field === "bandcamp_recon_status") && item.svs_album_id && !item.svs_song_id)) {
+        if (!item.svs_album_id) return { ok: false, reason: "missing_svs_album_id" };
+        const albumPatch = {};
+        if (field === "bandcamp_intention") {
+          albumPatch.bandcamp_intention = value == null || value === "" ? null : value;
+          if (String(value) === "not_planned") {
+            albumPatch.bandcamp_intended = false;
+            albumPatch.bandcamp_recon_status = "not_planned";
+          } else if (String(value) === "missing_expected") {
+            albumPatch.bandcamp_intended = true;
+            albumPatch.bandcamp_recon_status = "missing_expected";
+          } else if (String(value) === "published") {
+            albumPatch.bandcamp_intended = true;
+            albumPatch.bandcamp_recon_status = "published";
+          }
+        } else if (field === "bandcamp_intended" || field === "ditto_intended" || field === "youtube_intended") {
+          const b = value === true || value === "true";
+          albumPatch[field] = value == null || value === "" ? null : b;
+          if (field === "bandcamp_intended" && (value === false || value === "false")) {
+            albumPatch.bandcamp_intention = "not_planned";
+            albumPatch.bandcamp_recon_status = "not_planned";
+          }
+        } else {
+          albumPatch[field] = value == null || value === "" ? null : value;
+        }
+        const { error } = await supabase.from("albums").update(albumPatch).eq("id", item.svs_album_id);
+        writeErr = error;
+      } else if (SUNO_VERSION_FIELDS.has(field) && (item.suno_version_id || item.entity_type === "suno_version")) {
+        if (!item.svs_song_id) return { ok: false, reason: "missing_svs_song_id" };
+        const obj = (pv && typeof pv === "object" && !Array.isArray(pv)) ? pv : {};
+        const row = { song_id: item.svs_song_id };
+        for (const k of SUNO_VERSION_FIELDS) {
+          if (obj[k] !== undefined) row[k] = obj[k];
+        }
+        if (row[field] === undefined && value !== undefined) row[field] = value;
+        delete row.is_selected_final;
+        if (item.suno_version_id) {
+          const { error } = await supabase.from("suno_versions").update(row).eq("id", item.suno_version_id);
+          writeErr = error;
+        } else {
+          const { error } = await supabase.from("suno_versions").insert(row);
+          writeErr = error;
+        }
       } else {
         return { ok: false, reason: "unknown_field_name" };
       }
@@ -488,6 +662,7 @@
       $("factualBtns").innerHTML = "";
       if (!artistId) {
         $("headline").textContent = "";
+        if ($("platformHost")) $("platformHost").innerHTML = "";
         emptyHost($("factualHost"), "Select an artist.");
         emptyHost($("reviewHost"), "Select an artist.");
         $("msg").textContent = "Pick an active artist.";
@@ -543,6 +718,16 @@
         return;
       }
       currentItems = itemsRes.rows || [];
+
+      let alRes = await trySelect(
+        "albums",
+        "id,title,suno_recon_status,ditto_recon_status,youtube_recon_status,bandcamp_recon_status,bandcamp_intention,bandcamp_intended",
+        (q) => q.eq("artist_id", artistId).order("title")
+      );
+      if (alRes.error && columnMissing(alRes.error)) {
+        alRes = await trySelect("albums", "id,title", (q) => q.eq("artist_id", artistId).order("title"));
+      }
+      renderPlatformChips(alRes.rows || []);
 
       const factual = currentItems.filter((it) => it.match_kind === "factual");
       const review = currentItems.filter((it) => it.match_kind !== "factual");

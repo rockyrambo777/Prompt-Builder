@@ -129,6 +129,22 @@
       if (data) return { url: data.suno_share_url || song.suno_share_url || "", checked: true, table: true };
       return { url: song.suno_share_url || "", checked: false, table: true };
     }
+    async function loadSunoVersions(song) {
+      let q = await supabase
+        .from("suno_versions")
+        .select("id,suno_share_url,is_selected_final,label,generated_at,created_at")
+        .eq("song_id", song.id)
+        .order("created_at", { ascending: true });
+      if (q.error) {
+        q = await supabase
+          .from("suno_versions")
+          .select("id,suno_share_url,is_selected_final,label,created_at")
+          .eq("song_id", song.id)
+          .order("created_at", { ascending: true });
+      }
+      if (q.error) return { rows: [], table: false };
+      return { rows: q.data || [], table: true };
+    }
 
     function fieldInput(label, id, value, extra) {
       const wrap = el("label", "field");
@@ -180,6 +196,7 @@
 
       const personas = albumRow.artist_id ? await loadPersonas(albumRow.artist_id) : [];
       const finalSuno = await loadFinalSuno(song);
+      const sunoVers = await loadSunoVersions(song);
 
       const panel = $("panel-music");
       panel.innerHTML = "";
@@ -226,6 +243,7 @@
       card.appendChild(fieldInput("Lyrics", "f_lyrics", song.lyrics, { tag: "textarea", cls: "lyrics" }));
       card.appendChild(fieldInput("Suno prompt", "f_suno_prompt", song.suno_prompt, { tag: "textarea", cls: "prompt" }));
       card.appendChild(fieldInput("Suno share URL", "f_suno_share_url", song.suno_share_url || finalSuno.url));
+      card.appendChild(el("div", "hint", "Suno generated dates are not official release dates. Do not merge Suno dates into official_release_date. Recon does not auto-pick a selected final."));
 
       const finalBox = el("label", "field");
       finalBox.appendChild(el("span", "", "Selected final"));
@@ -247,6 +265,33 @@
       finalBox.appendChild(finalUrl);
       card.appendChild(finalBox);
 
+      if (sunoVers.table) {
+        const versCard = el("div", "field");
+        versCard.appendChild(el("span", "", "Suno versions"));
+        if (!sunoVers.rows.length) {
+          versCard.appendChild(el("div", "muted", "No suno_versions rows yet."));
+        } else {
+          const table = el("table", "data");
+          table.innerHTML = "<thead><tr><th>Label</th><th>URL</th><th>Selected final</th></tr></thead>";
+          const tb = document.createElement("tbody");
+          for (const v of sunoVers.rows) {
+            const tr = document.createElement("tr");
+            const url = safe(v.suno_share_url);
+            const urlHtml = url
+              ? "<a class='link' href='" + url.replace(/'/g, "") + "' target='_blank' rel='noopener'>" + url + "</a>"
+              : "";
+            tr.innerHTML =
+              "<td>" + safe(v.label || "") + "</td>" +
+              "<td>" + urlHtml + "</td>" +
+              "<td>" + (v.is_selected_final ? "yes" : "") + "</td>";
+            tb.appendChild(tr);
+          }
+          table.appendChild(tb);
+          versCard.appendChild(table);
+        }
+        card.appendChild(versCard);
+      }
+
       const drive = el("div", "form-grid");
       drive.appendChild(fieldInput("WAV Drive URL", "f_wav_drive_url", song.wav_drive_url));
       drive.appendChild(fieldInput("MP3 Drive URL", "f_mp3_drive_url", song.mp3_drive_url));
@@ -254,7 +299,7 @@
 
       const catKeysPresent = CATALOGUE_KEYS.filter((k) => knownHas(song, k));
       if (catKeysPresent.length) {
-        card.appendChild(el("div", "hint", "Official music dates are not YouTube publish dates. These fields are stored separately and never copied into each other on save."));
+        card.appendChild(el("div", "hint", "Official music dates are not YouTube publish dates and not Suno generated dates. These fields are stored separately and never copied into each other on save."));
         const cat = el("div", "form-grid");
         if (knownHas(song, "official_release_date")) {
           cat.appendChild(fieldInput("Official release date", "f_official_release_date", song.official_release_date ? String(song.official_release_date).slice(0, 10) : "", { type: "date" }));
@@ -325,7 +370,7 @@
         youtube_url: val("f_youtube_url"),
         youtube_published_at: val("f_youtube_published_at") || null,
       };
-      // Never copy youtube_published_at into official_release_date (or the reverse).
+      // Never copy youtube_published_at or Suno generated_at into official_release_date (or the reverse).
       const payload = {};
       for (const k of SAVE_KEYS) {
         if (knownHas(songRow, k)) {

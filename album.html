@@ -100,9 +100,43 @@
     }
     function distroPillClass(status) {
       const s = safe(status).toLowerCase();
+      if (s === "not_planned" || s === "not planned" || s === "not distributed on bandcamp") return "pill ok";
+      if (s === "missing_expected" || s === "missing — expected" || s === "missing-expected") return "pill bad";
       if (!s || s === "missing" || s === "not_prepared") return "pill bad";
-      if (s === "released" || s === "published" || s === "synced") return "pill ok";
+      if (s === "released" || s === "published" || s === "synced" || s === "matched") return "pill ok";
+      if (s === "planned" || s === "preparing" || s === "draft" || s === "ready_for_approval") return "pill warn";
       return "pill warn";
+    }
+    function albumBandcampLabel(album, bcRow, distroMissing) {
+      if (bcRow) {
+        const st = bcRow.pipeline_status || bcRow.sync_status || "draft";
+        if (st) return st;
+      }
+      if (knownHas(album, "bandcamp_intention") && album.bandcamp_intention) {
+        return album.bandcamp_intention === "not_planned" ? "Not Planned" : album.bandcamp_intention;
+      }
+      if (knownHas(album, "bandcamp_recon_status") && album.bandcamp_recon_status) {
+        return album.bandcamp_recon_status === "not_planned" ? "Not Planned" : album.bandcamp_recon_status;
+      }
+      if (knownHas(album, "bandcamp_intended") && album.bandcamp_intended === false) return "Not Planned";
+      if (distroMissing) return null;
+      return "Missing";
+    }
+    function intendedSelect(id, label, current) {
+      const wrap = el("label", "field");
+      wrap.appendChild(el("span", "", label));
+      const sel = document.createElement("select");
+      sel.id = id;
+      const cur = current === true || current === "true" ? "true" : (current === false || current === "false" ? "false" : "");
+      for (const [v, lab] of [["", "Unset"], ["true", "Yes"], ["false", "No"]]) {
+        const o = document.createElement("option");
+        o.value = v;
+        o.textContent = lab;
+        if (cur === v) o.selected = true;
+        sel.appendChild(o);
+      }
+      wrap.appendChild(sel);
+      return wrap;
     }
 
     function lyricsReady(song) {
@@ -223,7 +257,7 @@
       const dittoRow = (distro.rows || []).find((r) => r.channel === "ditto");
       const bcRow = (distro.rows || []).find((r) => r.channel === "bandcamp");
       const dittoStatus = distro.missing ? null : (dittoRow ? (dittoRow.pipeline_status || dittoRow.sync_status || "draft") : "Missing");
-      const bcStatus = distro.missing ? null : (bcRow ? (bcRow.pipeline_status || bcRow.sync_status || "draft") : "Missing");
+      const bcStatus = albumBandcampLabel(album, bcRow, distro.missing);
 
       let yt = await trySelect("youtube_content", "id,song_id,mapped_status,url,youtube_video_id", (q) => q.eq("artist_id", album.artist_id));
       if (yt.error && columnMissing(yt.error)) {
@@ -241,6 +275,7 @@
       progress.appendChild(el("span", "pill", "Community — later"));
       if (distro.missing) {
         progress.appendChild(el("span", "pill", "Distro — later"));
+        if (bcStatus) progress.appendChild(el("span", distroPillClass(bcStatus), "Bandcamp: " + bcStatus));
       } else {
         progress.appendChild(el("span", distroPillClass(dittoStatus), "Ditto: " + (dittoStatus || "Missing")));
         progress.appendChild(el("span", distroPillClass(bcStatus), "Bandcamp: " + (bcStatus || "Missing")));
@@ -252,6 +287,25 @@
         progress.appendChild(el("span", ytCls, "YouTube " + ytCount + "/" + tracklist.length));
       }
       head.appendChild(progress);
+      const reconCols = ["suno_recon_status", "ditto_recon_status", "youtube_recon_status", "bandcamp_recon_status"];
+      if (reconCols.some((k) => knownHas(album, k) && album[k])) {
+        const recon = el("div", "chips");
+        recon.style.marginTop = "8px";
+        if (knownHas(album, "suno_recon_status") && album.suno_recon_status) {
+          recon.appendChild(el("span", distroPillClass(album.suno_recon_status), "Suno recon: " + album.suno_recon_status));
+        }
+        if (knownHas(album, "ditto_recon_status") && album.ditto_recon_status) {
+          recon.appendChild(el("span", distroPillClass(album.ditto_recon_status), "Ditto recon: " + album.ditto_recon_status));
+        }
+        if (knownHas(album, "youtube_recon_status") && album.youtube_recon_status) {
+          recon.appendChild(el("span", distroPillClass(album.youtube_recon_status), "YouTube recon: " + album.youtube_recon_status));
+        }
+        if (knownHas(album, "bandcamp_recon_status") && album.bandcamp_recon_status) {
+          const lab = album.bandcamp_recon_status === "not_planned" ? "Not Planned" : album.bandcamp_recon_status;
+          recon.appendChild(el("span", distroPillClass(album.bandcamp_recon_status), "Bandcamp recon: " + lab));
+        }
+        head.appendChild(recon);
+      }
       host.appendChild(head);
 
       const form = el("div", "card");
@@ -360,7 +414,40 @@
       if (knownHas(album, "upc")) catGrid.appendChild(field("UPC", "f_upc", album.upc));
       if (knownHas(album, "ditto_status")) catGrid.appendChild(field("Ditto status", "f_ditto_status", album.ditto_status));
       if (knownHas(album, "ditto_url")) catGrid.appendChild(field("Ditto URL", "f_ditto_url", album.ditto_url));
+      if (knownHas(album, "ditto_intended")) catGrid.appendChild(intendedSelect("f_ditto_intended", "Ditto distribution", album.ditto_intended));
+      if (knownHas(album, "youtube_intended")) catGrid.appendChild(intendedSelect("f_youtube_intended", "YouTube distribution", album.youtube_intended));
+      if (knownHas(album, "bandcamp_intended")) catGrid.appendChild(intendedSelect("f_bandcamp_intended", "Bandcamp distribution", album.bandcamp_intended));
+      if (knownHas(album, "bandcamp_intention")) {
+        const bcInt = el("label", "field");
+        bcInt.appendChild(el("span", "", "Bandcamp intention"));
+        const sel = document.createElement("select");
+        sel.id = "f_bandcamp_intention";
+        const opts = ["", "not_planned", "planned", "preparing", "ready_for_approval", "draft", "published", "missing_expected"];
+        const labels = {
+          "": "—",
+          not_planned: "Not Planned (healthy)",
+          planned: "planned",
+          preparing: "preparing",
+          ready_for_approval: "ready_for_approval",
+          draft: "draft",
+          published: "published",
+          missing_expected: "Missing — Expected"
+        };
+        for (const s of opts) {
+          const o = document.createElement("option");
+          o.value = s;
+          o.textContent = labels[s] || s;
+          if ((album.bandcamp_intention || "") === s) o.selected = true;
+          sel.appendChild(o);
+        }
+        bcInt.appendChild(sel);
+        catGrid.appendChild(bcInt);
+      }
+      if (knownHas(album, "bandcamp_album_url")) catGrid.appendChild(field("Bandcamp album URL", "f_bandcamp_album_url", album.bandcamp_album_url));
       if (catGrid.childNodes.length) form.appendChild(catGrid);
+      if (knownHas(album, "ditto_intended") || knownHas(album, "bandcamp_intention")) {
+        form.appendChild(el("div", "hint", "Bandcamp Not Planned is healthy. If Bandcamp = No, absence stays correct until intention changes. missing_expected is the only Bandcamp-absent error."));
+      }
       if (knownHas(album, "ditto_release_date") && album.ditto_release_date) {
         form.appendChild(el("div", "muted", "Ditto observed release date (not bound to official): " + safe(album.ditto_release_date)));
       }
@@ -529,6 +616,11 @@
         upc: $("f_upc")?.value,
         ditto_status: $("f_ditto_status")?.value,
         ditto_url: $("f_ditto_url")?.value,
+        ditto_intended: $("f_ditto_intended") ? ($("f_ditto_intended").value === "" ? null : $("f_ditto_intended").value === "true") : undefined,
+        youtube_intended: $("f_youtube_intended") ? ($("f_youtube_intended").value === "" ? null : $("f_youtube_intended").value === "true") : undefined,
+        bandcamp_intended: $("f_bandcamp_intended") ? ($("f_bandcamp_intended").value === "" ? null : $("f_bandcamp_intended").value === "true") : undefined,
+        bandcamp_intention: $("f_bandcamp_intention")?.value,
+        bandcamp_album_url: $("f_bandcamp_album_url")?.value,
       };
       const payload = pickPayload(albumRow, fields);
       let q = supabase.from("albums").update(payload).eq("id", albumRow.id);
