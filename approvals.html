@@ -1,1 +1,216 @@
-placeholder
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SVS – Approvals</title>
+  <link rel="stylesheet" href="svs.css" />
+</head>
+<body>
+  <div id="svs-nav"></div>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1>Approvals</h1>
+        <div id="who" class="muted"></div>
+      </div>
+      <div class="row">
+        <button id="btnRefresh" class="btn secondary">Refresh</button>
+      </div>
+    </div>
+    <div id="msg" class="msg muted"></div>
+
+    <div class="card">
+      <div class="hint">
+        Approve records intent only. Making a Bandcamp album public or submitting to Ditto still requires a later perform step.
+        Approving a YouTube change does not rewrite the public video.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>YouTube change proposals</h2>
+      <div id="ytHost" class="muted">Loading…</div>
+    </div>
+
+    <div class="card">
+      <h2>Distribution — ready for approval</h2>
+      <div class="hint">Ditto submit / Bandcamp publish. Pipeline status is currently <code>ready_for_approval</code>.</div>
+      <div id="distroHost" class="muted">Loading…</div>
+    </div>
+  </div>
+
+  <script type="module" src="svs-nav.js"></script>
+  <script type="module">
+    import { supabase, requireSessionOrRedirect } from "./app.js";
+    const $ = (id) => document.getElementById(id);
+
+    const session = await requireSessionOrRedirect();
+    $("who").textContent = "Signed in: " + session.user.email;
+
+    const { data: meRow } = await supabase
+      .from("app_users")
+      .select("role,status")
+      .eq("auth_user_id", session.user.id)
+      .maybeSingle();
+    const isOwner = !!(meRow && meRow.role === "owner" && meRow.status === "approved");
+
+    function safe(v) { return (v === null || v === undefined) ? "" : String(v); }
+    function esc(v) {
+      return safe(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    }
+    function tableMissing(err) {
+      if (!err) return false;
+      const m = (err.message || "") + " " + (err.code || "");
+      return /relation .* does not exist|Could not find the table|schema cache|PGRST205/i.test(m)
+        || err.code === "42P01" || err.code === "PGRST205";
+    }
+    async function trySelect(table, cols, apply) {
+      let q = supabase.from(table).select(cols);
+      if (apply) q = apply(q);
+      const { data, error } = await q;
+      if (error) {
+        if (tableMissing(error)) return { rows: [], missing: true };
+        return { rows: [], missing: false, error };
+      }
+      return { rows: data || [], missing: false };
+    }
+    function fmtWhen(v) {
+      if (!v) return "";
+      const d = new Date(v);
+      if (Number.isNaN(d.getTime())) return String(v);
+      try {
+        const fmt = new Intl.DateTimeFormat("en-ZA", {
+          timeZone: "Africa/Johannesburg",
+          year: "numeric", month: "2-digit", day: "2-digit",
+          hour: "2-digit", minute: "2-digit", hour12: false
+        });
+        return fmt.format(d) + " SAST";
+      } catch {
+        return d.toISOString().replace("T", " ").slice(0, 16) + " UTC";
+      }
+    }
+
+    async function load() {
+      $("msg").textContent = "Loading approvals…";
+      $("msg").className = "msg muted";
+
+      const artists = await trySelect("artists", "id,name,is_active", (q) => q.eq("is_active", true));
+      const artistName = {};
+      for (const a of artists.rows || []) artistName[a.id] = a.name || "(unnamed)";
+      const albums = await trySelect("albums", "id,title,artist_id");
+      const albumById = {};
+      for (const al of albums.rows || []) albumById[al.id] = al;
+
+      const yt = await trySelect("youtube_change_proposals", "*");
+      const ytHost = $("ytHost");
+      if (yt.missing) {
+        ytHost.innerHTML = "<div class='muted'>youtube_change_proposals is not present yet.</div>";
+      } else if (yt.error) {
+        ytHost.innerHTML = "<div class='error'>Error: " + esc(yt.error.message) + "</div>";
+      } else {
+        const rows = (yt.rows || []).filter((p) => p.status === "needs_review" || p.status === "approved");
+        if (!rows.length) {
+          ytHost.innerHTML = "<div class='muted'>No YouTube proposals waiting.</div>";
+        } else {
+          const table = document.createElement("table");
+          table.className = "data";
+          table.innerHTML = "<thead><tr><th>Artist</th><th>Issue</th><th>Current</th><th>Recommended</th><th>Reason</th><th>Status</th><th></th></tr></thead>";
+          const tb = document.createElement("tbody");
+          for (const p of rows) {
+            const tr = document.createElement("tr");
+            if (p.status === "needs_review") tr.className = "missing-row";
+            tr.innerHTML = "<td>" + esc(artistName[p.artist_id] || "") + "</td><td>" + esc(p.issue_type || "")
+              + "</td><td>" + esc(p.current_value || "") + "</td><td>" + esc(p.recommended_value || "")
+              + "</td><td>" + esc(p.reason || "") + "</td><td><span class='pill warn'>" + esc(p.status)
+              + "</span></td><td></td>";
+            if (isOwner && p.status === "needs_review") {
+              const btn = document.createElement("button");
+              btn.className = "btn primary";
+              btn.textContent = "Approve";
+              btn.onclick = async () => {
+                const { error } = await supabase.from("youtube_change_proposals").update({
+                  status: "approved",
+                  approved_at: new Date().toISOString(),
+                  approved_by: session.user.id
+                }).eq("id", p.id);
+                $("msg").textContent = error ? ("Approve failed: " + error.message) : "Approved. Public rewrite is not performed here.";
+                $("msg").className = error ? "msg error" : "msg success";
+                if (!error) await load();
+              };
+              tr.lastElementChild.appendChild(btn);
+            } else if (p.status === "approved") {
+              tr.lastElementChild.textContent = "Waiting for perform";
+            }
+            tb.appendChild(tr);
+          }
+          table.appendChild(tb);
+          ytHost.innerHTML = "";
+          ytHost.appendChild(table);
+        }
+      }
+
+      const distro = await trySelect("distribution_releases", "*");
+      const dHost = $("distroHost");
+      if (distro.missing) {
+        dHost.innerHTML = "<div class='muted'>distribution_releases is not present yet.</div>";
+      } else if (distro.error) {
+        dHost.innerHTML = "<div class='error'>Error: " + esc(distro.error.message) + "</div>";
+      } else {
+        const rows = (distro.rows || []).filter((r) => r.pipeline_status === "ready_for_approval");
+        if (!rows.length) {
+          dHost.innerHTML = "<div class='muted'>No Ditto/Bandcamp releases waiting for approval.</div>";
+        } else {
+          const table = document.createElement("table");
+          table.className = "data";
+          table.innerHTML = "<thead><tr><th>Artist</th><th>Album</th><th>Channel</th><th>Pipeline</th><th>Release date</th><th></th></tr></thead>";
+          const tb = document.createElement("tbody");
+          for (const r of rows) {
+            const al = albumById[r.album_id] || {};
+            const tr = document.createElement("tr");
+            tr.className = "missing-row";
+            const albumLink = r.album_id
+              ? "<a class='link' href='./album.html?id=" + encodeURIComponent(r.album_id) + "'>" + esc(al.title || "(album)") + "</a>"
+              : "";
+            tr.innerHTML = "<td>" + esc(artistName[al.artist_id] || "") + "</td><td>" + albumLink
+              + "</td><td>" + esc(r.channel || "") + "</td><td><span class='pill warn'>" + esc(r.pipeline_status)
+              + "</span></td><td>" + esc(r.planned_publish_at || r.release_date ? fmtWhen(r.planned_publish_at || r.release_date) : "")
+              + "</td><td></td>";
+            if (isOwner) {
+              const btn = document.createElement("button");
+              btn.className = "btn primary";
+              btn.textContent = "Approve";
+              btn.onclick = async () => {
+                const { error } = await supabase.from("distribution_releases").update({
+                  pipeline_status: "approved",
+                  approval_status: "approved",
+                  approved_at: new Date().toISOString(),
+                  approved_by: session.user.id
+                }).eq("id", r.id);
+                $("msg").textContent = error
+                  ? ("Approve failed: " + error.message)
+                  : "Approved. Bandcamp publish / Ditto submit still requires a later perform step.";
+                $("msg").className = error ? "msg error" : "msg success";
+                if (!error) await load();
+              };
+              tr.lastElementChild.appendChild(btn);
+            }
+            tb.appendChild(tr);
+          }
+          table.appendChild(tb);
+          dHost.innerHTML = "";
+          dHost.appendChild(table);
+        }
+      }
+
+      if (!isOwner) {
+        $("msg").textContent = "View only — owner approves. Assigned rows are whatever RLS returns.";
+      } else if ($("msg").className.indexOf("success") === -1 && $("msg").className.indexOf("error") === -1) {
+        $("msg").textContent = "Owner can approve. Approve does not submit or publish externally.";
+      }
+    }
+
+    $("btnRefresh").onclick = load;
+    await load();
+  </script>
+</body>
+</html>
