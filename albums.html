@@ -117,9 +117,25 @@
       $("msg").textContent = "Loading…";
       $("list").innerHTML = "";
 
+      function dittoIsLive(a) {
+        const st = String(a.ditto_status || "").toLowerCase();
+        if (a.ditto_distributed === true) return true;
+        return st.includes("released") || st.includes("live") || st === "published" || st === "released_live_on_stores";
+      }
+      function youtubeIsLive(a) {
+        if (a.youtube_playlist_url) return true;
+        const st = String(a.youtube_recon_status || a.youtube_status || "").toLowerCase();
+        return st === "matched" || st === "published" || st === "live";
+      }
+      function displayStatus(a) {
+        if (dittoIsLive(a) && youtubeIsLive(a)) return "released";
+        const s = String(a.status || "").toLowerCase().trim();
+        return s || "draft";
+      }
+
       let query = supabase
         .from(ALBUMS)
-        .select("id,created_at,updated_at,artist_id,status,title,total_tracks,theme,mood,style,lead_type")
+        .select("id,created_at,updated_at,artist_id,status,title,total_tracks,theme,mood,style,lead_type,ditto_status,ditto_distributed,youtube_playlist_url,youtube_recon_status,official_release_date")
         .order("updated_at", { ascending: false });
 
       const af = $("artistFilter").value;
@@ -128,24 +144,18 @@
 
       if (af) query = query.eq("artist_id", af);
 
-      // Hide released albums by default.
-      // If a specific status is selected, show only that status.
-      if (sf) {
-        query = query.eq("status", sf);
-      } else {
-        query = query.neq("status", "released");
-      }
-
       const { data } = await query;
 
-      const filtered = q
-        ? data.filter(a =>
-            (a.title || "").toLowerCase().includes(q) ||
-            (a.theme || "").toLowerCase().includes(q) ||
-            (a.style || "").toLowerCase().includes(q) ||
-            (a.mood || "").toLowerCase().includes(q)
-          )
-        : data;
+      const filtered = (data || []).filter(a => {
+        if (sf && displayStatus(a) !== sf && String(a.status || "").toLowerCase() !== sf) return false;
+        if (!q) return true;
+        return (
+          (a.title || "").toLowerCase().includes(q) ||
+          (a.theme || "").toLowerCase().includes(q) ||
+          (a.style || "").toLowerCase().includes(q) ||
+          (a.mood || "").toLowerCase().includes(q)
+        );
+      });
 
       $("msg").textContent = `Loaded ${filtered.length} album(s).`;
 
@@ -169,7 +179,7 @@
 
         const meta = document.createElement("div");
         meta.className = "meta";
-        meta.textContent = `${artistName} • status: ${a.status} • tracks: ${a.total_tracks} • updated: ${fmtDate(a.updated_at || a.created_at)}`;
+        meta.textContent = `${artistName} • status: ${displayStatus(a)} • tracks: ${a.total_tracks} • updated: ${fmtDate(a.updated_at || a.created_at)}`;
 
         left.appendChild(t);
         left.appendChild(meta);
