@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SVS – Catalogue recon</title>
+  <link rel="stylesheet" href="svs.css" />
+</head>
+<body>
+  <div id="svs-nav"></div>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1>Catalogue reconciliation</h1>
+        <div id="who" class="muted"></div>
+      </div>
+      <div class="row">
+        <a class="btn secondary" href="./distribution.html">Distribution</a>
+        <button id="btnRefresh" class="btn secondary">Refresh</button>
+      </div>
+    </div>
+    <div id="msg" class="msg muted"></div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between; align-items:flex-end;">
+        <label class="field" style="margin:0; min-width:260px;">
+          <span>Artist</span>
+          <select id="fArtist"><option value="">Select artist…</option></select>
+        </label>
+        <div id="headline" class="muted"></div>
+      </div>
+      <div class="hint" style="margin-top:10px;">
+        YouTube is not the source of album structure. Official music dates are not YouTube publish dates.
+        Ditto is the source for official albums, track lists, track order, UPC, ISRC, and official release dates.
+        Factual matches wait for owner approve, then apply. Ambiguous / duplicate / date conflict / missing track / questionable album map need review (no bulk approve).
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between; align-items:center;">
+        <h2 style="margin:0;">Factual matches</h2>
+        <div class="row" id="factualBtns"></div>
+      </div>
+      <div class="hint">Owner: Approve / Approve all factual, then Apply. Does not write until Apply.</div>
+      <div id="factualHost" class="muted">Select an artist.</div>
+    </div>
+
+    <div class="card">
+      <h2>Needs review</h2>
+      <div class="hint">Ambiguous titles, duplicates, date conflicts, missing tracks, questionable album mappings. No bulk approve. Questionable album mapping needs Approve then a second Confirm album mapping. Still no YouTube-derived album structure.</div>
+      <div id="reviewHost" class="muted">Select an artist.</div>
+    </div>
+  </div>
+
+  <script type="module" src="svs-nav.js"></script>
+  <script type="module">
+    import { supabase, requireSessionOrRedirect } from "./app.js";
+    const $ = (id) => document.getElementById(id);
+    const params = new URLSearchParams(location.search);
+
+    const session = await requireSessionOrRedirect();
+    $("who").textContent = "Signed in: " + session.user.email;
+
+    const { data: meRow } = await supabase
+      .from("app_users")
+      .select("role,status")
+      .eq("auth_user_id", session.user.id)
+      .maybeSingle();
+    const isOwner = !!(meRow && meRow.role === "owner" && meRow.status === "approved");
+
+    const REVIEW_KINDS = new Set([
+      "ambiguous", "duplicate", "date_conflict", "missing_track",
+      "questionable_album_map", "missing_in_svs", "missing_externally"
+    ]);
+    const YT_FIELDS = new Set(["youtube_published_at", "youtube_url", "youtube_video_id"]);
+    const OFFICIAL_FIELDS = new Set(["official_release_date"]);
+
+    function safe(v) { return (v === null || v === undefined) ? "" : String(v); }
+    function esc(v) {
+      return safe(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    }
+    function tableMissing(err) {
+      if (!err) return false;
+      const m = (err.message || "") + " " + (err.code || "");
+      return /relation .* does not exist|Could not find the table|schema cache|PGRST205/i.test(m)
+        || err.code === "42P01" || err.code === "PGRST205";
+    }
+    function columnMissing(err) {
+      if (!err) return false;
+      const m = (err.message || "") + " " + (err.code || "");
+      return /column .* does not exist|Could not find the .* column|PGRST204/i.test(m)
+        || err.code === "42703" || err.code === "PGRST204";
+    }
+    async function trySelect(table, cols, apply) {
+      let q = supabase.from(table).select(cols);
+      if (apply) q = apply(q);
+      const { data, error } = await q;
+      if (error) {
+        if (tableMissing(error)) return { rows: [], missing: true };
+        return { rows: [], missing: false, error };
+      }
+      return { rows: data || [], missing: false };
+    }
+    function fmtWhen(v) {
+      if (!v) return "";
+      const d = new Date(v);
+      if (Number.isNaN(d.getTime())) return String(v);
+      try {
+        const fmt = new Intl.DateTimeFormat("en-ZA", {
+          timeZone: "Africa/Johannesburg",
+          year: "numeric", month: "2-digit", day: "2-digit",
+          hour: "2-digit", minute: "2-digit", hour12: false
+        });
+        return fmt.format(d) + " SAST";
+      } catch {
+        return d.toISOString().replace("T", " ").slice(0, 16) + " UTC";
+      }
+    }
+    function fmtVal(v) {
+      if (v === null || v === undefined) return "";
+      if (typeof v === "object") {
+        try { return JSON.stringify(v); } catch { return String(v); }
+      }
+      return String(v);
+    }
+    function pillFor(st) {
+      const s = safe(st).toLowerCase();
+      if (s === "applied") return "ok";
+      if (s === "approved") return "warn";
+      if (s === "needs_review" || s === "date_conflict" || s === "duplicate" || s === "ambiguous") return "bad";
+      return "warn";
+    }
+    function scalarFrom(pv, fieldName) {
+      if (pv === null || pv === undefined) return null;
+      if (typeof pv !== "object" || Array.isArray(pv)) return pv;
+      if (Object.prototype.hasOwnProperty.call(pv, fieldName) && pv[fieldName] !== undefined) return pv[fieldName];
+      if (pv.value !== undefined) return pv.value;
+      if (fieldName === "song_id_map" && (pv.song_id || pv.svs_song_id)) return pv.song_id || pv.svs_song_id;
+      if (fieldName === "upc" && pv.upc !== undefined) return pv.upc;
+      if (fieldName === "isrc" && pv.isrc !== undefined) return pv.isrc;
+      return pv;
+    }
+    function youtubeDateLeak(fieldName, pv) {
+      if (fieldName !== "official_release_date") return false;
+      if (pv && typeof pv === "object" && !Array.isArray(pv)) {
+        if (pv.from === "youtube_published_at" || pv.source === "youtube" || pv.source === "youtube_published_at") return true;
+        if (pv.youtube_published_at != null && pv.official_release_date == null && pv.value == null) return true;
+      }
+      return false;
+    }
+    function officialDateLeak(fieldName, pv) {
+      if (!YT_FIELDS.has(fieldName)) return false;
+      if (pv && typeof pv === "object" && !Array.isArray(pv)) {
+        if (pv.from === "official_release_date" || pv.source === "official_release_date") return true;
+      }
+      return false;
+    }
+    function youtubeAlbumStructure(item) {
+      const fn = item.field_name;
+      if (fn !== "track_number" && fn !== "album_id") return false;
+      const pv = item.proposed_value;
+      if (pv && typeof pv === "object" && !Array.isArray(pv)) {
+        const src = String(pv.source || pv.from || "");
+        if (/youtube/i.test(src)) return true;
+      }
+      if (/youtube playlist|from youtube/i.test(String(item.reason || ""))) return true;
+      return false;
+    }
+    function isConfirmedAlbumMap(item) {
+      const pv = item.proposed_value;
+      return !!(pv && typeof pv === "object" && !Array.isArray(pv) && pv.confirmed === true);
+    }
+    function entityLabel(item) {
+      const pv = item.proposed_value;
+      const cv = item.current_value;
+      let title = "";
+      if (pv && typeof pv === "object" && pv.title) title = pv.title;
+      else if (cv && typeof cv === "object" && cv.title) title = cv.title;
+      const bits = [item.entity_type || "item"];
+      if (title) bits.push(title);
+      else if (item.svs_song_id) bits.push("song");
+      else if (item.svs_album_id) bits.push("album");
+      return bits.join(" · ");
+    }
+
+    const aRes = await trySelect("artists", "id,name,is_active", (q) => q.eq("is_active", true).order("name"));
+    if (aRes.error && !aRes.missing) { $("msg").textContent = "Error: " + aRes.error.message; }
+    const artists = aRes.rows || [];
+    const sel = $("fArtist");
+    for (const ar of artists) {
+      const o = document.createElement("option");
+      o.value = ar.id;
+      o.textContent = ar.name || "(unnamed)";
+      sel.appendChild(o);
+    }
+    const initial = (params.get("artist") || "").trim();
+    if (initial && [...sel.options].some((o) => o.value === initial)) sel.value = initial;
+
+    function emptyHost(host, message) {
+      host.innerHTML = "<div class='muted'>" + esc(message) + "</div>";
+    }
+
+    let currentRun = null;
+    let currentItems = [];
+    let tablesMissing = false;
+
+    async function setItemStatus(item, patch) {
+      const body = { ...patch, updated_at: new Date().toISOString() };
+      if (item.version != null) body.version = (item.version || 1) + 1;
+      let q = supabase.from("catalogue_recon_items").update(body).eq("id", item.id);
+      if (item.version != null) q = q.eq("version", item.version);
+      const { error } = await q;
+      return error;
+    }
+
+    async function approveItem(item) {
+      if (!isOwner) return;
+      const error = await setItemStatus(item, {
+        status: "approved",
+        approved_at: new Date().toISOString(),
+        approved_by: session.user.id
+      });
+      $("msg").textContent = error ? ("Approve failed: " + error.message) : "Approved. Apply to write into SVS.";
+      $("msg").className = error ? "msg error" : "msg success";
+      if (!error) await load();
+    }
+
+    async function dismissItem(item) {
+      if (!isOwner) return;
+      const error = await setItemStatus(item, { status: "dismissed" });
+      $("msg").textContent = error ? ("Dismiss failed: " + error.message) : "Dismissed.";
+      $("msg").className = error ? "msg error" : "msg success";
+      if (!error) await load();
+    }
+
+    async function applyItem(item, opts) {
+      if (!isOwner) return { ok: false, reason: "owner_only" };
+      const confirmAlbumMap = !!(opts && opts.confirmAlbumMap);
+      if (item.status !== "approved") {
+        return { ok: false, reason: "not_approved" };
+      }
+      if (item.match_kind === "questionable_album_map" && !confirmAlbumMap && !isConfirmedAlbumMap(item)) {
+        return { ok: false, reason: "need_confirm_album_mapping" };
+      }
+      if (youtubeAlbumStructure(item)) {
+        return { ok: false, reason: "youtube_is_not_album_structure" };
+      }
+      const field = item.field_name || "";
+      const pv = item.proposed_value;
+      if (youtubeDateLeak(field, pv)) {
+        return { ok: false, reason: "refused_youtube_date_as_official" };
+      }
+      if (officialDateLeak(field, pv)) {
+        return { ok: false, reason: "refused_official_date_as_youtube" };
+      }
+      if ((field === "track_number" || field === "album_id") && item.match_kind !== "factual") {
+        if (!(item.match_kind === "questionable_album_map" && (confirmAlbumMap || isConfirmedAlbumMap(item)))) {
+          return { ok: false, reason: "album_structure_not_factual" };
+        }
+      }
+
+      const value = scalarFrom(pv, field);
+      const now = new Date().toISOString();
+      let writeErr = null;
+
+      if (OFFICIAL_FIELDS.has(field)) {
+        const dateVal = value == null || value === "" ? null : String(value).slice(0, 10);
+        if (item.entity_type === "album" || (item.svs_album_id && !item.svs_song_id)) {
+          if (!item.svs_album_id) return { ok: false, reason: "missing_svs_album_id" };
+          const { error } = await supabase.from("albums")
+            .update({ official_release_date: dateVal })
+            .eq("id", item.svs_album_id);
+          writeErr = error;
+        } else {
+          if (!item.svs_song_id) return { ok: false, reason: "missing_svs_song_id" };
+          const { error } = await supabase.from("songs")
+            .update({ official_release_date: dateVal })
+            .eq("id", item.svs_song_id);
+          writeErr = error;
+        }
+      } else if (YT_FIELDS.has(field)) {
+        if (item.svs_song_id) {
+          const songPatch = {};
+          songPatch[field] = value == null || value === "" ? null : value;
+          const { error } = await supabase.from("songs").update(songPatch).eq("id", item.svs_song_id);
+          writeErr = error;
+        }
+        if (!writeErr && item.youtube_content_id) {
+          const ytPatch = {};
+          if (field === "youtube_video_id") ytPatch.youtube_video_id = value;
+          if (field === "youtube_url") ytPatch.url = value;
+          if (field === "youtube_published_at") ytPatch.published_at = value;
+          if (Object.keys(ytPatch).length) {
+            const { error } = await supabase.from("youtube_content").update(ytPatch).eq("id", item.youtube_content_id);
+            writeErr = error;
+          }
+        }
+        if (!item.svs_song_id && !item.youtube_content_id) {
+          return { ok: false, reason: "missing_song_or_youtube_content" };
+        }
+      } else if (field === "upc") {
+        const upc = value == null || value === "" ? null : String(value);
+        if (item.svs_album_id) {
+          const { error } = await supabase.from("albums").update({ upc }).eq("id", item.svs_album_id);
+          writeErr = error;
+        }
+        if (!writeErr) {
+          if (item.distribution_release_id) {
+            const { error } = await supabase.from("distribution_releases")
+              .update({ upc }).eq("id", item.distribution_release_id).eq("channel", "ditto");
+            writeErr = error;
+          } else if (item.svs_album_id) {
+            const { error } = await supabase.from("distribution_releases")
+              .update({ upc }).eq("album_id", item.svs_album_id).eq("channel", "ditto");
+            writeErr = error;
+          }
+        }
+        if (!item.svs_album_id && !item.distribution_release_id) {
+          return { ok: false, reason: "missing_album_or_release" };
+        }
+      } else if (field === "isrc") {
+        const isrc = value == null || value === "" ? null : String(value);
+        if (item.svs_song_id) {
+          const { error } = await supabase.from("songs").update({ isrc }).eq("id", item.svs_song_id);
+          writeErr = error;
+        }
+        if (!writeErr && item.ditto_track_id) {
+          const { error } = await supabase.from("ditto_tracks").update({ isrc }).eq("id", item.ditto_track_id);
+          writeErr = error;
+        }
+        if (!item.svs_song_id && !item.ditto_track_id) {
+          return { ok: false, reason: "missing_song_or_ditto_track" };
+        }
+      } else if (field === "ditto_status" || field === "ditto_url") {
+        if (!item.svs_album_id) return { ok: false, reason: "missing_svs_album_id" };
+        const patch = {};
+        patch[field] = value == null || value === "" ? null : value;
+        const { error } = await supabase.from("albums").update(patch).eq("id", item.svs_album_id);
+        writeErr = error;
+      } else if (field === "song_id_map") {
+        if (!item.youtube_content_id) return { ok: false, reason: "missing_youtube_content_id" };
+        const songId = value;
+        const { error } = await supabase.from("youtube_content").update({
+          song_id: songId || null,
+          mapped_status: "matched"
+        }).eq("id", item.youtube_content_id);
+        writeErr = error;
+      } else if (field === "track_number") {
+        if (!item.svs_song_id) return { ok: false, reason: "missing_svs_song_id" };
+        const num = value == null || value === "" ? null : Number(value);
+        const { error } = await supabase.from("songs").update({ track_number: num }).eq("id", item.svs_song_id);
+        writeErr = error;
+      } else if (field === "album_id") {
+        if (!item.svs_song_id) return { ok: false, reason: "missing_svs_song_id" };
+        const albumId = value;
+        const { error } = await supabase.from("songs").update({ album_id: albumId }).eq("id", item.svs_song_id);
+        writeErr = error;
+      } else {
+        return { ok: false, reason: "unknown_field_name" };
+      }
+
+      if (writeErr) return { ok: false, reason: writeErr.message };
+
+      let pvOut = item.proposed_value;
+      if (confirmAlbumMap) {
+        pvOut = (pvOut && typeof pvOut === "object" && !Array.isArray(pvOut))
+          ? { ...pvOut, confirmed: true }
+          : { value: pvOut, confirmed: true };
+      }
+      const mark = await setItemStatus(item, {
+        status: "applied",
+        applied_at: now,
+        proposed_value: pvOut
+      });
+      if (mark) return { ok: false, reason: mark.message };
+      return { ok: true };
+    }
+
+    async function confirmAlbumMapping(item) {
+      if (!isOwner) return;
+      if (item.status !== "approved") {
+        $("msg").textContent = "Approve first, then confirm album mapping.";
+        $("msg").className = "msg error";
+        return;
+      }
+      const pv = (item.proposed_value && typeof item.proposed_value === "object" && !Array.isArray(item.proposed_value))
+        ? { ...item.proposed_value, confirmed: true }
+        : { value: item.proposed_value, confirmed: true };
+      const err = await setItemStatus(item, { proposed_value: pv });
+      if (err) {
+        $("msg").textContent = "Confirm stamp failed: " + err.message;
+        $("msg").className = "msg error";
+        return;
+      }
+      item.proposed_value = pv;
+      const result = await applyItem(item, { confirmAlbumMap: true });
+      $("msg").textContent = result.ok
+        ? "Album mapping confirmed and applied (Ditto source only; not YouTube)."
+        : ("Confirm/apply refused: " + result.reason);
+      $("msg").className = result.ok ? "msg success" : "msg error";
+      await load();
+    }
+
+    async function applyOne(item) {
+      const result = await applyItem(item, {});
+      $("msg").textContent = result.ok ? "Applied." : ("Apply refused: " + result.reason);
+      $("msg").className = result.ok ? "msg success" : "msg error";
+      if (result.ok) await load();
+    }
+
+    function actionCell(item, tableKind) {
+      const td = document.createElement("td");
+      if (!isOwner) {
+        td.textContent = "view only";
+        return td;
+      }
+      const st = item.status;
+      if (st === "applied") {
+        td.textContent = "applied";
+        return td;
+      }
+      if (st === "dismissed") {
+        td.textContent = "dismissed";
+        return td;
+      }
+      const wrap = document.createElement("div");
+      wrap.className = "row";
+      if (st === "proposed" || st === "needs_review") {
+        const b = document.createElement("button");
+        b.className = "btn primary";
+        b.textContent = "Approve";
+        b.onclick = () => approveItem(item);
+        wrap.appendChild(b);
+      }
+      if (st === "approved" && item.match_kind === "questionable_album_map") {
+        const b = document.createElement("button");
+        b.className = "btn primary";
+        b.textContent = "Confirm album mapping";
+        b.onclick = () => confirmAlbumMapping(item);
+        wrap.appendChild(b);
+      } else if (st === "approved") {
+        const b = document.createElement("button");
+        b.className = "btn primary";
+        b.textContent = "Apply";
+        b.onclick = () => applyOne(item);
+        wrap.appendChild(b);
+      }
+      if (st !== "applied") {
+        const d = document.createElement("button");
+        d.className = "btn danger";
+        d.textContent = "Dismiss";
+        d.onclick = () => dismissItem(item);
+        wrap.appendChild(d);
+      }
+      td.appendChild(wrap);
+      return td;
+    }
+
+    function renderTable(host, rows, emptyMsg, tableKind) {
+      if (!rows.length) { emptyHost(host, emptyMsg); return; }
+      const table = document.createElement("table");
+      table.className = "data";
+      table.innerHTML = "<thead><tr><th>Entity</th><th>Field</th><th>Current</th><th>Proposed</th><th>Reason</th><th>Kind</th><th>Status</th><th></th></tr></thead>";
+      const tb = document.createElement("tbody");
+      for (const item of rows) {
+        const tr = document.createElement("tr");
+        if (item.status === "needs_review" || REVIEW_KINDS.has(item.match_kind) && item.status !== "applied" && item.status !== "approved") {
+          tr.className = "missing-row";
+        }
+        tr.innerHTML =
+          "<td>" + esc(entityLabel(item)) + "</td>" +
+          "<td>" + esc(item.field_name || "") + "</td>" +
+          "<td>" + esc(fmtVal(item.current_value)) + "</td>" +
+          "<td>" + esc(fmtVal(item.proposed_value)) + "</td>" +
+          "<td>" + esc(item.reason || "") + "</td>" +
+          "<td><span class='pill " + pillFor(item.match_kind) + "'>" + esc(item.match_kind || "") + "</span></td>" +
+          "<td><span class='pill " + pillFor(item.status) + "'>" + esc(item.status || "") + "</span></td>";
+        tr.appendChild(actionCell(item, tableKind));
+        tb.appendChild(tr);
+      }
+      table.appendChild(tb);
+      host.innerHTML = "";
+      host.appendChild(table);
+    }
+
+    async function load() {
+      const artistId = sel.value;
+      $("factualBtns").innerHTML = "";
+      if (!artistId) {
+        $("headline").textContent = "";
+        emptyHost($("factualHost"), "Select an artist.");
+        emptyHost($("reviewHost"), "Select an artist.");
+        $("msg").textContent = "Pick an active artist.";
+        $("msg").className = "msg muted";
+        return;
+      }
+      $("msg").textContent = "Loading catalogue recon…";
+      $("msg").className = "msg muted";
+
+      const runs = await trySelect(
+        "catalogue_recon_runs",
+        "*",
+        (q) => q.eq("artist_id", artistId).order("started_at", { ascending: false }).limit(1)
+      );
+      if (runs.missing) {
+        tablesMissing = true;
+        emptyHost($("factualHost"), "catalogue_recon_runs is not present yet.");
+        emptyHost($("reviewHost"), "catalogue_recon_items is not present yet.");
+        $("headline").textContent = "";
+        $("msg").textContent = "Catalogue recon tables are not present yet.";
+        return;
+      }
+      if (runs.error) {
+        $("msg").textContent = "Error: " + runs.error.message;
+        $("msg").className = "msg error";
+        return;
+      }
+      currentRun = (runs.rows || [])[0] || null;
+      if (!currentRun) {
+        currentItems = [];
+        $("headline").textContent = "No recon run yet.";
+        emptyHost($("factualHost"), "No factual matches. Bot has not proposed a run for this artist.");
+        emptyHost($("reviewHost"), "No needs-review items.");
+        $("msg").textContent = "No catalogue reconciliation run yet for this artist.";
+        return;
+      }
+
+      const itemsRes = await trySelect(
+        "catalogue_recon_items",
+        "*",
+        (q) => q.eq("run_id", currentRun.id).order("created_at", { ascending: true })
+      );
+      if (itemsRes.missing) {
+        tablesMissing = true;
+        emptyHost($("factualHost"), "catalogue_recon_items is not present yet.");
+        emptyHost($("reviewHost"), "catalogue_recon_items is not present yet.");
+        $("msg").textContent = "Catalogue recon item table is not present yet.";
+        return;
+      }
+      if (itemsRes.error) {
+        $("msg").textContent = "Error: " + itemsRes.error.message;
+        $("msg").className = "msg error";
+        return;
+      }
+      currentItems = itemsRes.rows || [];
+
+      const factual = currentItems.filter((it) => it.match_kind === "factual");
+      const review = currentItems.filter((it) => it.match_kind !== "factual");
+      const nFactual = factual.filter((it) => it.status !== "dismissed").length;
+      const nReview = currentItems.filter((it) => it.status === "needs_review" || (REVIEW_KINDS.has(it.match_kind) && it.status === "proposed")).length;
+      const nApproved = currentItems.filter((it) => it.status === "approved").length;
+      const nApplied = currentItems.filter((it) => it.status === "applied").length;
+      const last = currentRun.finished_at || currentRun.started_at;
+      $("headline").textContent =
+        "Last run " + (last ? fmtWhen(last) : "unknown")
+        + " · factual " + nFactual
+        + " · needs_review " + nReview
+        + " · approved " + nApproved
+        + " · applied " + nApplied
+        + (currentRun.status ? " · run " + currentRun.status : "");
+
+      if (isOwner) {
+        const btns = $("factualBtns");
+        const pendingFactual = factual.filter((it) => it.status === "proposed");
+        const approvedFactual = factual.filter((it) => it.status === "approved");
+        if (pendingFactual.length) {
+          const b = document.createElement("button");
+          b.className = "btn primary";
+          b.textContent = "Approve all factual";
+          b.onclick = async () => {
+            let failed = 0;
+            for (const it of pendingFactual) {
+              const error = await setItemStatus(it, {
+                status: "approved",
+                approved_at: new Date().toISOString(),
+                approved_by: session.user.id
+              });
+              if (error) failed++;
+            }
+            $("msg").textContent = failed ? ("Some approves failed (" + failed + ").") : "All factual approved. Apply to write.";
+            $("msg").className = failed ? "msg error" : "msg success";
+            await load();
+          };
+          btns.appendChild(b);
+        }
+        if (approvedFactual.length) {
+          const b = document.createElement("button");
+          b.className = "btn secondary";
+          b.textContent = "Apply all approved factual";
+          b.onclick = async () => {
+            let ok = 0, fail = 0;
+            const reasons = [];
+            for (const it of approvedFactual) {
+              const r = await applyItem(it, {});
+              if (r.ok) ok++;
+              else { fail++; reasons.push(r.reason); }
+            }
+            $("msg").textContent = "Applied " + ok + (fail ? ("; refused " + fail + " (" + reasons.slice(0, 3).join(", ") + ")") : ".");
+            $("msg").className = fail ? "msg error" : "msg success";
+            await load();
+          };
+          btns.appendChild(b);
+        }
+      }
+
+      renderTable($("factualHost"), factual, "No factual matches in the latest run.", "factual");
+      renderTable($("reviewHost"), review, "No needs-review items in the latest run.", "review");
+
+      if (!isOwner) {
+        $("msg").textContent = "View only — owner approves and applies. Assigned artists are whatever RLS returns.";
+      } else if ($("msg").className.indexOf("success") === -1 && $("msg").className.indexOf("error") === -1) {
+        $("msg").textContent = "Owner can approve then apply. Apply writes SVS with date-field guards.";
+      }
+    }
+
+    sel.onchange = () => {
+      const id = sel.value;
+      const url = new URL(location.href);
+      if (id) url.searchParams.set("artist", id);
+      else url.searchParams.delete("artist");
+      history.replaceState({}, "", url);
+      load();
+    };
+    $("btnRefresh").onclick = load;
+    await load();
+  </script>
+</body>
+</html>

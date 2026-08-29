@@ -347,6 +347,26 @@
       artGrid.appendChild(field("Drive folder URL", "f_drive_folder_url", album.drive_folder_url));
       artGrid.appendChild(field("Drive folder id", "f_drive_folder_id", album.drive_folder_id));
       form.appendChild(artGrid);
+
+      const catHint = el("div", "hint", "Official music dates are not YouTube publish dates. YouTube dates live on songs, not as the album official date.");
+      form.appendChild(catHint);
+      const catGrid = el("div", "form-grid");
+      if (knownHas(album, "official_release_date")) {
+        const of = field("Official release date", "f_official_release_date", album.official_release_date ? String(album.official_release_date).slice(0, 10) : "");
+        const inp = of.querySelector("input");
+        if (inp) inp.type = "date";
+        catGrid.appendChild(of);
+      }
+      if (knownHas(album, "upc")) catGrid.appendChild(field("UPC", "f_upc", album.upc));
+      if (knownHas(album, "ditto_status")) catGrid.appendChild(field("Ditto status", "f_ditto_status", album.ditto_status));
+      if (knownHas(album, "ditto_url")) catGrid.appendChild(field("Ditto URL", "f_ditto_url", album.ditto_url));
+      if (catGrid.childNodes.length) form.appendChild(catGrid);
+      if (knownHas(album, "ditto_release_date") && album.ditto_release_date) {
+        form.appendChild(el("div", "muted", "Ditto observed release date (not bound to official): " + safe(album.ditto_release_date)));
+      }
+      if (knownHas(album, "bandcamp_release_date") && album.bandcamp_release_date) {
+        form.appendChild(el("div", "muted", "Bandcamp observed release date (not bound to official): " + safe(album.bandcamp_release_date)));
+      }
       host.appendChild(form);
 
       const tracks = el("div", "card");
@@ -505,6 +525,10 @@
         artwork_notes: $("f_artwork_notes")?.value,
         drive_folder_url: $("f_drive_folder_url")?.value,
         drive_folder_id: $("f_drive_folder_id")?.value,
+        official_release_date: $("f_official_release_date")?.value,
+        upc: $("f_upc")?.value,
+        ditto_status: $("f_ditto_status")?.value,
+        ditto_url: $("f_ditto_url")?.value,
       };
       const payload = pickPayload(albumRow, fields);
       let q = supabase.from("albums").update(payload).eq("id", albumRow.id);

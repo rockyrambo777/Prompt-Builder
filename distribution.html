@@ -381,10 +381,19 @@
           + "<div class='meta'>YouTube Sync: " + (matched ?? 0) + " matched | " + (unmatched ?? 0)
           + " unmatched | " + (issues ?? 0) + " issues | Last checked " + esc(last ? fmtWhen(last) : "never") + "</div>";
         line.appendChild(left);
+        const right = document.createElement("div");
+        right.className = "row";
+        const recon = document.createElement("a");
+        recon.className = "link";
+        recon.href = "./catalogue.html?artist=" + encodeURIComponent(ar.id);
+        recon.textContent = "Catalogue recon";
+        recon.onclick = (e) => e.stopPropagation();
+        right.appendChild(recon);
         const pill = document.createElement("span");
         pill.className = "pill " + ((unmatched || issues) ? "warn" : "ok");
         pill.textContent = "Open";
-        line.appendChild(pill);
+        right.appendChild(pill);
+        line.appendChild(right);
         line.onclick = () => { location.href = "./youtube.html?artist=" + encodeURIComponent(ar.id); };
         wrap.appendChild(line);
       }
