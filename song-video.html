@@ -178,7 +178,8 @@
     $("who").textContent = `Signed in: ${session.user.email}`;
 
     const params = new URLSearchParams(window.location.search);
-    const songId = params.get("id");
+    const songId = params.get("id") || params.get("song_id");
+    const albumIdFromUrl = params.get("album_id");
     if (!songId) { alert("Missing song id"); window.location.href = "./production.html"; }
 
     let song = null;
@@ -190,7 +191,12 @@
       window.location.href = "./index.html";
     };
 
-    $("btnBack").onclick = () => window.location.href = "./production.html";
+    function goAlbum(){
+      const albumId = song?.album_id || albumIdFromUrl;
+      if (albumId) window.location.href = "./album-edit.html?id=" + encodeURIComponent(albumId);
+      else window.location.href = "./song.html?id=" + encodeURIComponent(songId);
+    }
+    $("btnBack").onclick = goAlbum;
 
     function pill(txt){
       const d = document.createElement("div");
@@ -496,12 +502,10 @@ ${strict}
       if (error) { $("statusLine").textContent = "Error: " + error.message; return; }
 
       $("statusLine").textContent = "Saved ✅";
-      window.location.href = "./production.html";
+      goAlbum();
     };
 
-    $("btnBack").onclick = () => window.location.href = "./production.html";
-
-    await load();
+        await load();
   </script>
 </body>
 </html>
