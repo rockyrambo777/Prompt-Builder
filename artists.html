@@ -70,6 +70,7 @@
       const { data, error } = await supabase
         .from(TABLE)
         .select("id,name,channel_hand,default_lane,created_at")
+        .eq("is_active", true)
         .order("created_at", { ascending: false });
 
       if (error) { $("msg").textContent = "Error: " + error.message; return; }

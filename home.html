@@ -197,7 +197,7 @@
       $("globalChips").innerHTML = "";
       $("artistGrid").innerHTML = "";
 
-      const { data: artists, error } = await supabase.from(ARTISTS).select("*").order("created_at", { ascending: false });
+      const { data: artists, error } = await supabase.from(ARTISTS).select("*").eq("is_active", true).order("created_at", { ascending: false });
       if (error){
         $("statusLine").textContent = "Error: " + error.message;
         return;
