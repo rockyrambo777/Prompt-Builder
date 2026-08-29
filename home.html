@@ -4,80 +4,35 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>SVS System – Home</title>
-  <style>
-    :root{
-      --bg:#0b0f19; --card:#121a2a; --card2:#0f1626; --border:#23304a;
-      --muted:#92a4c7; --text:#e8eefc; --primary:#2f6fed; --danger:#d14b4b;
-      --chip:#1c273f; --ok:#7CFFB2; --warn:#ffcc66;
-    }
-    body { font-family: Arial, sans-serif; background:var(--bg); color:var(--text); margin:0; }
-    .wrap { max-width: 1400px; margin: 0 auto; padding: 24px; }
-    .top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
-    .muted { color:var(--muted); font-size: 14px; }
-    .btn { padding:10px 12px; border-radius:12px; border:1px solid #2a3a5c; background:#121a2a; color:var(--text); cursor:pointer; font-weight:800; }
-    .btn.primary { background:var(--primary); border:none; }
-    .btn.secondary { background:#1c273f; border:1px solid #2a3a5c; }
-    .btn.danger { background:var(--danger); border:none; }
-    .btn.copy { background:#16315f; border:1px solid #2a3a5c; }
-    .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; margin-top:14px; }
-    .grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; }
-    @media (max-width: 980px){ .grid { grid-template-columns: 1fr; } }
-    .grid3 { display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:12px; }
-    @media (max-width: 1100px){ .grid3 { grid-template-columns: 1fr; } }
-    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-    .divider{ height:1px; background:#22304a; margin:14px 0; }
-    .chips { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
-    .chip { font-size:12px; padding:6px 10px; border-radius:999px; border:1px solid #2a3a5c; background:var(--chip); color:var(--text); }
-    .pill{
-      display:inline-block; padding:4px 10px; border-radius:999px;
-      border:1px solid #2a3a5c; background:var(--card2); font-size:12px;
-    }
-    .pill.ok{ border-color:#1f6b45; }
-    .pill.warn{ border-color:#6b4c1d; }
-    .pill.bad{ border-color:#6b2a2a; }
-    .hint { font-size:12px; color:var(--muted); margin-top:6px; line-height:1.4; }
-
-    .artistGrid{ display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:12px; }
-    @media (max-width: 1100px){ .artistGrid{ grid-template-columns: 1fr; } }
-    .artistCard{
-      border:1px solid #2a3a5c; background:var(--card2); border-radius:16px; padding:14px;
-      cursor:pointer;
-    }
-    .artistCard:hover{ background:#111b2f; }
-    .artistTitle{ font-weight:900; font-size:16px; }
-    .artistMeta{ margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; }
-    .kpi{ display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
-    .kpi .pill{ font-weight:800; }
-    a { color: inherit; }
-  </style>
+  <link rel="stylesheet" href="svs.css" />
 </head>
 <body>
+  <div id="svs-nav"></div>
   <div class="wrap">
     <div class="top">
       <div>
-        <h1 style="margin:0;">SVS Music Production System</h1>
+        <h1>SVS Music Production System</h1>
         <div id="who" class="muted"></div>
       </div>
       <div class="row">
         <button id="btnAccess" class="btn secondary" style="display:none">Users & Access</button>
-        <button id="btnLogout" class="btn danger">Logout</button>
       </div>
     </div>
 
     <div class="card">
-      <h2 style="margin:0 0 10px;">Quick Actions</h2>
+      <h2>Quick Actions</h2>
       <div class="grid3">
         <div class="card" style="margin:0;">
-          <h3 style="margin:0 0 8px;">Artists</h3>
+          <h3>Artists</h3>
           <div class="row">
             <button id="btnArtistsScroll" class="btn secondary">Manage Artists</button>
-<button id="btnArtistNew" class="btn primary">Add Artist</button>
+            <button id="btnArtistNew" class="btn primary">Add Artist</button>
           </div>
           <div class="hint">Artists store your “Artist DNA” so prompts don’t rely on ChatGPT memory.</div>
         </div>
 
         <div class="card" style="margin:0;">
-          <h3 style="margin:0 0 8px;">Albums</h3>
+          <h3>Albums</h3>
           <div class="row">
             <button id="btnAlbums" class="btn secondary">Albums</button>
           </div>
@@ -85,7 +40,7 @@
         </div>
 
         <div class="card" style="margin:0;">
-          <h3 style="margin:0 0 8px;">Distribution</h3>
+          <h3>Distribution</h3>
           <div class="row">
             <button id="btnDitto" class="btn secondary">Distribution – Ditto</button>
             <button id="btnBandcamp" class="btn secondary">Distribution – Bandcamp</button>
@@ -120,9 +75,9 @@
 
       <div id="artistGrid" class="artistGrid"></div>
     </div>
-
   </div>
 
+  <script type="module" src="svs-nav.js"></script>
   <script type="module">
     import { supabase, requireSessionOrRedirect } from "./app.js";
     const $ = (id) => document.getElementById(id);
@@ -152,10 +107,6 @@
       return s;
     }
 
-    function scrollToArtists(){
-      document.getElementById("artistsSection").scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-
     function genres(ar){
       const mg = safe(ar.main_genre).trim();
       const sg = safe(ar.secondary_genre).trim();
@@ -163,7 +114,6 @@
     }
 
     async function computeArtistStats(artistId){
-      // albums for artist
       const { data: albums } = await supabase.from(ALBUMS).select("id,title,status,updated_at").eq("artist_id", artistId);
       const a = albums || [];
       if (!a.length) return { albumCount: 0, readyAlbums: 0, longNeed: 0, shortNeed: 0 };
@@ -172,7 +122,6 @@
       let longNeed = 0;
       let shortNeed = 0;
 
-      // per album: load minimal song fields
       for (const al of a){
         const { data: songs } = await supabase
           .from(SONGS)
@@ -214,7 +163,6 @@
         return;
       }
 
-      // Global counts
       let totalAlbums = 0, readyAlbums = 0, longNeed = 0, shortNeed = 0;
 
       for (const ar of list){
@@ -247,7 +195,6 @@
 
         $("artistGrid").appendChild(card);
 
-        // stats async (sequential to keep it simple)
         const stats = await computeArtistStats(ar.id);
         totalAlbums += stats.albumCount;
         readyAlbums += stats.readyAlbums;
@@ -271,15 +218,10 @@
 
     $("btnArtistsScroll").onclick = () => window.location.href = "./artists.html";
     $("btnArtistNew").onclick = () => window.location.href = "./artist-new.html";
-    $("btnAlbums").onclick = () => window.location.href = "./albums.html";
+    $("btnAlbums").onclick = () => window.location.href = "./album.html";
     $("btnDitto").onclick = () => window.location.href = "./distribution-ditto.html";
     $("btnBandcamp").onclick = () => window.location.href = "./distribution-bandcamp.html";
     $("btnRefresh").onclick = loadDashboard;
-
-    $("btnLogout").onclick = async () => {
-      await supabase.auth.signOut();
-      window.location.href = "./index.html";
-    };
 
     await loadDashboard();
   </script>

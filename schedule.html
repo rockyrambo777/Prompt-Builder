@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SVS – Schedule</title>
+  <link rel="stylesheet" href="svs.css" />
+</head>
+<body>
+  <div id="svs-nav"></div>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1>Schedule</h1>
+        <div id="who" class="muted"></div>
+      </div>
+      <div class="row">
+        <button id="btnRefresh" class="btn secondary">Refresh</button>
+      </div>
+    </div>
+    <div id="msg" class="msg muted"></div>
+    <div class="card">
+      <div class="muted">Calendar events plus planned publish times from packages (when those tables exist).</div>
+      <div id="tableHost" style="margin-top:12px;"></div>
+    </div>
+  </div>
+
+  <script type="module" src="svs-nav.js"></script>
+  <script type="module">
+    import { supabase, requireSessionOrRedirect } from "./app.js";
+    const $ = (id) => document.getElementById(id);
+
+    const session = await requireSessionOrRedirect();
+    $("who").textContent = "Signed in: " + session.user.email;
+
+    function safe(v) { return (v === null || v === undefined) ? "" : String(v); }
+    function tableMissing(err) {
+      if (!err) return false;
+      const m = (err.message || "") + " " + (err.code || "");
+      return /does not exist|schema cache|PGRST/i.test(m) || err.code === "42P01" || err.code === "PGRST205";
+    }
+    function fmtWhen(v) {
+      if (!v) return "";
+      const d = new Date(v);
+      if (Number.isNaN(d.getTime())) return String(v);
+      return d.toISOString().replace("T", " ").slice(0, 16) + " UTC";
+    }
+
+    async function loadNames() {
+      const { data: artists } = await supabase.from("artists").select("id,name,is_active").eq("is_active", true);
+      const { data: albums } = await supabase.from("albums").select("id,title,artist_id");
+      const { data: songs } = await supabase.from("songs").select("id,title,album_id,track_number");
+      const artist = {};
+      for (const a of artists || []) artist[a.id] = a.name || "(unnamed)";
+      const album = {};
+      for (const a of albums || []) album[a.id] = a;
+      const song = {};
+      for (const s of songs || []) song[s.id] = s;
+      return { artist, album, song };
+    }
+
+    async function trySelect(table, cols) {
+      const { data, error } = await supabase.from(table).select(cols);
+      if (error) {
+        if (tableMissing(error)) return { rows: [], missing: true };
+        return { rows: [], missing: false, error };
+      }
+      return { rows: data || [], missing: false };
+    }
+
+    async function load() {
+      $("msg").textContent = "Loading schedule…";
+      const names = await loadNames();
+      const rows = [];
+      const skipped = [];
+
+      const events = await trySelect("schedule_events", "id,artist_id,album_id,song_id,title,notes,link,event_date,created_at");
+      if (events.error) { $("msg").textContent = "Error: " + events.error.message; return; }
+      if (events.missing) skipped.push("schedule_events");
+      for (const e of events.rows) {
+        rows.push({
+          when: e.event_date,
+          kind: "event",
+          title: e.title || "(untitled)",
+          artist: names.artist[e.artist_id] || "",
+          album: e.album_id && names.album[e.album_id] ? names.album[e.album_id].title : "",
+          song: e.song_id && names.song[e.song_id] ? names.song[e.song_id].title : "",
+          status: "",
+          link: e.link || "",
+          notes: e.notes || ""
+        });
+      }
+
+      const longs = await trySelect("song_long_packages", "id,song_id,youtube_title,planned_publish_at,publication_status,youtube_url");
+      if (longs.missing) skipped.push("song_long_packages");
+      else if (longs.error) { $("msg").textContent = "Error: " + longs.error.message; return; }
+      for (const p of longs.rows) {
+        if (!p.planned_publish_at) continue;
+        const s = names.song[p.song_id];
+        const al = s ? names.album[s.album_id] : null;
+        rows.push({
+          when: p.planned_publish_at,
+          kind: "long video",
+          title: p.youtube_title || (s && s.title) || "(long video)",
+          artist: al ? (names.artist[al.artist_id] || "") : "",
+          album: al ? al.title : "",
+          song: s ? s.title : "",
+          status: p.publication_status || "",
+          link: p.youtube_url || "",
+          notes: ""
+        });
+      }
+
+      const shorts = await trySelect("song_short_packages", "id,song_id,short_number,title,planned_publish_at,publication_status,youtube_url");
+      if (shorts.missing) skipped.push("song_short_packages");
+      else if (shorts.error) { $("msg").textContent = "Error: " + shorts.error.message; return; }
+      for (const p of shorts.rows) {
+        if (!p.planned_publish_at) continue;
+        const s = names.song[p.song_id];
+        const al = s ? names.album[s.album_id] : null;
+        rows.push({
+          when: p.planned_publish_at,
+          kind: "short " + (p.short_number != null ? p.short_number : ""),
+          title: p.title || (s && s.title) || "(short)",
+          artist: al ? (names.artist[al.artist_id] || "") : "",
+          album: al ? al.title : "",
+          song: s ? s.title : "",
+          status: p.publication_status || "",
+          link: p.youtube_url || "",
+          notes: ""
+        });
+      }
+
+      const posts = await trySelect("community_posts", "id,artist_id,album_id,song_id,body,planned_publish_at,publication_status,youtube_post_url");
+      if (posts.missing) skipped.push("community_posts");
+      else if (posts.error) { $("msg").textContent = "Error: " + posts.error.message; return; }
+      for (const p of posts.rows) {
+        if (!p.planned_publish_at) continue;
+        const s = p.song_id ? names.song[p.song_id] : null;
+        const al = p.album_id ? names.album[p.album_id] : (s ? names.album[s.album_id] : null);
+        rows.push({
+          when: p.planned_publish_at,
+          kind: "community",
+          title: safe(p.body).slice(0, 80) || "(community post)",
+          artist: names.artist[p.artist_id] || "",
+          album: al ? al.title : "",
+          song: s ? s.title : "",
+          status: p.publication_status || "",
+          link: p.youtube_post_url || "",
+          notes: ""
+        });
+      }
+
+      rows.sort((a, b) => String(a.when || "").localeCompare(String(b.when || "")));
+
+      const host = $("tableHost");
+      if (!rows.length) {
+        host.innerHTML = "<div class='muted'>Nothing scheduled yet.</div>";
+      } else {
+        const table = document.createElement("table");
+        table.className = "data";
+        table.innerHTML = "<thead><tr><th>When</th><th>Type</th><th>Artist</th><th>Album</th><th>Song</th><th>Title</th><th>Status</th><th>Link</th></tr></thead>";
+        const tb = document.createElement("tbody");
+        for (const r of rows) {
+          const tr = document.createElement("tr");
+          const link = r.link
+            ? "<a class='link' href='" + r.link.replace(/'/g, "") + "' target='_blank' rel='noopener'>open</a>"
+            : "";
+          tr.innerHTML =
+            "<td>" + fmtWhen(r.when) + "</td>" +
+            "<td>" + safe(r.kind) + "</td>" +
+            "<td>" + safe(r.artist) + "</td>" +
+            "<td>" + safe(r.album) + "</td>" +
+            "<td>" + safe(r.song) + "</td>" +
+            "<td>" + safe(r.title) + "</td>" +
+            "<td>" + safe(r.status) + "</td>" +
+            "<td>" + link + "</td>";
+          tb.appendChild(tr);
+        }
+        table.appendChild(tb);
+        host.innerHTML = "";
+        host.appendChild(table);
+      }
+
+      let line = rows.length + " item(s).";
+      if (skipped.length) line += " Not loaded (tables not present yet): " + skipped.join(", ") + ".";
+      $("msg").textContent = line;
+    }
+
+    $("btnRefresh").onclick = load;
+    await load();
+  </script>
+</body>
+</html>

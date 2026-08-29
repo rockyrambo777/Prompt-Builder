@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SVS – Distribution</title>
+  <link rel="stylesheet" href="svs.css" />
+</head>
+<body>
+  <div id="svs-nav"></div>
+  <div class="wrap wrap-narrow">
+    <h1>Distribution</h1>
+    <div id="who" class="muted"></div>
+    <div class="card coming">Ditto / Bandcamp readiness and submit workflow — coming in this build.</div>
+  </div>
+  <script type="module" src="svs-nav.js"></script>
+  <script type="module">
+    import { requireSessionOrRedirect } from "./app.js";
+    const session = await requireSessionOrRedirect();
+    document.getElementById("who").textContent = "Signed in: " + session.user.email;
+  </script>
+</body>
+</html>
