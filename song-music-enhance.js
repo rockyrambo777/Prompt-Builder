@@ -38,7 +38,7 @@ async function initSongMusicEnhancements() {
     back.id = "btnBackAlbum";
     back.className = "btn secondary";
     back.textContent = "← BACK TO ALBUM";
-    back.href = "./album.html?id=" + encodeURIComponent(song.album_id);
+    back.href = "./album-edit.html?id=" + encodeURIComponent(song.album_id);
     actionRow.prepend(back);
   }
 
