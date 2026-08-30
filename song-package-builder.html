@@ -102,7 +102,7 @@
       ["tm_end", "End time"]
     ];
 
-    let song = null, album = null, artist = null, persona = null, visual = null;
+    let song = null, album = null, artist = null, persona = null, visual = null, identityHasImage = false;
     let existingPkg = null, existingScenes = [], existingShorts = [], existingCommunity = [];
 
     function safe(v){ return v == null ? "" : String(v); }
@@ -186,6 +186,11 @@
           || rows.find(x => !x.persona_id)
           || rows[0]
           || null;
+        identityHasImage = false;
+        if (visual && visual.id) {
+          const imgs = await supabase.from("visual_reference_images").select("id").eq("visual_identity_id", visual.id).limit(1);
+          identityHasImage = !!(imgs.data && imgs.data.length);
+        }
       }
       const lp = await supabase.from("song_long_packages").select("*").eq("song_id", songId).maybeSingle();
       existingPkg = lp.data || null;
@@ -200,7 +205,7 @@
 
       $("btnBackSong").href = "./song.html?id=" + encodeURIComponent(songId);
       $("btnBackAlbum").href = album.id ? "./album-edit.html?id=" + encodeURIComponent(album.id) : "./artists.html";
-      $("crumb").textContent = [artist?.name, album?.title, song?.title].filter(Boolean).join(" · ");
+      $("crumb").textContent = [artist?.name, album?.title, song?.title].filter(Boolean).join(" \u00b7 ");
       $("sunoLink").value = safe(song?.suno_share_url);
       $("humanDirection").value = safe(song?.edit_notes);
       $("audioNote").value = "If your AI tool supports listening to audio, attach the final audio file manually.";
@@ -208,12 +213,12 @@
       else $("btnOpenSuno").style.display = "none";
 
       const bits = [
-        "<div class='info-line'><strong>" + safe(song.title) + "</strong> · Track " + safe(song.track_number) + "</div>",
-        "<div class='info-line'>" + [artist?.name, album?.title].filter(Boolean).join(" · ") + "</div>",
-        "<div class='info-line'>Persona: " + safe(persona?.label || artist?.default_perso || "default") + " · Look: " + safe(visual?.name || "none") + "</div>",
-        "<div class='info-line'>Theme: " + (safe(song.theme) || "—") + "</div>",
-        "<div class='info-line'>Keywords: " + (safe(song.keywords) || "—") + "</div>",
-        "<div class='info-line'>Scripture: " + (safe(song.scripture) || "—") + "</div>"
+        "<div class='info-line'><strong>" + safe(song.title) + "</strong> \u00b7 Track " + safe(song.track_number) + "</div>",
+        "<div class='info-line'>" + [artist?.name, album?.title].filter(Boolean).join(" \u00b7 ") + "</div>",
+        "<div class='info-line'>Persona: " + safe(persona?.label || artist?.default_perso || "default") + " \u00b7 Look: " + safe(visual?.name || "none") + (identityHasImage ? " (image)" : (visual ? " (no image)" : "")) + "</div>",
+        "<div class='info-line'>Theme: " + (safe(song.theme) || "\u2014") + "</div>",
+        "<div class='info-line'>Keywords: " + (safe(song.keywords) || "\u2014") + "</div>",
+        "<div class='info-line'>Scripture: " + (safe(song.scripture) || "\u2014") + "</div>"
       ];
       $("songInfo").innerHTML = bits.join("");
 
@@ -222,7 +227,7 @@
       $("existsNote").textContent = hasExisting
         ? ("This song already has " + (existingScenes.length || 0) + " long scene(s), " + existingShorts.length + " short(s), " + existingCommunity.length + " community post(s). Use Replace to overwrite Long Video and Shorts after backup.")
         : "No package yet. Import will create it.";
-      $("msg").textContent = hasExisting ? "Ready · package already exists. Validate JSON, then Replace to overwrite." : "Ready · no package yet.";
+      $("msg").textContent = hasExisting ? "Ready \u00b7 package already exists. Validate JSON, then Replace to overwrite." : "Ready \u00b7 no package yet.";
       buildPrompt();
     }
 
@@ -311,8 +316,13 @@
       out.push("ARTIST PERSONA / DEFAULT PERSONA:");
       out.push(safe(persona?.label || artist?.default_perso || "default artist persona"));
       out.push("");
-      out.push("VISUAL ARTIST IDENTITY — KEEP CONSISTENT:");
-      out.push(visualBlock());
+      if (visual) {
+        out.push("VISUAL ARTIST IDENTITY — KEEP CONSISTENT:");
+        out.push(visualBlock());
+      } else {
+        out.push("VISUAL IDENTITY: none saved for this artist.");
+        out.push("Do not include an artist reference image. Do not use USE IMAGE. Write scenes from concept only.");
+      }
       out.push("");
       out.push("CURRENT SUNO PROMPT:");
       out.push(safe(song?.suno_prompt) || "(none)");
@@ -328,16 +338,30 @@
       out.push("- Keep the same artist visual identity throughout.");
       out.push("");
       out.push("IMAGE PROMPT RULES (every long scene still and every Short still):");
-      out.push("- Still image first. The generator will use the artist reference photo.");
-      out.push("- Start from USE IMAGE: change the uploaded artist photo into this scene. Keep the same face, hair, and wardrobe. Do not replace the person.");
-      out.push("- Do NOT paste a VISUAL ARTIST IDENTITY essay as the image prompt. The photo is the look.");
+      if (visual && identityHasImage) {
+        out.push("- Still image first. The generator will use the artist reference photo.");
+        out.push("- Start from USE IMAGE: change the uploaded artist photo into this scene. Keep the same face, hair, and wardrobe. Do not replace the person.");
+        out.push("- Do NOT paste a VISUAL ARTIST IDENTITY essay as the image prompt. The photo is the look.");
+      } else if (visual) {
+        out.push("- This artist has a visual identity but no reference photo in SVS.");
+        out.push("- Do not use USE IMAGE and do not include an artist photo.");
+        out.push("- Describe the still from the identity notes and the scene concept.");
+      } else {
+        out.push("- This artist has no visual identity in SVS.");
+        out.push("- Do not include an artist image. Do not use USE IMAGE. Do not invent a branded face reference.");
+        out.push("- Write cinematic stills from the scene concept only.");
+      }
       out.push("- NO text baked into still images (not lyrics, not titles, not hooks on scene/Short stills).");
       out.push("- Thumbnail is the exception: thumbnail_prompt may include hook text ON the thumbnail.");
       out.push("");
       out.push("VIDEO PROMPT RULES:");
       out.push("- IMAGE TO VIDEO. Start from the still just generated. Use that image as the first frame.");
       out.push("- Put camera movement INSIDE video_prompt (and also in camera_direction).");
-      out.push("- Keep the exact artist. No warping, no new people.");
+      if (visual && identityHasImage) {
+        out.push("- Keep the exact artist. No warping, no new people.");
+      } else {
+        out.push("- Animate the still. No extra people unless the scene needs them.");
+      }
       out.push("- Example camera: Slow wide push-in from landscape toward subject. Hold horizon low.");
       out.push("");
       out.push("SHORTS: vertical 9:16. Five items. Each needs title, lyric_range, onscreen_text, image_prompt, video_prompt, youtube_title, youtube_description, hashtags.");
@@ -382,7 +406,7 @@
       try {
         const p = parsePayload();
         $("preview").style.display = "block";
-        $("preview").textContent = "VALID JSON\n\nVideo: " + (p.youtube_title || p.video_concept || "(none)") + "\nScenes: " + p.scenes.length + " (" + p.scenes[0].timestamp_start + " → " + p.scenes[p.scenes.length-1].timestamp_end + ")\nShorts: " + p.shorts.length + "\nCommunity: " + (safe(p.community_post).slice(0,120) || "(none)");
+        $("preview").textContent = "VALID JSON\n\nVideo: " + (p.youtube_title || p.video_concept || "(none)") + "\nScenes: " + p.scenes.length + " (" + p.scenes[0].timestamp_start + " \u2192 " + p.scenes[p.scenes.length-1].timestamp_end + ")\nShorts: " + p.shorts.length + "\nCommunity: " + (safe(p.community_post).slice(0,120) || "(none)");
         $("msg").textContent = "JSON valid. Import or Replace when ready.";
         return p;
       } catch (e) {
@@ -432,7 +456,7 @@
       }
       const verb = hasExisting ? "replace the current Long Video and Shorts (community post will be added, not deleted)" : "create the Long Video, 5 Shorts, and Community package";
       if (!confirm("This will " + verb + " for " + song.title + ". Continue?")) return;
-      $("msg").textContent = "Saving backup, then importing…";
+      $("msg").textContent = "Saving backup, then importing\u2026";
       await saveRevision();
 
       const artistDirection = safe(p.artist_image_direction).trim();
