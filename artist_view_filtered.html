@@ -184,25 +184,34 @@
     return v;
   }
 
+  function isFlagOn(v) {
+    if (v === true || v === 1) return true;
+    const s = String(v ?? "").trim().toLowerCase();
+    return s === "true" || s === "1" || s === "t" || s === "yes" || s === "y";
+  }
   function songIsReleased(s) {
     const st = normStatus(s.production_status || s.status);
     return st === "released" || st === "distributed";
   }
   function songHasDitto(s) {
-    return s?.ditto_released === true;
+    return isFlagOn(s?.ditto_released);
   }
   function songHasYoutube(s) {
-    if (s?.youtube_published === true) return true;
+    if (isFlagOn(s?.youtube_published)) return true;
     if (safe(s?.youtube_url).trim()) return true;
     if (safe(s?.longform_youtube_url).trim()) return true;
     if (safe(s?.youtube_video_id).trim()) return true;
     return false;
   }
+  function songsForAlbum(a) {
+    const id = String(a?.id || "");
+    return songsByAlbum.get(id) || [];
+  }
   function albumDittoSummary(a) {
-    const songs = songsByAlbum.get(a.id) || [];
+    const songs = songsForAlbum(a);
     const total = songs.length;
     const done = songs.filter(songHasDitto).length;
-    const albumLive = a.ditto_distributed === true
+    const albumLive = isFlagOn(a.ditto_distributed)
       || /released|live|published|released_live_on_stores/i.test(safe(a.ditto_status));
     if (albumLive && total === 0) {
       return { done: 1, total: 1, label: "Ditto: album released", cls: "ok" };
@@ -216,7 +225,7 @@
     return { done, total, label: "Ditto: " + done + "/" + total, cls: "ok" };
   }
   function albumYoutubeSummary(a) {
-    const songs = songsByAlbum.get(a.id) || [];
+    const songs = songsForAlbum(a);
     const total = songs.length;
     const done = songs.filter(songHasYoutube).length;
     const albumLive = !!safe(a.youtube_playlist_url).trim()
@@ -246,7 +255,7 @@
   }
   function displayStatus(a) {
     if (dittoIsLive(a) && youtubeIsLive(a)) return "released";
-    const albumSongs = songsByAlbum.get(a.id) || [];
+    const albumSongs = songsForAlbum(a);
     if (albumSongs.length && albumSongs.every(songIsReleased)) return "released";
     const s = normStatus(a.status);
     if (s === "released" || s === "distributed") return "released";
@@ -395,28 +404,23 @@
     albums = res.data || [];
 
     songsByAlbum = new Map();
-    const albumIds = albums.map((a) => a.id);
-    if (albumIds.length) {
-      const songSelects = [
-        "id,album_id,status,production_status,title,ditto_released,youtube_published,youtube_url,longform_youtube_url,youtube_video_id",
-        "id,album_id,status,production_status,title,ditto_released,youtube_published,youtube_url,youtube_video_id",
-        "id,album_id,status,production_status,title,ditto_released,youtube_published,youtube_url",
-        "id,album_id,status,production_status,title,ditto_released,youtube_url",
-        "id,album_id,status,production_status,title,youtube_url",
-        "id,album_id,status,production_status,title"
-      ];
-      let songRows = null;
-      for (const cols of songSelects) {
-        const sg = await supabase.from("songs").select(cols).in("album_id", albumIds);
-        if (!sg.error) {
-          songRows = sg.data || [];
-          break;
+    if (albums.length) {
+      // Load songs per album the same way album-edit does (select *),
+      // so Ditto/YouTube flags are always available and column mismatches cannot wipe the list.
+      await Promise.all(albums.map(async (a) => {
+        const albumId = String(a.id);
+        songsByAlbum.set(albumId, []);
+        const sg = await supabase
+          .from("songs")
+          .select("*")
+          .eq("album_id", a.id)
+          .order("track_number", { ascending: true });
+        if (sg.error) {
+          console.warn("Song load failed for album", a.title || a.id, sg.error);
+          return;
         }
-      }
-      for (const s of songRows || []) {
-        if (!songsByAlbum.has(s.album_id)) songsByAlbum.set(s.album_id, []);
-        songsByAlbum.get(s.album_id).push(s);
-      }
+        songsByAlbum.set(albumId, sg.data || []);
+      }));
     }
     applyFilters();
   }
