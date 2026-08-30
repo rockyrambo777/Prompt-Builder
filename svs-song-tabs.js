@@ -190,25 +190,56 @@ function composeGeneratorPrompt(opts) {
   const kind = opts.kind || "long";
   if (kind === "thumbnail") return composeThumbnailPrompt(opts);
   if (kind === "long-video" || kind === "shorts-video") return composeVideoPrompt(opts);
+  if (kind === "long" || kind === "shorts") return composeImagePrompt(opts);
   const parts = [];
   const use = useImageBlock(kind === "shorts" ? "shorts" : "long", identity);
   if (use) parts.push(use);
   const body = safe(opts.body).trim();
-  if (body) {
-    parts.push(body);
-  } else {
-    const vi = composeVisualPromptBlock(identity);
-    if (vi) parts.push(vi);
-    const hook = hookOverlayBlock(opts.hook, kind);
-    if (hook) parts.push(hook);
-    if (opts.concept && String(opts.concept).trim()) parts.push("Visual concept: " + String(opts.concept).trim());
-  }
+  if (body) parts.push(body);
   return parts.filter(Boolean).join("\n\n").trim();
+}
+
+function looksLikeIdentityDump(text) {
+  return /VISUAL ARTIST IDENTITY/i.test(safe(text));
 }
 
 function looksLikeStillDump(text) {
   const t = safe(text);
-  return /VISUAL ARTIST IDENTITY/i.test(t) || /Fair-skinned woman/i.test(t);
+  return looksLikeIdentityDump(t) || /Fair-skinned woman/i.test(t);
+}
+
+function stripIdentityDump(text) {
+  let t = safe(text).trim();
+  t = t.replace(/=== VISUAL ARTIST IDENTITY ===[\s\S]*?=== END VISUAL ARTIST IDENTITY ===/gi, "").trim();
+  t = t.replace(/=== USE ARTIST REFERENCE IMAGE ===[\s\S]*?=== END USE ARTIST REFERENCE IMAGE ===/gi, "").trim();
+  if (/^USE IMAGE\b/i.test(t)) return "";
+  return t;
+}
+
+function composeImagePrompt(opts) {
+  const identity = opts.identity || resolvedIdentity;
+  const kind = opts.kind === "shorts" ? "shorts" : "long";
+  const hasImg = !!pickRefImage(identity, kind === "shorts" ? "face" : "scene");
+  const concept = safe(opts.concept).trim();
+  const hook = safe(opts.hook).trim();
+  let still = stripIdentityDump(opts.body);
+  if (still === concept) still = "";
+  const lines = [];
+  if (hasImg) {
+    if (kind === "shorts") {
+      lines.push("USE IMAGE. Use the uploaded artist photo as the reference. Change this photo into a vertical 9:16 Short still. Keep this exact artist (same face, hair, wardrobe). Do not replace the person.");
+    } else {
+      lines.push("USE IMAGE. Use the uploaded artist photo as the reference. Change this photo into this scene. Keep this exact artist (same face, hair, wardrobe). Do not replace the person. Adapt pose, crop, lighting, and setting to the scene.");
+    }
+  } else if (kind === "shorts") {
+    lines.push("Vertical 9:16 Short still. Keep the artist look.");
+  } else {
+    lines.push("Scene still. Keep the artist look. Change the artist photo into this scene.");
+  }
+  if (concept) lines.push(concept);
+  if (still) lines.push(still);
+  if (kind === "shorts" && hook) lines.push("Put this text on the still: \"" + hook + "\".");
+  return lines.join("\n\n");
 }
 
 function composeVideoPrompt(opts) {
@@ -482,7 +513,11 @@ function sceneCard(s) {
   card.appendChild(n);
   card.appendChild(field("Visual concept", "", s.visual_concept, { tag: "textarea" }));
   card.lastChild.querySelector("textarea").className = "sc_visual";
-  card.appendChild(field("Image prompt", "", s.image_prompt, { tag: "textarea" }));
+  const ident = identityById(s.visual_identity_id);
+  const sceneImageShown = (!s.image_prompt || looksLikeIdentityDump(s.image_prompt))
+    ? composeImagePrompt({ kind: "long", identity: ident, concept: s.visual_concept, body: s.image_prompt })
+    : s.image_prompt;
+  card.appendChild(field("Image prompt", "", sceneImageShown, { tag: "textarea" }));
   card.lastChild.querySelector("textarea").className = "sc_image";
   const sceneVideoShown = (!s.video_prompt || looksLikeStillDump(s.video_prompt))
     ? composeVideoPrompt({ kind: "long-video", camera: s.camera_direction, body: s.video_prompt })
@@ -637,7 +672,11 @@ function shortCard(s) {
   card.appendChild(n);
   card.appendChild(field("On-screen text", "", s.onscreen_text, { tag: "textarea" }));
   card.lastChild.querySelector("textarea").className = "sh_onscreen";
-  card.appendChild(field("Image prompt", "", s.image_prompt, { tag: "textarea" }));
+  const shIdent = identityById(s.visual_identity_id);
+  const shortImageShown = (!s.image_prompt || looksLikeIdentityDump(s.image_prompt))
+    ? composeImagePrompt({ kind: "shorts", identity: shIdent, concept: s.lyric_range, hook: s.onscreen_text || s.title, body: s.image_prompt })
+    : s.image_prompt;
+  card.appendChild(field("Image prompt", "", shortImageShown, { tag: "textarea" }));
   card.lastChild.querySelector("textarea").className = "sh_image";
   const shortCam = s.camera_direction || "";
   const shortVideoShown = (!s.video_prompt || looksLikeStillDump(s.video_prompt))
