@@ -184,19 +184,65 @@
     return v;
   }
 
-  function dittoIsLive(a) {
-    const st = safe(a.ditto_status).toLowerCase();
-    if (a.ditto_distributed === true) return true;
-    return st.includes("released") || st.includes("live") || st === "published" || st === "released_live_on_stores";
-  }
-  function youtubeIsLive(a) {
-    if (a.youtube_playlist_url) return true;
-    const st = safe(a.youtube_recon_status || a.youtube_status).toLowerCase();
-    return st === "matched" || st === "published" || st === "live";
-  }
   function songIsReleased(s) {
     const st = normStatus(s.production_status || s.status);
     return st === "released" || st === "distributed";
+  }
+  function songHasDitto(s) {
+    return s?.ditto_released === true;
+  }
+  function songHasYoutube(s) {
+    if (s?.youtube_published === true) return true;
+    if (safe(s?.youtube_url).trim()) return true;
+    if (safe(s?.longform_youtube_url).trim()) return true;
+    if (safe(s?.youtube_video_id).trim()) return true;
+    return false;
+  }
+  function albumDittoSummary(a) {
+    const songs = songsByAlbum.get(a.id) || [];
+    const total = songs.length;
+    const done = songs.filter(songHasDitto).length;
+    const albumLive = a.ditto_distributed === true
+      || /released|live|published|released_live_on_stores/i.test(safe(a.ditto_status));
+    if (albumLive && total === 0) {
+      return { done: 1, total: 1, label: "Ditto: album released", cls: "ok" };
+    }
+    if (albumLive && done === 0) {
+      return { done: total || 1, total: total || 1, label: total ? `Ditto: ${total}/${total}` : "Ditto: album released", cls: "ok" };
+    }
+    if (!total) return { done: 0, total: 0, label: "Ditto: no songs", cls: "warn" };
+    if (done === 0) return { done, total, label: "Ditto: 0/" + total, cls: "warn" };
+    if (done < total) return { done, total, label: "Ditto: " + done + "/" + total, cls: "warn" };
+    return { done, total, label: "Ditto: " + done + "/" + total, cls: "ok" };
+  }
+  function albumYoutubeSummary(a) {
+    const songs = songsByAlbum.get(a.id) || [];
+    const total = songs.length;
+    const done = songs.filter(songHasYoutube).length;
+    const albumLive = !!safe(a.youtube_playlist_url).trim()
+      || /^(matched|published|live)$/i.test(safe(a.youtube_recon_status || a.youtube_status));
+    if (albumLive && total === 0) {
+      return { done: 1, total: 1, label: "YouTube: playlist linked", cls: "ok" };
+    }
+    if (!total) return { done: 0, total: 0, label: "YouTube: no songs", cls: "warn" };
+    if (done === 0 && !albumLive) return { done, total, label: "YouTube: 0/" + total, cls: "warn" };
+    if (done === 0 && albumLive) return { done: 0, total, label: "YouTube: playlist · songs 0/" + total, cls: "warn" };
+    if (done < total) return { done, total, label: "YouTube: " + done + "/" + total, cls: "warn" };
+    return { done, total, label: "YouTube: " + done + "/" + total, cls: "ok" };
+  }
+  function dittoIsLive(a) {
+    const sum = albumDittoSummary(a);
+    return sum.total > 0 && sum.done === sum.total;
+  }
+  function youtubeIsLive(a) {
+    const sum = albumYoutubeSummary(a);
+    return sum.total > 0 && sum.done === sum.total;
+  }
+  function dittoHasAny(a) {
+    return albumDittoSummary(a).done > 0;
+  }
+  function youtubeHasAny(a) {
+    return albumYoutubeSummary(a).done > 0 || !!safe(a.youtube_playlist_url).trim();
   }
   function displayStatus(a) {
     if (dittoIsLive(a) && youtubeIsLive(a)) return "released";
@@ -208,7 +254,7 @@
   }
   function albumIsReady(a) {
     const s = displayStatus(a);
-    return !!(a.is_ready_for_distribution || a.ready_for_distro || s === "ready" || s === "released" || s === "distributed" || dittoIsLive(a));
+    return !!(a.is_ready_for_distribution || a.ready_for_distro || s === "ready" || s === "released" || s === "distributed" || dittoHasAny(a));
   }
 
 
@@ -248,7 +294,7 @@
 
       const s = displayStatus(a);
       if (st === "all") return true;
-      if (st === "distributed" && !(dittoIsLive(a) || s === "distributed" || s === "released")) return false;
+      if (st === "distributed" && !(dittoHasAny(a) || s === "distributed" || s === "released")) return false;
       else if (st === "ready" && !albumIsReady(a)) return false;
       else if (st !== "distributed" && st !== "ready" && s !== st) return false;
       return true;
@@ -291,13 +337,15 @@
       readyPill.className = "pill " + (albumIsReady(a) ? "ok" : "warn");
       readyPill.textContent = ready;
 
+      const ditto = albumDittoSummary(a);
       const dittoPill = document.createElement("span");
-      dittoPill.className = "pill " + (dittoIsLive(a) ? "ok" : "warn");
-      dittoPill.textContent = dittoIsLive(a) ? "Ditto: released" : "Ditto: not released";
+      dittoPill.className = "pill " + ditto.cls;
+      dittoPill.textContent = ditto.label;
 
+      const yt = albumYoutubeSummary(a);
       const ytPill = document.createElement("span");
-      ytPill.className = "pill " + (youtubeIsLive(a) ? "ok" : "warn");
-      ytPill.textContent = youtubeIsLive(a) ? "YouTube: yes" : "YouTube: not linked";
+      ytPill.className = "pill " + yt.cls;
+      ytPill.textContent = yt.label;
 
       const datePill = document.createElement("span");
       datePill.className = "pill";
@@ -349,15 +397,25 @@
     songsByAlbum = new Map();
     const albumIds = albums.map((a) => a.id);
     if (albumIds.length) {
-      const sg = await supabase
-        .from("songs")
-        .select("id,album_id,status,production_status,title")
-        .in("album_id", albumIds);
-      if (!sg.error) {
-        for (const s of sg.data || []) {
-          if (!songsByAlbum.has(s.album_id)) songsByAlbum.set(s.album_id, []);
-          songsByAlbum.get(s.album_id).push(s);
+      const songSelects = [
+        "id,album_id,status,production_status,title,ditto_released,youtube_published,youtube_url,longform_youtube_url,youtube_video_id",
+        "id,album_id,status,production_status,title,ditto_released,youtube_published,youtube_url,youtube_video_id",
+        "id,album_id,status,production_status,title,ditto_released,youtube_published,youtube_url",
+        "id,album_id,status,production_status,title,ditto_released,youtube_url",
+        "id,album_id,status,production_status,title,youtube_url",
+        "id,album_id,status,production_status,title"
+      ];
+      let songRows = null;
+      for (const cols of songSelects) {
+        const sg = await supabase.from("songs").select(cols).in("album_id", albumIds);
+        if (!sg.error) {
+          songRows = sg.data || [];
+          break;
         }
+      }
+      for (const s of songRows || []) {
+        if (!songsByAlbum.has(s.album_id)) songsByAlbum.set(s.album_id, []);
+        songsByAlbum.get(s.album_id).push(s);
       }
     }
     applyFilters();
