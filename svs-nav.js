@@ -93,7 +93,7 @@ async function mountNav() {
 async function mountPageEnhancements() {
   if (currentPage() !== "song.html") return;
   try {
-    await import("./song-music-enhance.js?v=20260830a");
+    await import("./song-music-enhance.js?v=20260830b");
   } catch (err) {
     console.warn("Could not load song music enhancements", err);
   }
