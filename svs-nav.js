@@ -90,9 +90,19 @@ async function mountNav() {
   host.appendChild(nav);
 }
 
+async function mountPageEnhancements() {
+  if (currentPage() !== "song.html") return;
+  try {
+    await import("./song-music-enhance.js?v=20260830a");
+  } catch (err) {
+    console.warn("Could not load song music enhancements", err);
+  }
+}
+
 function ready(fn) {
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", fn);
   else fn();
 }
 
 ready(mountNav);
+ready(mountPageEnhancements);
