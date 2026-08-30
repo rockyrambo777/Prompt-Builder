@@ -805,13 +805,31 @@ async function saveShorts(songId) {
   await loadShorts(songId);
 }
 
+function communityBuilderRow(songId) {
+  const row = el("div", "row");
+  row.style.marginBottom = "14px";
+  const link = document.createElement("a");
+  link.id = "btnCommunityBuilder";
+  link.className = "btn primary";
+  link.textContent = "BUILD COMMUNITY POST";
+  link.href = "./song-community-builder.html?song_id=" + encodeURIComponent(songId);
+  row.appendChild(link);
+  const hint = el("span", "muted", "Build a copy-paste YouTube Community post prompt from this song.");
+  row.appendChild(hint);
+  return row;
+}
+
 async function loadCommunity(songId, artistId, albumId) {
   const panel = $("panel-community");
   if (!panel) return;
   const { data, error } = await supabase.from("community_posts").select("*").eq("song_id", songId).order("created_at", { ascending: false });
   if (error && tableMissing(error)) {
     panel.innerHTML = "";
-    panel.appendChild(el("div", "card coming", "Community tables are not applied yet."));
+    const card = el("div", "card");
+    card.appendChild(el("h2", "", "Community posts"));
+    card.appendChild(communityBuilderRow(songId));
+    card.appendChild(el("div", "muted", "Saved community post storage is not applied yet. You can still build a ready-to-paste YouTube Community post with the builder."));
+    panel.appendChild(card);
     return;
   }
   renderCommunity(panel, songId, artistId, albumId, error ? [] : (data || []));
@@ -821,6 +839,7 @@ function renderCommunity(panel, songId, artistId, albumId, posts) {
   panel.innerHTML = "";
   const card = el("div", "card");
   card.appendChild(el("h2", "", "Community posts"));
+  card.appendChild(communityBuilderRow(songId));
   card.appendChild(field("New post", "cm_body", "", { tag: "textarea" }));
   card.appendChild(field("Scripture", "cm_scripture", ""));
   const save = el("button", "btn primary", "Save post");
