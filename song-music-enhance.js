@@ -50,9 +50,7 @@ async function initSongMusicEnhancements() {
       const first = field.firstElementChild;
       const label = String((first && first.textContent) || "").trim().toLowerCase();
 
-      if (label === "suno versions") {
-        field.style.display = "none";
-      }
+      if (label === "suno versions") field.style.display = "none";
 
       if (label === "selected final") {
         const textInputs = field.querySelectorAll("input[type='text']");
@@ -63,7 +61,37 @@ async function initSongMusicEnhancements() {
     }
   }
 
-  function enhance() {
+  function addLongBuilderButton() {
+    const panel = document.getElementById("panel-long");
+    if (!panel) return false;
+    const card = panel.querySelector(".card");
+    if (!card) return false;
+
+    if (!document.getElementById("btnLongAiBuilder")) {
+      const heading = card.querySelector("h2");
+      const row = document.createElement("div");
+      row.className = "row";
+      row.style.marginBottom = "14px";
+
+      const link = document.createElement("a");
+      link.id = "btnLongAiBuilder";
+      link.className = "btn primary";
+      link.textContent = "BUILD / REBUILD WITH AI + AUDIO";
+      link.href = "./song-long-builder.html?song_id=" + encodeURIComponent(songId);
+      row.appendChild(link);
+
+      const hint = document.createElement("span");
+      hint.className = "muted";
+      hint.textContent = "Build a full long-video package from the real audio, then import the returned JSON into SVS.";
+      row.appendChild(hint);
+
+      if (heading) heading.insertAdjacentElement("afterend", row);
+      else card.prepend(row);
+    }
+    return !!document.getElementById("btnLongAiBuilder");
+  }
+
+  function enhanceMusic() {
     const panel = document.getElementById("panel-music");
     if (!panel) return false;
 
@@ -126,15 +154,26 @@ async function initSongMusicEnhancements() {
       && !!document.getElementById("btnBackAlbum");
   }
 
-  if (enhance()) return;
+  enhanceMusic();
+  addLongBuilderButton();
 
-  const panel = document.getElementById("panel-music");
-  if (!panel) return;
-  const observer = new MutationObserver(() => {
-    if (enhance()) observer.disconnect();
-  });
-  observer.observe(panel, { childList: true, subtree: true });
-  setTimeout(() => observer.disconnect(), 10000);
+  const musicPanel = document.getElementById("panel-music");
+  if (musicPanel) {
+    const musicObserver = new MutationObserver(() => {
+      if (enhanceMusic()) musicObserver.disconnect();
+    });
+    musicObserver.observe(musicPanel, { childList: true, subtree: true });
+    setTimeout(() => musicObserver.disconnect(), 10000);
+  }
+
+  const longPanel = document.getElementById("panel-long");
+  if (longPanel) {
+    const longObserver = new MutationObserver(() => {
+      if (addLongBuilderButton()) longObserver.disconnect();
+    });
+    longObserver.observe(longPanel, { childList: true, subtree: true });
+    setTimeout(() => longObserver.disconnect(), 10000);
+  }
 }
 
 initSongMusicEnhancements().catch((err) => console.warn("Song music enhancement failed", err));
