@@ -53,7 +53,10 @@ input[type="checkbox"], input[type="radio"]{ width:18px; height:18px; accent-col
 .pill.ok{ border-color:#1f6b45; }
 .pill.warn{ border-color:#6b4c1d; }
 .pill.bad{ border-color:#6b2a2a; }
-.hint { font-size:12px; color:var(--muted); margin-top:6px; line-height:1.4; }.toast {
+.hint { font-size:12px; color:var(--muted); margin-top:6px; line-height:1.4; }
+.modeBox { padding:14px; border:1px solid #2a3a5c; border-radius:14px; background:#0f1626; margin-top:14px; }
+.editOnly { display:none; }
+.toast {
   position: fixed;
   bottom: 24px;
   right: 24px;
@@ -101,6 +104,23 @@ input[type="checkbox"], input[type="radio"]{ width:18px; height:18px; accent-col
         </div>
       </div>
 
+      <div class="modeBox">
+        <div class="grid">
+          <div>
+            <label>What do you want to do?</label>
+            <select id="promptMode">
+              <option value="create" selected>Create / regenerate full song</option>
+              <option value="edit">Edit existing song</option>
+            </select>
+            <div class="hint">Edit mode includes the current lyrics and Suno prompt and asks ChatGPT to change only what you request.</div>
+          </div>
+          <div class="editOnly" id="editRequestWrap">
+            <label>What changes do you want?</label>
+            <textarea id="edit_request" class="mono" style="min-height:110px;" placeholder="Example: Rewrite Verse 2 to be more personal, keep the chorus unchanged, and make the Suno prompt slightly more cinematic."></textarea>
+          </div>
+        </div>
+      </div>
+
       <div class="divider"></div>
 
       <div class="grid">
@@ -139,7 +159,7 @@ input[type="checkbox"], input[type="radio"]{ width:18px; height:18px; accent-col
       <div class="grid">
         <div>
           <label>ChatGPT Prompt Output</label>
-          <textarea id="output" class="mono" placeholder="Click Build Creation Prompt…"></textarea>
+          <textarea id="output" class="mono" placeholder="Choose Create or Edit, then build the prompt…"></textarea>
           <div class="row" style="margin-top:10px;">
             <button id="btnClearOut" class="btn">Clear</button>
             <button id="btnCopyOut" class="btn copy">Copy</button>
@@ -173,8 +193,6 @@ input[type="checkbox"], input[type="radio"]{ width:18px; height:18px; accent-col
     import { supabase, requireSessionOrRedirect } from "./app.js";
     const $ = (id) => document.getElementById(id);
 
-    
-
 function showToast(message){
   const t = $("toast");
   if (!t) return;
@@ -185,13 +203,11 @@ function showToast(message){
 }
 
 async function copyToClipboard(text){
-  // Modern API (works on https / secure contexts)
   try {
     await navigator.clipboard.writeText(text);
     return true;
   } catch(e) {}
 
-  // Fallback
   try {
     const ta = document.createElement("textarea");
     ta.value = text;
@@ -211,7 +227,8 @@ async function copyToClipboard(text){
 function openChatGPT(){
   window.open("https://chat.openai.com/", "_blank", "noopener");
 }
-const session = await requireSessionOrRedirect();
+
+    const session = await requireSessionOrRedirect();
     $("who").textContent = `Signed in: ${session.user.email}`;
 
     const SONGS = "songs";
@@ -220,7 +237,7 @@ const session = await requireSessionOrRedirect();
 
     const params = new URLSearchParams(window.location.search);
     const songId = params.get("song_id");
-    const albumId = params.get("album_id"); // optional (for back link)
+    const albumId = params.get("album_id");
 
     let song = null, album = null, artist = null;
 
@@ -254,6 +271,12 @@ const session = await requireSessionOrRedirect();
       if (safe(ar.default_perso).trim()) lines.push(`- Persona: ${ar.default_perso}`);
       if (safe(ar.default_lane).trim()) lines.push(`- Lane: ${ar.default_lane}`);
       return lines.length ? lines.join("\n") : "- (No Artist DNA set yet)";
+    }
+
+    function updateModeUI(){
+      const isEdit = $("promptMode").value === "edit";
+      $("editRequestWrap").style.display = isEdit ? "block" : "none";
+      $("btnBuildPrompt").textContent = isEdit ? "Build Edit Prompt" : "Build Creation Prompt";
     }
 
     async function load(){
@@ -347,22 +370,24 @@ const session = await requireSessionOrRedirect();
 - Keep the arrangement complete but concise.`;
     }
 
-    function buildPrompt(){
-      if (!song) return;
+    function addReturnFormat(out){
+      out.push("Return ONLY these sections, with no extra commentary:");
+      out.push("UPDATED_SUNO_PROMPT:");
+      out.push("LYRICS:");
+      out.push("```");
+      out.push("(complete lyrics here with section headings)");
+      out.push("```");
+      out.push("");
+    }
 
+    function buildCreatePrompt(){
       const lengthValue = $("length").value;
       const structureValue = $("structure").value;
       const out = [];
 
       out.push("Write original song lyrics AND a Suno prompt for the track below.");
       out.push("");
-      out.push("Return ONLY these sections, with no extra commentary:");
-      out.push("UPDATED_SUNO_PROMPT:");
-      out.push("LYRICS:");
-      out.push("```");
-      out.push("(lyrics here with section headings)");
-      out.push("```");
-      out.push("");
+      addReturnFormat(out);
       out.push("Song:");
       out.push(`- Title: ${safe($("title").value)}`);
       out.push(`- Lead type: ${safe(song.lead_type || song.lead || "solo")}`);
@@ -399,9 +424,70 @@ const session = await requireSessionOrRedirect();
       out.push("Important:");
       out.push("- The goal is a finished Suno song close to the target length, not a long worship version.");
       out.push("- Keep the song complete but concise.");
+      return out.join("\n");
+    }
 
-      $("output").value = out.join("\n");
-      $("statusLine").textContent = "Prompt built ✅";
+    function buildEditPrompt(){
+      const request = ($("edit_request").value || "").trim();
+      if (!request) {
+        alert("Tell us what you want to change first.");
+        return "";
+      }
+
+      const lengthValue = $("length").value;
+      const structureValue = $("structure").value;
+      const currentLyrics = ($("lyrics").value || song.lyrics || "").trim();
+      const currentPrompt = ($("suno_prompt").value || song.suno_prompt || "").trim();
+      const out = [];
+
+      out.push("Edit the EXISTING song below according to my requested changes.");
+      out.push("Do not rewrite the whole song unnecessarily. Preserve everything I did not ask you to change.");
+      out.push("");
+      addReturnFormat(out);
+      out.push("Requested changes:");
+      out.push(request);
+      out.push("");
+      out.push("Song:");
+      out.push(`- Title: ${safe($("title").value)}`);
+      out.push(`- Lead type: ${safe(song.lead_type || song.lead || "solo")}`);
+      out.push(`- Keywords: ${trimOrNone($("keywords").value)}`);
+      out.push(`- Scripture (optional): ${trimOrNone($("scripture").value)}`);
+      out.push(`- Current target length: ${lengthValue} minutes`);
+      out.push(`- Current structure profile: ${structureValue}`);
+      out.push(`- Notes: ${trimOrNone($("notes").value)}`);
+      out.push("");
+      out.push("Artist DNA (must follow):");
+      out.push(artistDNABlock(artist));
+      out.push("");
+      out.push("CURRENT SUNO PROMPT:");
+      out.push(currentPrompt || "(none)");
+      out.push("");
+      out.push("CURRENT LYRICS:");
+      out.push("```");
+      out.push(currentLyrics || "(none)");
+      out.push("```");
+      out.push("");
+      out.push("Edit Rules:");
+      out.push("- Make ONLY the requested changes unless another small change is required for flow or rhyme.");
+      out.push("- Preserve unaffected verses, choruses, hooks, section order, wording, and emotional identity.");
+      out.push("- If I ask to change only one section, return the complete song but leave all other sections unchanged.");
+      out.push("- Keep clear section headings such as [Verse 1], [Chorus], [Bridge], [Final Chorus], etc.");
+      out.push("- Keep the artist voice, persona, genre, must-include elements, and never-include rules intact.");
+      out.push("- Keep UPDATED_SUNO_PROMPT <= 1000 characters.");
+      out.push("- If my requested change does not require a Suno prompt change, return the existing Suno prompt unchanged.");
+      out.push("- Do not change the song title unless I explicitly request it.");
+      out.push("- Do not add extra commentary, explanations, or alternatives.");
+      out.push("- Keep the finished song concise and suitable for Suno.");
+      return out.join("\n");
+    }
+
+    function buildPrompt(){
+      if (!song) return;
+      const isEdit = $("promptMode").value === "edit";
+      const result = isEdit ? buildEditPrompt() : buildCreatePrompt();
+      if (!result) return;
+      $("output").value = result;
+      $("statusLine").textContent = isEdit ? "Edit prompt built ✅" : "Creation prompt built ✅";
     }
 
     async function saveSong(){
@@ -425,18 +511,19 @@ const session = await requireSessionOrRedirect();
       await load();
     }
 
+    $("promptMode").onchange = updateModeUI;
     $("btnBuildPrompt").onclick = buildPrompt;
-    
-$("btnCopyOut").onclick = async () => {
-  const t = $("output").value || "";
-  if (!t.trim()) return alert("Nothing to copy.");
-  const ok = await copyToClipboard(t);
-  if (!ok) return alert("Copy failed. Please copy manually.");
-  $("statusLine").textContent = "Prompt copied ✅ — Opening ChatGPT...";
-  showToast("Prompt copied ✅ — Paste into ChatGPT now. Opening ChatGPT…");
-  setTimeout(openChatGPT, 400);
-};
-$("btnCopyPrompt").onclick = $("btnCopyOut").onclick;
+
+    $("btnCopyOut").onclick = async () => {
+      const t = $("output").value || "";
+      if (!t.trim()) return alert("Nothing to copy.");
+      const ok = await copyToClipboard(t);
+      if (!ok) return alert("Copy failed. Please copy manually.");
+      $("statusLine").textContent = "Prompt copied ✅ — Opening ChatGPT...";
+      showToast("Prompt copied ✅ — Paste into ChatGPT now. Opening ChatGPT…");
+      setTimeout(openChatGPT, 400);
+    };
+    $("btnCopyPrompt").onclick = $("btnCopyOut").onclick;
     $("btnClearOut").onclick = () => $("output").value = "";
 
     $("btnSaveSong").onclick = saveSong;
@@ -452,6 +539,7 @@ $("btnCopyPrompt").onclick = $("btnCopyOut").onclick;
       window.location.href = "./index.html";
     };
 
+    updateModeUI();
     await load();
   </script>
 </body>
