@@ -232,9 +232,9 @@ function composeImagePrompt(opts) {
       lines.push("USE IMAGE. Use the uploaded artist photo as the reference. Change this photo into this scene. Keep this exact artist (same face, hair, wardrobe). Do not replace the person. Adapt pose, crop, lighting, and setting to the scene.");
     }
   } else if (kind === "shorts") {
-    lines.push("Vertical 9:16 Short still. Keep the artist look.");
+    lines.push("Vertical 9:16 Short still. Do not use an artist reference photo.");
   } else {
-    lines.push("Scene still. Keep the artist look. Change the artist photo into this scene.");
+    lines.push("Scene still. Do not use an artist reference photo. Describe the scene only.");
   }
   if (concept) lines.push(concept);
   if (still) lines.push(still);
@@ -281,7 +281,7 @@ function identityDownloadRow(identity) {
     a.download = (img.caption || img.kind || "artist-identity") + ".jpg";
     a.target = "_blank";
     a.rel = "noopener";
-    a.textContent = "Download " + (img.kind || "image") + (img.caption ? " · " + img.caption : "");
+    a.textContent = "Download " + (img.kind || "image") + (img.caption ? " \u00b7 " + img.caption : "");
     a.style.marginRight = "12px";
     wrap.appendChild(a);
   }
@@ -341,7 +341,7 @@ function visualIdentityBar(idPrefix, selectedId, label) {
     const o = document.createElement("option");
     o.value = v.id;
     const scope = v.persona_id ? "persona" : "artist";
-    o.textContent = (v.name || "default") + (v.is_default ? " · default" : "") + " · " + scope;
+    o.textContent = (v.name || "default") + (v.is_default ? " \u00b7 default" : "") + " \u00b7 " + scope;
     if (selectedId && selectedId === v.id) o.selected = true;
     sel.appendChild(o);
   }
@@ -372,7 +372,7 @@ function visualIdentitySelect(cls, selectedId) {
   for (const v of visualIdentities) {
     const o = document.createElement("option");
     o.value = v.id;
-    o.textContent = (v.name || "default") + (v.is_default ? " · default" : "");
+    o.textContent = (v.name || "default") + (v.is_default ? " \u00b7 default" : "");
     if (selectedId && selectedId === v.id) o.selected = true;
     sel.appendChild(o);
   }
@@ -575,7 +575,7 @@ function v(id) { const n = $(id); return n ? n.value : ""; }
 async function saveLong(songId, existing) {
   const msg = $("msg");
   msg.className = "msg muted";
-  msg.textContent = "Saving long video…";
+  msg.textContent = "Saving long video\u2026";
   const row = {
     song_id: songId,
     video_concept: v("lf_video_concept") || null,
@@ -770,7 +770,7 @@ function renderShorts(panel, songId, rows) {
 async function saveShorts(songId) {
   const msg = $("msg");
   msg.className = "msg muted";
-  msg.textContent = "Saving shorts…";
+  msg.textContent = "Saving shorts\u2026";
   const cards = document.querySelectorAll("#sh_host .short-card");
   let n = 1;
   for (const card of cards) {
@@ -841,7 +841,7 @@ function renderCommunity(panel, songId, artistId, albumId, posts) {
   card.appendChild(save);
   for (const p of posts) {
     const c = el("div", "card");
-    c.appendChild(el("div", "muted", (p.publication_status || "draft") + " · " + safe(p.planned_publish_at || p.updated_at)));
+    c.appendChild(el("div", "muted", (p.publication_status || "draft") + " \u00b7 " + safe(p.planned_publish_at || p.updated_at)));
     c.appendChild(el("div", "", p.body || ""));
     card.appendChild(c);
   }
