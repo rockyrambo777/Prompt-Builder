@@ -43,7 +43,7 @@
   <script type="module" src="svs-nav.js"></script>
   <script type="module">
     import { supabase, requireSessionOrRedirect } from "./app.js";
-    import { mountPackageTabs } from "./svs-song-tabs.js?v=20260830e";
+    import { mountPackageTabs } from "./svs-song-tabs.js?v=20260830g";
     import { formatSunoLyrics } from "./suno-format.js?v=20260829c";
 
     const $ = (id) => document.getElementById(id);
@@ -165,7 +165,7 @@
 
     async function loadSong() {
       if (!songId) return;
-      $("msg").textContent = "Loading song…";
+      $("msg").textContent = "Loading song\u2026";
 
       const { data: song, error } = await supabase.from("songs").select("*").eq("id", songId).maybeSingle();
       if (error) { $("msg").textContent = "Error: " + error.message; return; }
@@ -189,10 +189,10 @@
         const a = document.createElement("a");
         a.className = "link";
         a.href = "./album.html?id=" + encodeURIComponent(albumRow.id);
-        a.textContent = crumb.join(" · ") || "Album";
+        a.textContent = crumb.join(" \u00b7 ") || "Album";
         $("crumb").appendChild(a);
       } else {
-        $("crumb").textContent = crumb.join(" · ");
+        $("crumb").textContent = crumb.join(" \u00b7 ");
       }
 
       const personas = albumRow.artist_id ? await loadPersonas(albumRow.artist_id) : [];
@@ -353,7 +353,7 @@
 
     async function saveSong() {
       if (!songRow) return;
-      $("msg").textContent = "Saving…";
+      $("msg").textContent = "Saving\u2026";
       $("msg").className = "msg muted";
 
       const raw = {
