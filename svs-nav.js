@@ -107,6 +107,11 @@ async function mountPageEnhancements() {
   } catch (err) {
     console.warn("Could not load master package enhancements", err);
   }
+  try {
+    await import("./song-community-enhance.js?v=20260830i");
+  } catch (err) {
+    console.warn("Could not load community enhancements", err);
+  }
 }
 
 function ready(fn) {

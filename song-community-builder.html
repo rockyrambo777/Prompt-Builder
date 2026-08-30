@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SVS – Community Post Builder</title>
+  <link rel="stylesheet" href="svs.css" />
+  <style>
+    .mono-big{min-height:280px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45}
+    .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;margin-top:10px}
+    @media(max-width:800px){.info-grid{grid-template-columns:1fr}}
+    .info-line{font-size:13px;line-height:1.45}
+    .info-line strong{color:var(--muted);font-weight:700;display:inline-block;min-width:110px}
+    .lyrics-preview{white-space:pre-wrap;max-height:180px;overflow:auto;padding:10px;border:1px solid #2a3a5c;border-radius:12px;background:var(--card2);font-size:13px;line-height:1.45}
+  </style>
+</head>
+<body>
+  <div id="svs-nav"></div>
+  <div class="wrap wrap-narrow">
+    <div class="top">
+      <div>
+        <h1 style="margin:0;">Community Post Builder</h1>
+        <div id="crumb" class="muted"></div>
+        <div id="who" class="muted"></div>
+      </div>
+      <div class="row">
+        <a id="btnBackSong" class="btn secondary" href="#">← SONG</a>
+        <a id="btnBackAlbum" class="btn secondary" href="#">← ALBUM EDIT</a>
+      </div>
+    </div>
+    <div id="msg" class="msg muted">Loading…</div>
+
+    <div class="card">
+      <h2>Song information</h2>
+      <div id="songInfo" class="info-grid"></div>
+      <div style="margin-top:12px;">
+        <div class="muted" style="margin-bottom:6px;">Lyrics</div>
+        <div id="lyricsPreview" class="lyrics-preview muted">—</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <label class="field">
+        <span>Extra direction (optional)</span>
+        <textarea id="extraDirection" placeholder="Optional notes for tone, CTA, timing, or anything the post should mention…"></textarea>
+      </label>
+      <div class="row" style="margin-top:14px;">
+        <button id="btnBuildPrompt" class="btn primary" type="button">BUILD PROMPT</button>
+        <button id="btnCopyPrompt" class="btn secondary" type="button">COPY PROMPT</button>
+        <button id="btnChatGPT" class="btn secondary" type="button">COPY + OPEN CHATGPT</button>
+        <button id="btnGrok" class="btn secondary" type="button">COPY + OPEN GROK</button>
+      </div>
+      <label class="field" style="margin-top:14px;">
+        <span>Prompt to paste into ChatGPT / Grok</span>
+        <textarea id="promptOut" class="mono-big" placeholder="Click BUILD PROMPT"></textarea>
+      </label>
+    </div>
+
+    <div class="card">
+      <label class="field">
+        <span>AI result (paste the Community post here)</span>
+        <textarea id="aiResult" class="mono-big" placeholder="Paste the AI Community post here, then copy it for YouTube…"></textarea>
+      </label>
+      <div class="row" style="margin-top:12px;">
+        <button id="btnCopyPost" class="btn primary" type="button">COPY COMMUNITY POST</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="svs-nav.js"></script>
+  <script type="module">
+    import { supabase, requireSessionOrRedirect } from "./app.js";
+
+    const $ = (id) => document.getElementById(id);
+    const params = new URLSearchParams(location.search);
+    const songId = (params.get("song_id") || "").trim();
+
+    const session = await requireSessionOrRedirect();
+    $("who").textContent = "Signed in: " + session.user.email;
+
+    let song = null, album = null, artist = null, persona = null;
+
+    function safe(v) { return v == null ? "" : String(v); }
+
+    function brandHashtag(name, handle) {
+      const fromHandle = safe(handle).replace(/^@/, "").replace(/[^a-zA-Z0-9]/g, "");
+      if (fromHandle) return "#" + fromHandle;
+      const fromName = safe(name).replace(/[^a-zA-Z0-9]+/g, "");
+      return fromName ? "#" + fromName : "#Artist";
+    }
+
+    function infoLine(label, value) {
+      const div = document.createElement("div");
+      div.className = "info-line";
+      const strong = document.createElement("strong");
+      strong.textContent = label + ":";
+      div.appendChild(strong);
+      div.appendChild(document.createTextNode(" " + (safe(value).trim() || "—")));
+      return div;
+    }
+
+    function renderInfo() {
+      const box = $("songInfo");
+      box.innerHTML = "";
+      const personaLabel = persona?.label || artist?.default_perso || "default";
+      const genres = [artist?.main_genre, artist?.secondary_genre].filter(Boolean).join(" / ") || "—";
+      box.appendChild(infoLine("Artist", artist?.name));
+      box.appendChild(infoLine("Album", album?.title));
+      box.appendChild(infoLine("Song", song?.title));
+      box.appendChild(infoLine("Theme", song?.theme));
+      box.appendChild(infoLine("Keywords", song?.keywords));
+      box.appendChild(infoLine("Scripture", song?.scripture));
+      box.appendChild(infoLine("Genres", genres));
+      box.appendChild(infoLine("Lane", artist?.default_lane));
+      box.appendChild(infoLine("Persona", personaLabel));
+      box.appendChild(infoLine("Voice", artist?.voice_identity));
+      $("lyricsPreview").textContent = safe(song?.lyrics).trim() || "—";
+    }
+
+    async function load() {
+      if (!songId) {
+        $("msg").textContent = "Missing song_id.";
+        return;
+      }
+      const sr = await supabase.from("songs").select("*").eq("id", songId).maybeSingle();
+      if (sr.error || !sr.data) {
+        $("msg").textContent = "Could not load song: " + (sr.error?.message || "not found");
+        return;
+      }
+      song = sr.data;
+      const ar = await supabase.from("albums").select("*").eq("id", song.album_id).maybeSingle();
+      album = ar.data || {};
+      if (album.artist_id) {
+        const rr = await supabase.from("artists").select("*").eq("id", album.artist_id).maybeSingle();
+        artist = rr.data || {};
+      } else {
+        artist = {};
+      }
+      if (song.persona_id) {
+        const pr = await supabase.from("artists_personas").select("*").eq("id", song.persona_id).maybeSingle();
+        persona = pr.data || null;
+      }
+
+      $("btnBackSong").href = "./song.html?id=" + encodeURIComponent(songId) + "#community";
+      $("btnBackAlbum").href = album.id
+        ? "./album-edit.html?id=" + encodeURIComponent(album.id)
+        : "./artists.html";
+      $("crumb").textContent = [artist?.name, album?.title, song?.title].filter(Boolean).join(" · ");
+      renderInfo();
+      buildPrompt();
+      $("msg").textContent = "Ready.";
+    }
+
+    function buildPrompt() {
+      if (!song) return;
+      const brand = safe(artist?.name).trim() || "Artist";
+      const handle = safe(artist?.channel_hand).trim();
+      const tag = brandHashtag(brand, handle);
+      const scripture = safe(song?.scripture).trim();
+      const direction = $("extraDirection").value.trim();
+      const personaLabel = safe(persona?.label || artist?.default_perso).trim() || "default artist persona";
+      const genres = [artist?.main_genre, artist?.secondary_genre].filter(Boolean).join(" / ") || "—";
+
+      const out = [];
+      out.push("Write ONE ready-to-paste YouTube Community post for this song.");
+      out.push("");
+      out.push("CRITICAL OUTPUT RULES:");
+      out.push("- Output ONLY the final Community post text. Nothing else.");
+      out.push("- Do NOT include headings or labels such as COMMUNITY_POST, SCRIPTURE, or HASHTAGS.");
+      out.push("- Do NOT give multiple versions. Output ONE final post only.");
+      out.push("- Match the artist and song.");
+      out.push("- Include the artist/brand name \"" + brand + "\" naturally in the post.");
+      out.push("- Base the message on the song theme, keywords, and lyrics.");
+      out.push("- Include ONE short relevant Bible scripture (quote + reference) inside the post.");
+      if (scripture) {
+        out.push("- Prefer this scripture already on the song: " + scripture);
+      } else {
+        out.push("- No scripture is saved on the song; choose one short relevant scripture automatically.");
+      }
+      out.push("- Use natural encouraging language.");
+      out.push("- Use 3–6 suitable emojis naturally.");
+      out.push("- End with 6–10 hashtags (no hashtag heading). Include the artist/channel hashtag " + tag + ".");
+      out.push("");
+      out.push("SONG CONTEXT:");
+      out.push("Artist / brand: " + brand);
+      out.push("Album: " + (safe(album?.title).trim() || "—"));
+      out.push("Song title: " + (safe(song?.title).trim() || "—"));
+      out.push("Theme: " + (safe(song?.theme).trim() || "—"));
+      out.push("Keywords: " + (safe(song?.keywords).trim() || "—"));
+      out.push("Scripture on song: " + (scripture || "—"));
+      out.push("Artist genres: " + genres);
+      out.push("Artist lane: " + (safe(artist?.default_lane).trim() || "—"));
+      out.push("Artist persona / default persona: " + personaLabel);
+      out.push("Voice identity: " + (safe(artist?.voice_identity).trim() || "—"));
+      if (handle) out.push("Channel handle: @" + handle.replace(/^@/, ""));
+      if (artist?.must_include) out.push("Must include: " + safe(artist.must_include));
+      if (artist?.never_include) out.push("Never include: " + safe(artist.never_include));
+      out.push("Extra direction: " + (direction || "None. Make the strongest encouraging post that fits this song and artist."));
+      out.push("");
+      out.push("LYRICS:");
+      out.push(safe(song?.lyrics).trim() || "(No lyrics saved)");
+      out.push("");
+      out.push("POST STRUCTURE (follow but do not label):");
+      out.push("Hook line");
+      out.push("1–3 short encouraging paragraphs grounded in the song");
+      out.push("One short scripture line");
+      out.push("Soft CTA / invitation to engage");
+      out.push("6–10 hashtags including " + tag);
+
+      $("promptOut").value = out.join("\n");
+      $("msg").textContent = "Prompt ready. Copy it into ChatGPT or Grok, then paste the Community post below.";
+    }
+
+    async function copyText(text, okMsg) {
+      const t = text || "";
+      try { await navigator.clipboard.writeText(t); }
+      catch {
+        const ta = document.createElement("textarea");
+        ta.value = t;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        ta.remove();
+      }
+      $("msg").textContent = okMsg || "Copied.";
+    }
+
+    async function copyPrompt(openUrl) {
+      buildPrompt();
+      await copyText($("promptOut").value, openUrl ? "Prompt copied. Opening…" : "Prompt copied.");
+      if (openUrl) setTimeout(() => window.open(openUrl, "_blank", "noopener"), 250);
+    }
+
+    $("extraDirection").oninput = () => {
+      if ($("promptOut").value) buildPrompt();
+    };
+    $("btnBuildPrompt").onclick = buildPrompt;
+    $("btnCopyPrompt").onclick = () => copyPrompt();
+    $("btnChatGPT").onclick = () => copyPrompt("https://chatgpt.com/");
+    $("btnGrok").onclick = () => copyPrompt("https://grok.com/");
+    $("btnCopyPost").onclick = () => {
+      const post = $("aiResult").value.trim();
+      if (!post) {
+        $("msg").textContent = "Paste the AI Community post first.";
+        return;
+      }
+      copyText(post, "Community post copied.");
+    };
+
+    await load();
+  </script>
+</body>
+</html>

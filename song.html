@@ -35,20 +35,33 @@
     <div id="panel-music" class="tab-panel active"></div>
     <div id="panel-long" class="tab-panel"><div class="card coming">Long video packages and scenes — coming in this build.</div></div>
     <div id="panel-shorts" class="tab-panel"><div class="card coming">Shorts packages — coming in this build.</div></div>
-    <div id="panel-community" class="tab-panel"><div class="card coming">Community posts — coming in this build.</div></div>
+    <div id="panel-community" class="tab-panel">
+      <div class="card">
+        <h2>Community posts</h2>
+        <div class="row" style="margin-bottom:14px">
+          <a id="btnCommunityBuilder" class="btn primary" href="#">BUILD COMMUNITY POST</a>
+          <span class="muted">Build a copy-paste YouTube Community post prompt from this song.</span>
+        </div>
+      </div>
+    </div>
     <div id="panel-distro" class="tab-panel"><div class="card coming">Distribution — coming in this build.</div></div>
     <div id="panel-youtube" class="tab-panel"><div class="card coming">YouTube inventory — coming in this build.</div></div>
   </div>
 
-  <script type="module" src="svs-nav.js"></script>
+  <script type="module" src="svs-nav.js?v=20260830i"></script>
   <script type="module">
     import { supabase, requireSessionOrRedirect } from "./app.js";
-    import { mountPackageTabs } from "./svs-song-tabs.js?v=20260830g";
+    import { mountPackageTabs } from "./svs-song-tabs.js?v=20260830i";
     import { formatSunoLyrics } from "./suno-format.js?v=20260829c";
 
     const $ = (id) => document.getElementById(id);
     const params = new URLSearchParams(location.search);
     const songId = (params.get("id") || "").trim() || null;
+
+    if (songId) {
+      const builder = $("btnCommunityBuilder");
+      if (builder) builder.href = "./song-community-builder.html?song_id=" + encodeURIComponent(songId);
+    }
 
     const session = await requireSessionOrRedirect();
     $("who").textContent = "Signed in: " + session.user.email;
