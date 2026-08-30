@@ -97,6 +97,11 @@ async function mountPageEnhancements() {
   } catch (err) {
     console.warn("Could not load song music enhancements", err);
   }
+  try {
+    await import("./song-long-enhance.js?v=20260830a");
+  } catch (err) {
+    console.warn("Could not load long video enhancements", err);
+  }
 }
 
 function ready(fn) {
