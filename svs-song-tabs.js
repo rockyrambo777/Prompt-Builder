@@ -164,23 +164,44 @@ function hookOverlayBlock(hook, kind) {
   return "";
 }
 
+function composeThumbnailPrompt(opts) {
+  const identity = opts.identity || resolvedIdentity;
+  const hook = safe(opts.hook).trim();
+  const concept = safe(opts.concept).trim();
+  const hasImg = !!pickRefImage(identity, "thumbnail");
+  const lines = [];
+  if (hasImg) {
+    lines.push("USE IMAGE. Use the uploaded artist photo as the reference. Keep this exact person (face, hair, wardrobe). Do not replace them.");
+    lines.push("Fit and crop the photo into a YouTube thumbnail, 16:9, cinematic, high contrast, readable when small.");
+  } else {
+    lines.push("YouTube thumbnail, 16:9, cinematic, high contrast, readable when small. Keep the artist look.");
+  }
+  if (hook) {
+    lines.push("Put this hook text ON the image, large, clear, and easy to read: \"" + hook + "\".");
+    lines.push("Leave clean open space for the words. The hook must be inside the thumbnail.");
+  }
+  if (concept) lines.push(concept);
+  lines.push("Keep the artist look. Change crop, lighting, and background only as needed for a thumbnail.");
+  return lines.join("\n\n");
+}
+
 function composeGeneratorPrompt(opts) {
   const identity = opts.identity || resolvedIdentity;
+  const kind = opts.kind || "long";
+  if (kind === "thumbnail") return composeThumbnailPrompt(opts);
   const parts = [];
-  const use = useImageBlock(opts.kind || "long", identity);
+  const use = useImageBlock(kind, identity);
   if (use) parts.push(use);
-  const vi = composeVisualPromptBlock(identity);
-  if (vi) parts.push(vi);
-  const hook = hookOverlayBlock(opts.hook, opts.kind);
-  if (hook) parts.push(hook);
-  if (opts.concept && String(opts.concept).trim()) parts.push((opts.kind === "thumbnail" ? "Thumbnail concept: " : "Visual concept: ") + String(opts.concept).trim());
-  const body = safe(opts.body).trim();
-  if (body) {
-    const skipVi = body.includes("VISUAL ARTIST IDENTITY") && vi;
-    const skipUse = body.includes("USE ARTIST REFERENCE IMAGE") && use;
-    const skipHook = opts.hook && body.toLowerCase().includes(String(opts.hook).trim().toLowerCase());
-    if (!(skipVi && skipUse && skipHook)) parts.push(body);
+  else {
+    const vi = composeVisualPromptBlock(identity);
+    if (vi) parts.push(vi);
   }
+  const hook = hookOverlayBlock(opts.hook, kind);
+  if (hook) parts.push(hook);
+  if (opts.concept && String(opts.concept).trim()) parts.push("Visual concept: " + String(opts.concept).trim());
+  const body = safe(opts.body).trim();
+  if (body && !body.includes("USE ARTIST REFERENCE IMAGE") && !body.includes("VISUAL ARTIST IDENTITY")) parts.push(body);
+  else if (body && !use) parts.push(body);
   return parts.filter(Boolean).join("\n\n").trim();
 }
 
@@ -358,7 +379,6 @@ function renderLong(panel, songId, pkg, scenes) {
   card.appendChild(field("Pinned comment", "lf_pinned_comment", p.pinned_comment, { tag: "textarea" }));
   card.appendChild(field("Thumbnail hook", "lf_thumbnail_hook", p.thumbnail_hook));
   card.appendChild(field("Thumbnail concept", "lf_thumbnail_concept", p.thumbnail_concept, { tag: "textarea" }));
-  card.appendChild(identityDownloadRow(resolvedIdentity));
   const thumbChip = el("div", "row");
   thumbChip.style.marginTop = "8px";
   const tname = resolvedIdentity ? (resolvedIdentity.name || "default") : "missing";
@@ -366,12 +386,10 @@ function renderLong(panel, songId, pkg, scenes) {
   const tcopy = el("button", "btn secondary", "Copy thumbnail prompt");
   tcopy.type = "button";
   function currentThumbPrompt() {
-    return composeGeneratorPrompt({
-      kind: "thumbnail",
+    return composeThumbnailPrompt({
       identity: identityById(selectedVisualId("lf", p.visual_identity_id)),
-      hook: v("lf_thumbnail_hook") || p.thumbnail_hook,
-      concept: v("lf_thumbnail_concept") || p.thumbnail_concept,
-      body: v("lf_thumbnail_prompt") || p.thumbnail_prompt
+      hook: (card.querySelector("#lf_thumbnail_hook") || {}).value || p.thumbnail_hook,
+      concept: (card.querySelector("#lf_thumbnail_concept") || {}).value || p.thumbnail_concept
     });
   }
   tcopy.onclick = async () => {
@@ -379,18 +397,15 @@ function renderLong(panel, songId, pkg, scenes) {
   };
   thumbChip.appendChild(tcopy);
   card.appendChild(thumbChip);
-  card.appendChild(field("Thumbnail prompt", "lf_thumbnail_prompt", p.thumbnail_prompt, { tag: "textarea" }));
-  const genWrap = field("Thumbnail generator prompt (copy this)", "lf_thumbnail_gen", currentThumbPrompt(), { tag: "textarea", cls: "prompt" });
-  const genTa = genWrap.querySelector("textarea");
-  if (genTa) genTa.readOnly = true;
-  card.appendChild(genWrap);
-  card.appendChild(el("div", "hint", "Download the artist image, drop it into the generator, then copy this prompt. It includes USE IMAGE plus the hook text on the thumbnail."));
-  const refreshGen = () => { if (genTa) genTa.value = currentThumbPrompt(); };
-  ["lf_thumbnail_hook","lf_thumbnail_concept","lf_thumbnail_prompt","lf_visual_identity_id"].forEach((fid) => {
+  card.appendChild(field("Thumbnail prompt", "lf_thumbnail_prompt", currentThumbPrompt(), { tag: "textarea", cls: "prompt" }));
+  card.appendChild(el("div", "hint", "One prompt. Download the artist photo, drop it in as the reference, then copy. Hook text goes on the thumbnail."));
+  const thumbTa = card.querySelector("#lf_thumbnail_prompt");
+  const refreshThumb = () => { if (thumbTa) thumbTa.value = currentThumbPrompt(); };
+  ["lf_thumbnail_hook","lf_thumbnail_concept","lf_visual_identity_id"].forEach((fid) => {
     const n = card.querySelector("#" + fid);
     if (!n) return;
-    n.addEventListener("input", refreshGen);
-    n.addEventListener("change", refreshGen);
+    n.addEventListener("input", refreshThumb);
+    n.addEventListener("change", refreshThumb);
   });
   card.appendChild(field("Playlist name", "lf_playlist_name", p.playlist_name));
   const grid = el("div", "form-grid");
@@ -421,7 +436,7 @@ function renderLong(panel, songId, pkg, scenes) {
   row.appendChild(save);
   card.appendChild(row);
   panel.appendChild(card);
-  if (genTa) genTa.value = currentThumbPrompt();
+  if (thumbTa) thumbTa.value = currentThumbPrompt();
 }
 
 function sceneCard(s) {
