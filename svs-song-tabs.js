@@ -132,11 +132,11 @@ function useImageBlock(kind, identity) {
   lines.push("Download the artist identity image from SVS, place it in the image generator as the reference image, then generate.");
   lines.push("USE IMAGE: use this uploaded artist image as the reference.");
   if (kind === "thumbnail") {
-    lines.push("Change and fit the image into a YouTube thumbnail (16:9) while keeping the artist look (face, hair, wardrobe, presence). Do not replace the person. Adapt crop, pose, lighting, and background to the thumbnail.");
+    lines.push("Change this photo into a YouTube thumbnail (16:9). Keep this exact artist. Do not replace the person.");
   } else if (kind === "shorts") {
-    lines.push("Change and fit the image into a vertical 9:16 Short while keeping the artist look. Do not replace the person. Use the reference face and wardrobe.");
+    lines.push("Change this photo into a vertical 9:16 Short. Keep this exact artist (same face, hair, wardrobe). Do not replace the person.");
   } else {
-    lines.push("Use this image as the reference for the scene. Keep the artist look. Change framing, lighting, and setting to fit the scene. Do not replace the person.");
+    lines.push("Change this photo into the scene below. Keep this exact artist (same face, hair, look). Do not invent a different person. Adapt pose, crop, lighting, and setting to the scene.");
   }
   lines.push("=== END USE ARTIST REFERENCE IMAGE ===");
   return lines.join("\n");
@@ -192,16 +192,16 @@ function composeGeneratorPrompt(opts) {
   const parts = [];
   const use = useImageBlock(kind, identity);
   if (use) parts.push(use);
-  else {
+  const body = safe(opts.body).trim();
+  if (body) {
+    parts.push(body);
+  } else {
     const vi = composeVisualPromptBlock(identity);
     if (vi) parts.push(vi);
+    const hook = hookOverlayBlock(opts.hook, kind);
+    if (hook) parts.push(hook);
+    if (opts.concept && String(opts.concept).trim()) parts.push("Visual concept: " + String(opts.concept).trim());
   }
-  const hook = hookOverlayBlock(opts.hook, kind);
-  if (hook) parts.push(hook);
-  if (opts.concept && String(opts.concept).trim()) parts.push("Visual concept: " + String(opts.concept).trim());
-  const body = safe(opts.body).trim();
-  if (body && !body.includes("USE ARTIST REFERENCE IMAGE") && !body.includes("VISUAL ARTIST IDENTITY")) parts.push(body);
-  else if (body && !use) parts.push(body);
   return parts.filter(Boolean).join("\n\n").trim();
 }
 
