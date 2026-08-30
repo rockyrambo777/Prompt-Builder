@@ -189,8 +189,9 @@ function composeGeneratorPrompt(opts) {
   const identity = opts.identity || resolvedIdentity;
   const kind = opts.kind || "long";
   if (kind === "thumbnail") return composeThumbnailPrompt(opts);
+  if (kind === "long-video" || kind === "shorts-video") return composeVideoPrompt(opts);
   const parts = [];
-  const use = useImageBlock(kind, identity);
+  const use = useImageBlock(kind === "shorts" ? "shorts" : "long", identity);
   if (use) parts.push(use);
   const body = safe(opts.body).trim();
   if (body) {
@@ -203,6 +204,32 @@ function composeGeneratorPrompt(opts) {
     if (opts.concept && String(opts.concept).trim()) parts.push("Visual concept: " + String(opts.concept).trim());
   }
   return parts.filter(Boolean).join("\n\n").trim();
+}
+
+function looksLikeStillDump(text) {
+  const t = safe(text);
+  return /VISUAL ARTIST IDENTITY/i.test(t) || /Fair-skinned woman/i.test(t);
+}
+
+function composeVideoPrompt(opts) {
+  const kind = opts.kind || "long-video";
+  const camera = safe(opts.camera).trim();
+  let extra = safe(opts.body).trim();
+  if (looksLikeStillDump(extra) || extra.startsWith("IMAGE TO VIDEO") || extra === camera) extra = "";
+  const onscreen = safe(opts.hook).trim();
+  const lines = [];
+  if (kind === "shorts-video") {
+    lines.push("IMAGE TO VIDEO. Start from the Shorts still you just generated. Use that image as the first frame.");
+    lines.push("Keep this exact artist. Do not change the face, hair, or wardrobe. No warping, no new people.");
+    lines.push("CAMERA: " + (camera || "Subtle 9:16 push-in. Keep the horizon steady. 8–10 seconds."));
+    if (onscreen) lines.push("On-screen text: \"" + onscreen + "\".");
+  } else {
+    lines.push("IMAGE TO VIDEO. Start from the scene still you just generated. Use that image as the first frame.");
+    lines.push("Keep this exact artist. Do not change the face, hair, or wardrobe. No warping, no new people.");
+    lines.push("CAMERA: " + (camera || "Slow push-in. Hold the horizon. Subtle environmental motion only."));
+  }
+  if (extra) lines.push(extra);
+  return lines.join("\n\n");
 }
 
 function identityDownloadRow(identity) {
@@ -457,10 +484,14 @@ function sceneCard(s) {
   card.lastChild.querySelector("textarea").className = "sc_visual";
   card.appendChild(field("Image prompt", "", s.image_prompt, { tag: "textarea" }));
   card.lastChild.querySelector("textarea").className = "sc_image";
-  card.appendChild(field("Video prompt", "", s.video_prompt, { tag: "textarea" }));
+  const sceneVideoShown = (!s.video_prompt || looksLikeStillDump(s.video_prompt))
+    ? composeVideoPrompt({ kind: "long-video", camera: s.camera_direction, body: s.video_prompt })
+    : s.video_prompt;
+  card.appendChild(field("Video prompt", "", sceneVideoShown, { tag: "textarea" }));
   card.lastChild.querySelector("textarea").className = "sc_video";
   card.appendChild(field("Camera", "", s.camera_direction, { tag: "textarea" }));
   card.lastChild.querySelector("textarea").className = "sc_camera";
+  card.appendChild(el("div", "hint", "Generate the still first (Copy image prompt). Copy video prompt is image-to-video and includes camera."));
   card.appendChild(visualIdentitySelect("sc_vi", s.visual_identity_id));
   card.appendChild(identityDownloadRow(identityById(s.visual_identity_id)));
   const scRow = el("div", "row");
@@ -480,15 +511,22 @@ function sceneCard(s) {
   const scVidCopy = el("button", "btn secondary", "Copy video prompt");
   scVidCopy.type = "button";
   scVidCopy.onclick = async () => {
-    const ident = identityById(card.querySelector(".sc_vi")?.value);
-    const block = composeGeneratorPrompt({
-      kind: "long",
-      identity: ident,
-      concept: card.querySelector(".sc_visual")?.value,
+    const block = composeVideoPrompt({
+      kind: "long-video",
+      camera: card.querySelector(".sc_camera")?.value,
       body: card.querySelector(".sc_video")?.value
     });
     await copyPrompt(block, scVidCopy, "Copy video prompt");
   };
+  const camEl = card.querySelector(".sc_camera");
+  const vidEl = card.querySelector(".sc_video");
+  if (camEl && vidEl) {
+    camEl.addEventListener("input", () => {
+      if (!vidEl.value || looksLikeStillDump(vidEl.value) || vidEl.value.startsWith("IMAGE TO VIDEO")) {
+        vidEl.value = composeVideoPrompt({ kind: "long-video", camera: camEl.value, body: "" });
+      }
+    });
+  }
   scRow.appendChild(scImgCopy);
   scRow.appendChild(scVidCopy);
   card.appendChild(scRow);
@@ -601,8 +639,15 @@ function shortCard(s) {
   card.lastChild.querySelector("textarea").className = "sh_onscreen";
   card.appendChild(field("Image prompt", "", s.image_prompt, { tag: "textarea" }));
   card.lastChild.querySelector("textarea").className = "sh_image";
-  card.appendChild(field("Video prompt", "", s.video_prompt, { tag: "textarea" }));
+  const shortCam = s.camera_direction || "";
+  const shortVideoShown = (!s.video_prompt || looksLikeStillDump(s.video_prompt))
+    ? composeVideoPrompt({ kind: "shorts-video", camera: shortCam, hook: s.onscreen_text || s.title, body: s.video_prompt })
+    : s.video_prompt;
+  card.appendChild(field("Video prompt", "", shortVideoShown, { tag: "textarea" }));
   card.lastChild.querySelector("textarea").className = "sh_video";
+  card.appendChild(field("Camera", "", shortCam, { tag: "textarea" }));
+  card.lastChild.querySelector("textarea").className = "sh_camera";
+  card.appendChild(el("div", "hint", "Generate the still first (Copy image prompt). Copy video prompt is image-to-video and includes camera."));
   card.appendChild(field("Description", "", s.description, { tag: "textarea" }));
   card.lastChild.querySelector("textarea").className = "sh_desc";
   card.appendChild(field("Hashtags", "", s.hashtags));
@@ -627,16 +672,28 @@ function shortCard(s) {
   const shVidCopy = el("button", "btn secondary", "Copy video prompt");
   shVidCopy.type = "button";
   shVidCopy.onclick = async () => {
-    const ident = identityById(card.querySelector(".sh_vi")?.value);
-    const block = composeGeneratorPrompt({
-      kind: "shorts",
-      identity: ident,
+    const block = composeVideoPrompt({
+      kind: "shorts-video",
+      camera: card.querySelector(".sh_camera")?.value,
       hook: card.querySelector(".sh_onscreen")?.value || card.querySelector(".sh_title")?.value,
-      concept: card.querySelector(".sh_lyric")?.value,
       body: card.querySelector(".sh_video")?.value
     });
     await copyPrompt(block, shVidCopy, "Copy video prompt");
   };
+  const shCam = card.querySelector(".sh_camera");
+  const shVid = card.querySelector(".sh_video");
+  if (shCam && shVid) {
+    shCam.addEventListener("input", () => {
+      if (!shVid.value || looksLikeStillDump(shVid.value) || shVid.value.startsWith("IMAGE TO VIDEO")) {
+        shVid.value = composeVideoPrompt({
+          kind: "shorts-video",
+          camera: shCam.value,
+          hook: card.querySelector(".sh_onscreen")?.value || card.querySelector(".sh_title")?.value,
+          body: ""
+        });
+      }
+    });
+  }
   shRow.appendChild(shImgCopy);
   shRow.appendChild(shVidCopy);
   card.appendChild(shRow);
