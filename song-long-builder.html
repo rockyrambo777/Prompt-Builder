@@ -31,20 +31,20 @@
 
     <div class="card">
       <h2><span class="step">1</span>Prepare the AI prompt</h2>
-      <div class="muted">SVS builds the prompt from the song, artist DNA, persona and visual identity. Attach the final audio file in ChatGPT or Grok so the AI can listen to the real arrangement and timings.</div>
+      <div class="muted">SVS builds the prompt from the song, Suno share link, artist DNA, persona and visual identity. ChatGPT or Grok should open the Suno link and listen to the finished song before building the scene timings.</div>
       <div class="builder-grid" style="margin-top:14px;">
-        <label class="field"><span>Final audio file</span><input id="audioFile" type="file" accept="audio/*" /></label>
+        <label class="field"><span>Final Suno share URL</span><input id="sunoLink" type="text" readonly /></label>
         <label class="field"><span>Creative direction (optional)</span><input id="humanDirection" placeholder="e.g. more intimate, use Elara on ridge at sunset, fewer performance shots" /></label>
       </div>
-      <audio id="audioPreview" controls style="width:100%;margin-top:12px;display:none;"></audio>
       <div class="row" style="margin-top:14px;">
         <button id="btnBuildPrompt" class="btn primary" type="button">BUILD PROMPT</button>
         <button id="btnCopyPrompt" class="btn secondary" type="button">COPY PROMPT</button>
         <button id="btnChatGPT" class="btn secondary" type="button">COPY + OPEN CHATGPT</button>
         <button id="btnGrok" class="btn secondary" type="button">COPY + OPEN GROK</button>
+        <a id="btnOpenSuno" class="btn secondary" href="#" target="_blank" rel="noopener">OPEN SUNO SONG</a>
       </div>
       <label class="field" style="margin-top:14px;"><span>Prompt to paste into ChatGPT / Grok</span><textarea id="promptOut" class="mono-big" placeholder="Click BUILD PROMPT"></textarea></label>
-      <div class="hint">The audio file stays on your computer. After the chat opens, attach the selected audio file there, paste the copied prompt, and ask the AI to return only the JSON.</div>
+      <div class="hint">No song download is needed. The prompt includes the saved Suno share URL. If the AI cannot actually open and listen to that public link, it must tell you instead of guessing timestamps.</div>
     </div>
 
     <div class="card">
@@ -149,20 +149,32 @@
       $("btnBackSong").href = "./song.html?id=" + encodeURIComponent(songId) + "#long";
       $("btnBackAlbum").href = album.id ? "./album-edit.html?id=" + encodeURIComponent(album.id) : "./artists.html";
       $("crumb").textContent = [artist?.name, album?.title, song?.title].filter(Boolean).join(" · ");
+      $("sunoLink").value = safe(song?.suno_share_url);
+      if (song?.suno_share_url) {
+        $("btnOpenSuno").href = song.suno_share_url;
+      } else {
+        $("btnOpenSuno").style.display = "none";
+      }
       $("msg").textContent = existingPkg ? ("Ready · existing long video has " + existingScenes.length + " scene(s).") : "Ready · no long video package yet.";
       buildPrompt();
     }
 
     function buildPrompt(){
       if (!song) return;
-      const audioName = $("audioFile").files?.[0]?.name || "the final audio file attached to this chat";
+      const sunoUrl = safe(song?.suno_share_url).trim();
       const direction = $("humanDirection").value.trim() || "No extra human direction. Make the strongest cinematic package that fits the song and artist.";
       const out = [];
       out.push("You are creating the COMPLETE LONG-FORM MUSIC VIDEO PACKAGE for one finished song.");
       out.push("");
-      out.push("IMPORTANT AUDIO INSTRUCTION:");
-      out.push("I am attaching the FINAL AUDIO FILE: " + audioName);
-      out.push("Listen to the full audio before planning anything. Use the REAL musical arrangement, vocal entrances, builds, bridge, final chorus, instrumental moments and ending. Use timestamps from the actual audio. Do not guess the duration from the lyrics.");
+      out.push("IMPORTANT AUDIO SOURCE:");
+      if (sunoUrl) {
+        out.push("Open and listen to the FINAL SONG using this public Suno share link:");
+        out.push(sunoUrl);
+      } else {
+        out.push("No Suno share link is saved for this song. Do not invent audio timings.");
+      }
+      out.push("Listen to the FULL song before planning anything. Use the REAL musical arrangement, vocal entrances, builds, bridge, final chorus, instrumental moments and ending. Use timestamps from the actual audio. Do not guess the duration from the lyrics.");
+      out.push("If you cannot actually open/play the Suno link and listen to the song, STOP and tell me that you cannot access the audio. Do not fabricate timestamps or return guessed scene timing JSON.");
       out.push("");
       out.push("ARTIST: " + safe(artist?.name));
       out.push("ALBUM: " + safe(album?.title));
@@ -223,7 +235,9 @@
         }]
       }, null, 2));
       $("promptOut").value = out.join("\n");
-      $("msg").textContent = "Prompt ready. Attach the audio in ChatGPT/Grok, paste this prompt, then paste the returned JSON below.";
+      $("msg").textContent = sunoUrl
+        ? "Prompt ready. The Suno share link is included. Paste this prompt into ChatGPT/Grok, then paste the returned JSON below."
+        : "No Suno share URL is saved yet. Add the final Suno link on the song Music tab first.";
     }
 
     async function copyPrompt(openUrl){
@@ -234,7 +248,9 @@
         $("promptOut").select();
         document.execCommand("copy");
       }
-      $("msg").textContent = "Prompt copied. Attach the final audio file in the AI chat.";
+      $("msg").textContent = song?.suno_share_url
+        ? "Prompt copied with the Suno share link included."
+        : "Prompt copied, but this song has no Suno share link saved yet.";
       if (openUrl) setTimeout(() => window.open(openUrl, "_blank", "noopener"), 250);
     }
 
@@ -350,16 +366,6 @@
       $("preview").innerHTML = "Imported successfully ✅<br><br><a class='btn primary' href='./song.html?id=" + encodeURIComponent(songId) + "#long'>RETURN TO LONG VIDEO</a>";
     }
 
-    $("audioFile").onchange = () => {
-      const f = $("audioFile").files?.[0];
-      if (f) {
-        $("audioPreview").src = URL.createObjectURL(f);
-        $("audioPreview").style.display = "block";
-      } else {
-        $("audioPreview").style.display = "none";
-      }
-      buildPrompt();
-    };
     $("humanDirection").oninput = buildPrompt;
     $("btnBuildPrompt").onclick = buildPrompt;
     $("btnCopyPrompt").onclick = () => copyPrompt();
