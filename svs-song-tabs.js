@@ -41,6 +41,7 @@ async function snapshot(entityType, entityId, fieldGroup, row, reason) {
 let visualIdentities = [];
 let resolvedIdentity = null;
 let tabsPersonaId = null;
+let identityImages = {};
 
 const VI_START = "=== VISUAL ARTIST IDENTITY ===";
 const VI_END = "=== END VISUAL ARTIST IDENTITY ===";
@@ -77,6 +78,155 @@ function pickDefaultIdentity(list, personaId) {
   return list.find((v) => !v.persona_id && (v.status || "active") === "active") || null;
 }
 
+
+async function refSrc(img) {
+  if (!img) return "";
+  if (img.public_url) return img.public_url;
+  if (img.storage_path) {
+    const { data, error } = await supabase.storage.from("visual-identity").createSignedUrl(img.storage_path, 3600);
+    if (error) return "";
+    return (data && data.signedUrl) || "";
+  }
+  return "";
+}
+
+async function loadImagesForIdentity(identityId) {
+  if (!identityId) return [];
+  if (identityImages[identityId]) return identityImages[identityId];
+  const { data, error } = await supabase
+    .from("visual_reference_images")
+    .select("*")
+    .eq("visual_identity_id", identityId)
+    .order("sort_order", { ascending: true });
+  const rows = error ? [] : (data || []);
+  for (const img of rows) img._src = await refSrc(img);
+  identityImages[identityId] = rows.filter((x) => x._src);
+  return identityImages[identityId];
+}
+
+function identityById(id) {
+  if (id) {
+    const hit = visualIdentities.find((x) => x.id === id);
+    if (hit) return hit;
+  }
+  return resolvedIdentity;
+}
+
+function pickRefImage(identity, preferredKind) {
+  const id = identity && identity.id;
+  const rows = (id && identityImages[id]) || [];
+  if (!rows.length) return null;
+  const kinds = preferredKind ? [preferredKind, "face", "full_body", "thumbnail", "scene"] : ["face", "full_body", "thumbnail", "scene"];
+  for (const k of kinds) {
+    const hit = rows.find((r) => (r.kind || "") === k);
+    if (hit) return hit;
+  }
+  return rows[0];
+}
+
+function useImageBlock(kind, identity) {
+  const pref = kind === "thumbnail" ? "thumbnail" : (kind === "shorts" ? "face" : "scene");
+  const img = pickRefImage(identity, pref);
+  if (!img) return "";
+  const lines = ["=== USE ARTIST REFERENCE IMAGE ==="];
+  lines.push("Download the artist identity image from SVS, place it in the image generator as the reference image, then generate.");
+  lines.push("USE IMAGE: use this uploaded artist image as the reference.");
+  if (kind === "thumbnail") {
+    lines.push("Change and fit the image into a YouTube thumbnail (16:9) while keeping the artist look (face, hair, wardrobe, presence). Do not replace the person. Adapt crop, pose, lighting, and background to the thumbnail.");
+  } else if (kind === "shorts") {
+    lines.push("Change and fit the image into a vertical 9:16 Short while keeping the artist look. Do not replace the person. Use the reference face and wardrobe.");
+  } else {
+    lines.push("Use this image as the reference for the scene. Keep the artist look. Change framing, lighting, and setting to fit the scene. Do not replace the person.");
+  }
+  lines.push("=== END USE ARTIST REFERENCE IMAGE ===");
+  return lines.join("\n");
+}
+
+function hookOverlayBlock(hook, kind) {
+  const h = safe(hook).trim();
+  if (!h) return "";
+  if (kind === "thumbnail") {
+    return [
+      "=== THUMBNAIL HOOK TEXT ===",
+      "Create a YouTube thumbnail (16:9) with the hook text ON the image.",
+      "Overlay large, cinematic, readable text that reads: \"" + h + "\".",
+      "Leave clean open space for the words. The hook must appear inside the thumbnail.",
+      "=== END THUMBNAIL HOOK TEXT ==="
+    ].join("\n");
+  }
+  if (kind === "shorts") {
+    return [
+      "=== SHORTS ON-SCREEN TEXT ===",
+      "Vertical 9:16. Put this text on screen: \"" + h + "\".",
+      "=== END SHORTS ON-SCREEN TEXT ==="
+    ].join("\n");
+  }
+  return "";
+}
+
+function composeGeneratorPrompt(opts) {
+  const identity = opts.identity || resolvedIdentity;
+  const parts = [];
+  const use = useImageBlock(opts.kind || "long", identity);
+  if (use) parts.push(use);
+  const vi = composeVisualPromptBlock(identity);
+  if (vi) parts.push(vi);
+  const hook = hookOverlayBlock(opts.hook, opts.kind);
+  if (hook) parts.push(hook);
+  if (opts.concept && String(opts.concept).trim()) parts.push((opts.kind === "thumbnail" ? "Thumbnail concept: " : "Visual concept: ") + String(opts.concept).trim());
+  const body = safe(opts.body).trim();
+  if (body) {
+    const skipVi = body.includes("VISUAL ARTIST IDENTITY") && vi;
+    const skipUse = body.includes("USE ARTIST REFERENCE IMAGE") && use;
+    const skipHook = opts.hook && body.toLowerCase().includes(String(opts.hook).trim().toLowerCase());
+    if (!(skipVi && skipUse && skipHook)) parts.push(body);
+  }
+  return parts.filter(Boolean).join("\n\n").trim();
+}
+
+function identityDownloadRow(identity) {
+  const wrap = el("div", "row");
+  wrap.style.marginTop = "8px";
+  wrap.style.flexWrap = "wrap";
+  const id = identity && identity.id;
+  const rows = (id && identityImages[id]) || [];
+  if (!rows.length) {
+    wrap.appendChild(el("span", "muted", identity ? "No identity image uploaded yet. Add one on the artist Visual identity page." : "No visual identity on this artist."));
+    return wrap;
+  }
+  wrap.appendChild(el("span", "muted", "Download artist image, drop it into the generator, then paste the prompt:"));
+  for (const img of rows) {
+    const a = document.createElement("a");
+    a.className = "link";
+    a.href = img._src;
+    a.download = (img.caption || img.kind || "artist-identity") + ".jpg";
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.textContent = "Download " + (img.kind || "image") + (img.caption ? " · " + img.caption : "");
+    a.style.marginRight = "12px";
+    wrap.appendChild(a);
+  }
+  return wrap;
+}
+
+async function copyPrompt(text, btn, label) {
+  const t = text || "";
+  try { await navigator.clipboard.writeText(t); }
+  catch {
+    const ta = document.createElement("textarea");
+    ta.value = t;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    ta.remove();
+  }
+  if (btn) {
+    const old = btn.textContent;
+    btn.textContent = "Copied";
+    setTimeout(() => { btn.textContent = label || old; }, 1200);
+  }
+}
+
 async function loadVisualIdentities(artistId) {
   if (!artistId) return [];
   const { data, error } = await supabase.from("visual_identities")
@@ -98,7 +248,8 @@ function visualIdentityBar(idPrefix, selectedId, label) {
   top.appendChild(pill);
   top.appendChild(el("span", "muted", label || "Visual identity"));
   wrap.appendChild(top);
-  wrap.appendChild(el("div", "hint", "This look is injected into scene, video, Shorts, thumbnail, and cover prompts."));
+  wrap.appendChild(el("div", "hint", "Download the artist image, place it in the generator as the reference, then copy the prompt. Prompts say USE IMAGE and keep the artist look."));
+  wrap.appendChild(identityDownloadRow(resolvedIdentity));
   const row = el("div", "row");
   row.style.marginTop = "8px";
   const sel = document.createElement("select");
@@ -120,9 +271,10 @@ function visualIdentityBar(idPrefix, selectedId, label) {
   copy.type = "button";
   copy.onclick = async () => {
     const id = sel.value || (resolvedIdentity && resolvedIdentity.id);
-    const ident = visualIdentities.find((x) => x.id === id) || resolvedIdentity;
-    const block = composeVisualPromptBlock(ident);
-    try { await navigator.clipboard.writeText(block); copy.textContent = "Copied"; setTimeout(() => { copy.textContent = "Copy prompt block"; }, 1200); } catch {}
+    const ident = identityById(id);
+    const kind = idPrefix === "sh" ? "shorts" : "long";
+    const block = composeGeneratorPrompt({ kind, identity: ident, body: composeVisualPromptBlock(ident) });
+    await copyPrompt(block, copy, "Copy prompt block");
   };
   row.appendChild(copy);
   wrap.appendChild(row);
@@ -161,6 +313,8 @@ export async function mountPackageTabs(ctx) {
   tabsPersonaId = ctx.personaId || null;
   visualIdentities = await loadVisualIdentities(artistId);
   resolvedIdentity = pickDefaultIdentity(visualIdentities, tabsPersonaId);
+  identityImages = {};
+  await Promise.all(visualIdentities.map((v) => loadImagesForIdentity(v.id)));
   await Promise.all([
     loadLong(songId),
     loadShorts(songId),
@@ -204,19 +358,40 @@ function renderLong(panel, songId, pkg, scenes) {
   card.appendChild(field("Pinned comment", "lf_pinned_comment", p.pinned_comment, { tag: "textarea" }));
   card.appendChild(field("Thumbnail hook", "lf_thumbnail_hook", p.thumbnail_hook));
   card.appendChild(field("Thumbnail concept", "lf_thumbnail_concept", p.thumbnail_concept, { tag: "textarea" }));
+  card.appendChild(identityDownloadRow(resolvedIdentity));
   const thumbChip = el("div", "row");
   thumbChip.style.marginTop = "8px";
   const tname = resolvedIdentity ? (resolvedIdentity.name || "default") : "missing";
   thumbChip.appendChild(el("span", "pill" + (resolvedIdentity ? " ok" : " warn"), "thumbnail look: " + tname));
-  const tcopy = el("button", "btn secondary", "Copy prompt block");
+  const tcopy = el("button", "btn secondary", "Copy thumbnail prompt");
   tcopy.type = "button";
+  function currentThumbPrompt() {
+    return composeGeneratorPrompt({
+      kind: "thumbnail",
+      identity: identityById(selectedVisualId("lf", p.visual_identity_id)),
+      hook: v("lf_thumbnail_hook") || p.thumbnail_hook,
+      concept: v("lf_thumbnail_concept") || p.thumbnail_concept,
+      body: v("lf_thumbnail_prompt") || p.thumbnail_prompt
+    });
+  }
   tcopy.onclick = async () => {
-    const block = composeVisualPromptBlock(resolvedIdentity);
-    try { await navigator.clipboard.writeText(block); tcopy.textContent = "Copied"; setTimeout(() => { tcopy.textContent = "Copy prompt block"; }, 1200); } catch {}
+    await copyPrompt(currentThumbPrompt(), tcopy, "Copy thumbnail prompt");
   };
   thumbChip.appendChild(tcopy);
   card.appendChild(thumbChip);
   card.appendChild(field("Thumbnail prompt", "lf_thumbnail_prompt", p.thumbnail_prompt, { tag: "textarea" }));
+  const genWrap = field("Thumbnail generator prompt (copy this)", "lf_thumbnail_gen", currentThumbPrompt(), { tag: "textarea", cls: "prompt" });
+  const genTa = genWrap.querySelector("textarea");
+  if (genTa) genTa.readOnly = true;
+  card.appendChild(genWrap);
+  card.appendChild(el("div", "hint", "Download the artist image, drop it into the generator, then copy this prompt. It includes USE IMAGE plus the hook text on the thumbnail."));
+  const refreshGen = () => { if (genTa) genTa.value = currentThumbPrompt(); };
+  ["lf_thumbnail_hook","lf_thumbnail_concept","lf_thumbnail_prompt","lf_visual_identity_id"].forEach((fid) => {
+    const n = card.querySelector("#" + fid);
+    if (!n) return;
+    n.addEventListener("input", refreshGen);
+    n.addEventListener("change", refreshGen);
+  });
   card.appendChild(field("Playlist name", "lf_playlist_name", p.playlist_name));
   const grid = el("div", "form-grid");
   grid.appendChild(field("Planned publish (ISO)", "lf_planned_publish_at", p.planned_publish_at));
@@ -246,6 +421,7 @@ function renderLong(panel, songId, pkg, scenes) {
   row.appendChild(save);
   card.appendChild(row);
   panel.appendChild(card);
+  if (genTa) genTa.value = currentThumbPrompt();
 }
 
 function sceneCard(s) {
@@ -271,6 +447,36 @@ function sceneCard(s) {
   card.appendChild(field("Camera", "", s.camera_direction, { tag: "textarea" }));
   card.lastChild.querySelector("textarea").className = "sc_camera";
   card.appendChild(visualIdentitySelect("sc_vi", s.visual_identity_id));
+  card.appendChild(identityDownloadRow(identityById(s.visual_identity_id)));
+  const scRow = el("div", "row");
+  scRow.style.marginTop = "8px";
+  const scImgCopy = el("button", "btn secondary", "Copy image prompt");
+  scImgCopy.type = "button";
+  scImgCopy.onclick = async () => {
+    const ident = identityById(card.querySelector(".sc_vi")?.value);
+    const block = composeGeneratorPrompt({
+      kind: "long",
+      identity: ident,
+      concept: card.querySelector(".sc_visual")?.value,
+      body: card.querySelector(".sc_image")?.value
+    });
+    await copyPrompt(block, scImgCopy, "Copy image prompt");
+  };
+  const scVidCopy = el("button", "btn secondary", "Copy video prompt");
+  scVidCopy.type = "button";
+  scVidCopy.onclick = async () => {
+    const ident = identityById(card.querySelector(".sc_vi")?.value);
+    const block = composeGeneratorPrompt({
+      kind: "long",
+      identity: ident,
+      concept: card.querySelector(".sc_visual")?.value,
+      body: card.querySelector(".sc_video")?.value
+    });
+    await copyPrompt(block, scVidCopy, "Copy video prompt");
+  };
+  scRow.appendChild(scImgCopy);
+  scRow.appendChild(scVidCopy);
+  card.appendChild(scRow);
   card.appendChild(field("Status", "", s.production_status || "todo"));
   card.lastChild.querySelector("input").className = "sc_status";
   return card;
@@ -387,6 +593,38 @@ function shortCard(s) {
   card.appendChild(field("Hashtags", "", s.hashtags));
   card.lastChild.querySelector("input").className = "sh_hash";
   card.appendChild(visualIdentitySelect("sh_vi", s.visual_identity_id));
+  card.appendChild(identityDownloadRow(identityById(s.visual_identity_id)));
+  const shRow = el("div", "row");
+  shRow.style.marginTop = "8px";
+  const shImgCopy = el("button", "btn secondary", "Copy image prompt");
+  shImgCopy.type = "button";
+  shImgCopy.onclick = async () => {
+    const ident = identityById(card.querySelector(".sh_vi")?.value);
+    const block = composeGeneratorPrompt({
+      kind: "shorts",
+      identity: ident,
+      hook: card.querySelector(".sh_onscreen")?.value || card.querySelector(".sh_title")?.value,
+      concept: card.querySelector(".sh_lyric")?.value,
+      body: card.querySelector(".sh_image")?.value
+    });
+    await copyPrompt(block, shImgCopy, "Copy image prompt");
+  };
+  const shVidCopy = el("button", "btn secondary", "Copy video prompt");
+  shVidCopy.type = "button";
+  shVidCopy.onclick = async () => {
+    const ident = identityById(card.querySelector(".sh_vi")?.value);
+    const block = composeGeneratorPrompt({
+      kind: "shorts",
+      identity: ident,
+      hook: card.querySelector(".sh_onscreen")?.value || card.querySelector(".sh_title")?.value,
+      concept: card.querySelector(".sh_lyric")?.value,
+      body: card.querySelector(".sh_video")?.value
+    });
+    await copyPrompt(block, shVidCopy, "Copy video prompt");
+  };
+  shRow.appendChild(shImgCopy);
+  shRow.appendChild(shVidCopy);
+  card.appendChild(shRow);
   return card;
 }
 
