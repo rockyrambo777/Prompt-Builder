@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SVS – Long Video AI Builder</title>
+  <link rel="stylesheet" href="svs.css" />
+  <style>
+    .builder-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.builder-grid .field{margin:0}
+    @media(max-width:900px){.builder-grid{grid-template-columns:1fr}}
+    .mono-big{min-height:380px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45}
+    .step{display:inline-flex;width:28px;height:28px;border-radius:50%;align-items:center;justify-content:center;background:#1c273f;border:1px solid #2a3a5c;font-weight:900;margin-right:8px}
+    .summary{white-space:pre-wrap;line-height:1.5}.danger-note{border-color:#6b4c1d;background:#17130c}
+  </style>
+</head>
+<body>
+  <div id="svs-nav"></div>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1 style="margin:0;">Long Video AI Builder</h1>
+        <div id="crumb" class="muted"></div>
+        <div id="who" class="muted"></div>
+      </div>
+      <div class="row">
+        <a id="btnBackSong" class="btn secondary" href="#">← SONG</a>
+        <a id="btnBackAlbum" class="btn secondary" href="#">← ALBUM EDIT</a>
+      </div>
+    </div>
+    <div id="msg" class="msg muted">Loading…</div>
+
+    <div class="card">
+      <h2><span class="step">1</span>Prepare the AI prompt</h2>
+      <div class="muted">SVS builds the prompt from the song, artist DNA, persona and visual identity. Attach the final audio file in ChatGPT or Grok so the AI can listen to the real arrangement and timings.</div>
+      <div class="builder-grid" style="margin-top:14px;">
+        <label class="field"><span>Final audio file</span><input id="audioFile" type="file" accept="audio/*" /></label>
+        <label class="field"><span>Creative direction (optional)</span><input id="humanDirection" placeholder="e.g. more intimate, use Elara on ridge at sunset, fewer performance shots" /></label>
+      </div>
+      <audio id="audioPreview" controls style="width:100%;margin-top:12px;display:none;"></audio>
+      <div class="row" style="margin-top:14px;">
+        <button id="btnBuildPrompt" class="btn primary" type="button">BUILD PROMPT</button>
+        <button id="btnCopyPrompt" class="btn secondary" type="button">COPY PROMPT</button>
+        <button id="btnChatGPT" class="btn secondary" type="button">COPY + OPEN CHATGPT</button>
+        <button id="btnGrok" class="btn secondary" type="button">COPY + OPEN GROK</button>
+      </div>
+      <label class="field" style="margin-top:14px;"><span>Prompt to paste into ChatGPT / Grok</span><textarea id="promptOut" class="mono-big" placeholder="Click BUILD PROMPT"></textarea></label>
+      <div class="hint">The audio file stays on your computer. After the chat opens, attach the selected audio file there, paste the copied prompt, and ask the AI to return only the JSON.</div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step">2</span>Paste the returned JSON</h2>
+      <div class="muted">The AI response must be JSON only. SVS will validate it before anything is changed.</div>
+      <label class="field" style="margin-top:12px;"><span>AI JSON response</span><textarea id="jsonIn" class="mono-big" placeholder='{"video_concept":"...","artist_image_direction":"...","youtube_title":"...","scenes":[...]}'></textarea></label>
+      <div class="row" style="margin-top:12px;">
+        <button id="btnValidate" class="btn secondary" type="button">VALIDATE JSON</button>
+        <button id="btnImport" class="btn primary" type="button">IMPORT / REPLACE LONG VIDEO</button>
+      </div>
+      <div id="preview" class="card summary" style="display:none;"></div>
+    </div>
+
+    <div class="card danger-note">
+      <strong>Safe rebuild:</strong> importing replaces the current long-video package and scenes for this song, but SVS first writes the old package + scenes into revision history when that table is available. It does not change the song, Suno, YouTube or Ditto.
+    </div>
+  </div>
+
+  <script type="module" src="svs-nav.js"></script>
+  <script type="module">
+    import { supabase, requireSessionOrRedirect } from "./app.js";
+    const $ = (id) => document.getElementById(id);
+    const params = new URLSearchParams(location.search);
+    const songId = (params.get("song_id") || "").trim();
+
+    const session = await requireSessionOrRedirect();
+    $("who").textContent = "Signed in: " + session.user.email;
+
+    let song = null, album = null, artist = null, persona = null, visual = null, existingPkg = null, existingScenes = [];
+
+    function safe(v){ return v == null ? "" : String(v); }
+    function textList(v){ return Array.isArray(v) ? v.join(", ") : safe(v); }
+    function cleanJsonText(raw){
+      let t = safe(raw).trim();
+      if (t.startsWith("```")) {
+        t = t.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+      }
+      return t.trim();
+    }
+    function dnaBlock(){
+      const lines = [];
+      if (artist?.main_genre || artist?.secondary_genre) lines.push("Genres: " + [artist.main_genre, artist.secondary_genre].filter(Boolean).join(" / "));
+      if (artist?.default_lane) lines.push("Lane: " + artist.default_lane);
+      if (artist?.default_perso) lines.push("Artist persona: " + artist.default_perso);
+      if (persona?.label) lines.push("Song persona: " + persona.label);
+      if (artist?.voice_identity) lines.push("Voice identity: " + artist.voice_identity);
+      if (artist?.must_include) lines.push("Must include: " + artist.must_include);
+      if (artist?.never_include) lines.push("Never include: " + artist.never_include);
+      if (artist?.suno_voice_anchor) lines.push("Suno voice anchor: " + artist.suno_voice_anchor);
+      return lines.join("\n") || "(No Artist DNA available)";
+    }
+    function visualBlock(){
+      if (!visual) return "(No saved visual identity. Keep the artist look consistent and do not invent conflicting branding.)";
+      const lines = [];
+      const add=(label,val)=>{ if (val && String(val).trim()) lines.push(label + ": " + String(val).trim()); };
+      add("Visual identity name", visual.name);
+      add("Appearance", visual.appearance_definition);
+      add("Face/features", visual.face_and_features);
+      add("Hair/styling", visual.hair_and_styling);
+      add("Wardrobe/palette", visual.wardrobe_and_palette);
+      add("Lighting/grade", visual.lighting_and_grade);
+      add("Setting/props", visual.setting_and_props);
+      add("Camera/framing", visual.camera_and_framing);
+      add("Must include", visual.must_include);
+      add("Never include", visual.never_include);
+      add("Prompt block", visual.prompt_block);
+      return lines.join("\n") || "(Visual identity row exists but is empty.)";
+    }
+
+    async function load(){
+      if (!songId) { $("msg").textContent = "Missing song_id."; return; }
+      const sr = await supabase.from("songs").select("*").eq("id", songId).maybeSingle();
+      if (sr.error || !sr.data) { $("msg").textContent = "Could not load song: " + (sr.error?.message || "not found"); return; }
+      song = sr.data;
+      const ar = await supabase.from("albums").select("*").eq("id", song.album_id).maybeSingle();
+      album = ar.data || {};
+      if (album.artist_id) {
+        const rr = await supabase.from("artists").select("*").eq("id", album.artist_id).maybeSingle();
+        artist = rr.data || {};
+      }
+      if (song.persona_id) {
+        const pr = await supabase.from("artists_personas").select("*").eq("id", song.persona_id).maybeSingle();
+        persona = pr.data || null;
+      }
+      if (album.artist_id) {
+        let vq = supabase.from("visual_identities").select("*").eq("artist_id", album.artist_id).eq("status","active");
+        const vr = await vq.order("is_default", { ascending:false });
+        const rows = vr.data || [];
+        visual = (song.persona_id && rows.find(x => x.persona_id === song.persona_id && x.is_default))
+          || rows.find(x => !x.persona_id && x.is_default)
+          || rows.find(x => !x.persona_id)
+          || rows[0]
+          || null;
+      }
+      const lp = await supabase.from("song_long_packages").select("*").eq("song_id", songId).maybeSingle();
+      existingPkg = lp.data || null;
+      if (existingPkg) {
+        const sc = await supabase.from("song_long_scenes").select("*").eq("long_package_id", existingPkg.id).order("scene_number");
+        existingScenes = sc.data || [];
+      }
+
+      $("btnBackSong").href = "./song.html?id=" + encodeURIComponent(songId) + "#long";
+      $("btnBackAlbum").href = album.id ? "./album-edit.html?id=" + encodeURIComponent(album.id) : "./artists.html";
+      $("crumb").textContent = [artist?.name, album?.title, song?.title].filter(Boolean).join(" · ");
+      $("msg").textContent = existingPkg ? ("Ready · existing long video has " + existingScenes.length + " scene(s).") : "Ready · no long video package yet.";
+      buildPrompt();
+    }
+
+    function buildPrompt(){
+      if (!song) return;
+      const audioName = $("audioFile").files?.[0]?.name || "the final audio file attached to this chat";
+      const direction = $("humanDirection").value.trim() || "No extra human direction. Make the strongest cinematic package that fits the song and artist.";
+      const out = [];
+      out.push("You are creating the COMPLETE LONG-FORM MUSIC VIDEO PACKAGE for one finished song.");
+      out.push("");
+      out.push("IMPORTANT AUDIO INSTRUCTION:");
+      out.push("I am attaching the FINAL AUDIO FILE: " + audioName);
+      out.push("Listen to the full audio before planning anything. Use the REAL musical arrangement, vocal entrances, builds, bridge, final chorus, instrumental moments and ending. Use timestamps from the actual audio. Do not guess the duration from the lyrics.");
+      out.push("");
+      out.push("ARTIST: " + safe(artist?.name));
+      out.push("ALBUM: " + safe(album?.title));
+      out.push("SONG: " + safe(song?.title));
+      out.push("TRACK: " + safe(song?.track_number));
+      out.push("THEME: " + safe(song?.theme));
+      out.push("KEYWORDS: " + safe(song?.keywords));
+      out.push("SCRIPTURE: " + safe(song?.scripture));
+      out.push("HUMAN CREATIVE DIRECTION: " + direction);
+      out.push("");
+      out.push("ARTIST DNA — MUST FOLLOW:");
+      out.push(dnaBlock());
+      out.push("");
+      out.push("VISUAL ARTIST IDENTITY — MUST STAY CONSISTENT:");
+      out.push(visualBlock());
+      out.push("");
+      out.push("CURRENT SUNO PROMPT / MUSIC STYLE:");
+      out.push(safe(song?.suno_prompt));
+      out.push("");
+      out.push("LYRICS:");
+      out.push(safe(song?.lyrics));
+      out.push("");
+      out.push("WHAT TO CREATE:");
+      out.push("- A strong overall Video concept that follows the emotional arc of the ACTUAL audio.");
+      out.push("- A separate artist_image_direction describing the hero artist composition. Example style: three-quarter artist on a ridge in last light, elegant composition, ivory/gold/muted blue, clean center space. Do not copy this example unless it fits this song.");
+      out.push("- The long-video YouTube package: title, description, tags, hashtags, pinned comment, thumbnail hook, thumbnail concept, playlist recommendation.");
+      out.push("- A complete scene-by-scene plan timed to the actual audio.");
+      out.push("- Each scene needs lyric range, exact start/end timestamp, visual concept, image prompt, image-to-video prompt, and camera direction.");
+      out.push("- Image prompts must be cinematic 16:9 still-image prompts. NO text baked into scene stills. Keep the same artist identity whenever the artist appears.");
+      out.push("- Video prompts animate the corresponding still naturally: subtle body movement, fabric/hair/wind/light/camera motion. Avoid uncanny lip-sync unless the shot clearly calls for singing and the model can handle it.");
+      out.push("- Use enough scenes to keep the long video visually alive, but do not cut every few seconds. Prefer meaningful 8–20 second visual beats depending on the music.");
+      out.push("- Scene timestamps must cover the song from beginning to ending with no major unexplained gaps.");
+      out.push("- Match scene changes to musical/emotional changes, not arbitrary intervals.");
+      out.push("");
+      out.push("RETURN ONLY VALID JSON. NO MARKDOWN. NO CODE FENCE. NO EXPLANATION.");
+      out.push("Use exactly this JSON shape:");
+      out.push(JSON.stringify({
+        video_concept: "overall cinematic concept",
+        artist_image_direction: "specific hero artist composition / palette / framing; no baked text",
+        youtube_title: "title",
+        youtube_description: "description",
+        youtube_tags: "comma-separated tags",
+        hashtags: "space or comma separated hashtags",
+        pinned_comment: "pinned comment",
+        thumbnail_hook: "short readable hook",
+        thumbnail_concept: "thumbnail composition using the same artist identity",
+        playlist_name: "recommended existing or album playlist",
+        scenes: [{
+          scene_number: 1,
+          lyric_range: "lyrics or instrumental section represented",
+          timestamp_start: "0:00",
+          timestamp_end: "0:12",
+          visual_concept: "what the viewer sees and why it fits this moment",
+          image_prompt: "complete 16:9 still image prompt, no text baked in",
+          video_prompt: "image-to-video animation prompt for this exact still",
+          camera_direction: "camera/framing/movement",
+          production_status: "todo"
+        }]
+      }, null, 2));
+      $("promptOut").value = out.join("\n");
+      $("msg").textContent = "Prompt ready. Attach the audio in ChatGPT/Grok, paste this prompt, then paste the returned JSON below.";
+    }
+
+    async function copyPrompt(openUrl){
+      buildPrompt();
+      const txt = $("promptOut").value;
+      try { await navigator.clipboard.writeText(txt); }
+      catch {
+        $("promptOut").select();
+        document.execCommand("copy");
+      }
+      $("msg").textContent = "Prompt copied. Attach the final audio file in the AI chat.";
+      if (openUrl) setTimeout(() => window.open(openUrl, "_blank", "noopener"), 250);
+    }
+
+    function parsePayload(){
+      const raw = cleanJsonText($("jsonIn").value);
+      if (!raw) throw new Error("Paste the AI JSON first.");
+      const p = JSON.parse(raw);
+      if (!p || typeof p !== "object") throw new Error("JSON root must be an object.");
+      if (!Array.isArray(p.scenes) || !p.scenes.length) throw new Error("JSON needs a non-empty scenes array.");
+      p.scenes.forEach((s,i) => {
+        if (!s || typeof s !== "object") throw new Error("Scene " + (i+1) + " is invalid.");
+        if (!s.timestamp_start || !s.timestamp_end) throw new Error("Scene " + (i+1) + " needs start and end timestamps.");
+        if (!s.image_prompt || !s.video_prompt) throw new Error("Scene " + (i+1) + " needs image_prompt and video_prompt.");
+      });
+      return p;
+    }
+
+    function validate(){
+      try {
+        const p = parsePayload();
+        const title = p.youtube_title || "(no YouTube title)";
+        $("preview").style.display = "block";
+        $("preview").textContent = "VALID JSON ✅\n\nVideo: " + (p.video_concept || "(none)") + "\n\nYouTube: " + title + "\nScenes: " + p.scenes.length + "\nFirst: " + p.scenes[0].timestamp_start + " → " + p.scenes[0].timestamp_end + "\nLast: " + p.scenes[p.scenes.length-1].timestamp_start + " → " + p.scenes[p.scenes.length-1].timestamp_end;
+        $("msg").textContent = "JSON valid. Review the summary, then import when ready.";
+        return p;
+      } catch (e) {
+        $("preview").style.display = "block";
+        $("preview").textContent = "JSON ERROR ❌\n" + e.message;
+        $("msg").textContent = "Fix the JSON before importing.";
+        return null;
+      }
+    }
+
+    async function saveRevision(){
+      if (!existingPkg) return;
+      try {
+        await supabase.from("content_revisions").insert({
+          entity_type: "song_long_packages",
+          entity_id: existingPkg.id,
+          field_group: "full_long_video",
+          snapshot: { package: existingPkg, scenes: existingScenes },
+          created_by: "human",
+          reason: "before_ai_json_rebuild"
+        });
+      } catch {}
+    }
+
+    async function importJson(){
+      const p = validate();
+      if (!p) return;
+      const verb = existingPkg ? "replace the existing long video package and scenes" : "create the long video package and scenes";
+      if (!confirm("This will " + verb + " for " + song.title + ". Continue?")) return;
+      $("msg").textContent = "Importing long video package…";
+      await saveRevision();
+
+      const artistDirection = safe(p.artist_image_direction).trim();
+      let videoConcept = safe(p.video_concept).trim();
+      if (artistDirection) videoConcept += (videoConcept ? "\n\n" : "") + "Artist image on: " + artistDirection;
+      const now = new Date().toISOString();
+      const pkgPayload = {
+        song_id: songId,
+        video_concept: videoConcept || null,
+        youtube_title: safe(p.youtube_title).trim() || null,
+        youtube_description: safe(p.youtube_description).trim() || null,
+        youtube_tags: textList(p.youtube_tags).trim() || null,
+        hashtags: textList(p.hashtags).trim() || null,
+        pinned_comment: safe(p.pinned_comment).trim() || null,
+        thumbnail_hook: safe(p.thumbnail_hook).trim() || null,
+        thumbnail_concept: safe(p.thumbnail_concept).trim() || null,
+        playlist_name: safe(p.playlist_name).trim() || null,
+        publication_status: "draft",
+        visual_identity_id: existingPkg?.visual_identity_id || visual?.id || null,
+        version: (existingPkg?.version || 0) + 1,
+        updated_at: now
+      };
+
+      let pkg = existingPkg;
+      if (pkg) {
+        const ur = await supabase.from("song_long_packages").update(pkgPayload).eq("id", pkg.id).select("*").single();
+        if (ur.error) { $("msg").textContent = "Package update failed: " + ur.error.message; return; }
+        pkg = ur.data;
+      } else {
+        const ir = await supabase.from("song_long_packages").insert(pkgPayload).select("*").single();
+        if (ir.error) { $("msg").textContent = "Package create failed: " + ir.error.message; return; }
+        pkg = ir.data;
+      }
+
+      const del = await supabase.from("song_long_scenes").delete().eq("long_package_id", pkg.id);
+      if (del.error) { $("msg").textContent = "Could not replace old scenes: " + del.error.message; return; }
+
+      const rows = p.scenes.map((s,i) => ({
+        long_package_id: pkg.id,
+        scene_number: Number(s.scene_number || (i+1)),
+        lyric_range: safe(s.lyric_range).trim() || null,
+        timestamp_start: safe(s.timestamp_start).trim() || null,
+        timestamp_end: safe(s.timestamp_end).trim() || null,
+        visual_concept: safe(s.visual_concept).trim() || null,
+        image_prompt: safe(s.image_prompt).trim() || null,
+        video_prompt: safe(s.video_prompt).trim() || null,
+        camera_direction: safe(s.camera_direction).trim() || null,
+        production_status: safe(s.production_status).trim() || "todo",
+        visual_identity_id: existingPkg?.visual_identity_id || visual?.id || null,
+        version: 1,
+        updated_at: now
+      }));
+      const ins = await supabase.from("song_long_scenes").insert(rows);
+      if (ins.error) { $("msg").textContent = "Scene import failed: " + ins.error.message; return; }
+
+      existingPkg = pkg;
+      existingScenes = rows;
+      $("msg").textContent = "Imported ✅ " + rows.length + " scenes. Return to the song to review the Long Video tab.";
+      $("preview").style.display = "block";
+      $("preview").innerHTML = "Imported successfully ✅<br><br><a class='btn primary' href='./song.html?id=" + encodeURIComponent(songId) + "#long'>RETURN TO LONG VIDEO</a>";
+    }
+
+    $("audioFile").onchange = () => {
+      const f = $("audioFile").files?.[0];
+      if (f) {
+        $("audioPreview").src = URL.createObjectURL(f);
+        $("audioPreview").style.display = "block";
+      } else {
+        $("audioPreview").style.display = "none";
+      }
+      buildPrompt();
+    };
+    $("humanDirection").oninput = buildPrompt;
+    $("btnBuildPrompt").onclick = buildPrompt;
+    $("btnCopyPrompt").onclick = () => copyPrompt();
+    $("btnChatGPT").onclick = () => copyPrompt("https://chatgpt.com/");
+    $("btnGrok").onclick = () => copyPrompt("https://grok.com/");
+    $("btnValidate").onclick = validate;
+    $("btnImport").onclick = importJson;
+
+    await load();
+  </script>
+</body>
+</html>
