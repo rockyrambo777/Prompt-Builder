@@ -209,13 +209,14 @@
       grid.appendChild(fieldInput("Title", "f_title", song.title));
 
       const personaF = el("label", "field");
-      personaF.appendChild(el("span", "", "Persona"));
+      personaF.appendChild(el("span", "", "Artist persona"));
+      const artistPersona = (artistRow.default_perso || "").trim();
       if (personas.length) {
         const sel = document.createElement("select");
         sel.id = "f_persona_id";
         const empty = document.createElement("option");
         empty.value = "";
-        empty.textContent = "Default (artist DNA)";
+        empty.textContent = artistPersona ? ("Default — " + artistPersona) : "Default artist DNA";
         sel.appendChild(empty);
         for (const p of personas) {
           const o = document.createElement("option");
@@ -226,7 +227,12 @@
         }
         personaF.appendChild(sel);
       } else {
-        personaF.appendChild(el("div", "muted", "No personas on this artist."));
+        const display = document.createElement("input");
+        display.type = "text";
+        display.value = artistPersona || "Default artist DNA";
+        display.readOnly = true;
+        personaF.appendChild(display);
+
         const hidden = document.createElement("input");
         hidden.type = "hidden";
         hidden.id = "f_persona_id";
