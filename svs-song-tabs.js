@@ -473,7 +473,7 @@ function renderLong(panel, songId, pkg, scenes) {
 
   const sceneHost = el("div", "");
   sceneHost.id = "lf_scenes";
-  card.appendChild(el("h3", "", "Scenes / stills (image-only slideshow — aim for ~20)"));
+  card.appendChild(el("h3", "", "Scenes / stills (lyric-driven slideshow — aim for ~20)"));
   if (!scenes.length) {
     sceneHost.appendChild(el("div", "muted", "No scenes yet. Add the first one."));
   }
@@ -503,13 +503,19 @@ function sceneCard(s) {
   const n = el("div", "form-grid");
   n.appendChild(field("Scene #", "", s.scene_number, { type: "number" }));
   n.lastChild.querySelector("input").className = "sc_num";
-  n.appendChild(field("Lyric range", "", s.lyric_range));
+  n.appendChild(field("Lyric range / moment", "", s.lyric_range));
   n.lastChild.querySelector("input").className = "sc_lyric";
-  n.appendChild(field("Start", "", s.timestamp_start));
-  n.lastChild.querySelector("input").className = "sc_start";
-  n.appendChild(field("End", "", s.timestamp_end));
-  n.lastChild.querySelector("input").className = "sc_end";
+  // Legacy clock fields kept hidden — lyric-driven packages do not use them
+  const startWrap = field("Start (unused)", "", s.timestamp_start || "");
+  startWrap.style.display = "none";
+  startWrap.querySelector("input").className = "sc_start";
+  n.appendChild(startWrap);
+  const endWrap = field("End (unused)", "", s.timestamp_end || "");
+  endWrap.style.display = "none";
+  endWrap.querySelector("input").className = "sc_end";
+  n.appendChild(endWrap);
   card.appendChild(n);
+  card.appendChild(el("div", "hint", "Anchor this still to a lyric moment (line/couplet/section). No clock timestamps."));
   card.appendChild(field("Visual concept", "", s.visual_concept, { tag: "textarea" }));
   card.lastChild.querySelector("textarea").className = "sc_visual";
   const ident = identityById(s.visual_identity_id);
@@ -518,7 +524,7 @@ function sceneCard(s) {
     : s.image_prompt;
   card.appendChild(field("Image prompt", "", sceneImageShown, { tag: "textarea" }));
   card.lastChild.querySelector("textarea").className = "sc_image";
-  card.appendChild(el("div", "hint", "Image-only slideshow: one still per scene. No image-to-video. No text baked into the still."));
+  card.appendChild(el("div", "hint", "Lyric-driven still: one image for this lyric moment. No image-to-video. No text baked into the still."));
   // Keep legacy video/camera fields hidden for old rows but do not encourage I2V
   const vidWrap = field("Video prompt (unused — image-only)", "", s.video_prompt || "", { tag: "textarea" });
   vidWrap.style.display = "none";
@@ -594,8 +600,8 @@ async function saveLong(songId, existing) {
       long_package_id: pkg.id,
       scene_number: Number(card.querySelector(".sc_num")?.value || n),
       lyric_range: card.querySelector(".sc_lyric")?.value || null,
-      timestamp_start: card.querySelector(".sc_start")?.value || null,
-      timestamp_end: card.querySelector(".sc_end")?.value || null,
+      timestamp_start: null,
+      timestamp_end: null,
       visual_concept: card.querySelector(".sc_visual")?.value || null,
       image_prompt: card.querySelector(".sc_image")?.value || null,
       video_prompt: card.querySelector(".sc_video")?.value || null,
@@ -646,7 +652,7 @@ function shortCard(s) {
   n.lastChild.querySelector("input").className = "sh_num";
   n.appendChild(field("Title", "", s.title));
   n.lastChild.querySelector("input").className = "sh_title";
-  n.appendChild(field("Lyric range", "", s.lyric_range));
+  n.appendChild(field("Lyric window", "", s.lyric_range));
   n.lastChild.querySelector("input").className = "sh_lyric";
   n.appendChild(field("Status", "", s.production_status || "todo"));
   n.lastChild.querySelector("input").className = "sh_status";
