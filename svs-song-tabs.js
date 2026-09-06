@@ -450,21 +450,21 @@ function renderLong(panel, songId, pkg, scenes) {
       concept: (card.querySelector("#lf_thumbnail_concept") || {}).value || p.thumbnail_concept
     });
   }
-  tcopy.onclick = async () => {
-    await copyPrompt(currentThumbPrompt(), tcopy, "Copy thumbnail prompt");
-  };
+  const savedThumb = safe(p.thumbnail_prompt).trim();
   thumbChip.appendChild(tcopy);
+  const rebuildThumb = el("button", "btn secondary", "Rebuild from hook");
+  rebuildThumb.type = "button";
+  thumbChip.appendChild(rebuildThumb);
   card.appendChild(thumbChip);
-  card.appendChild(field("Thumbnail prompt", "lf_thumbnail_prompt", currentThumbPrompt(), { tag: "textarea", cls: "prompt" }));
-  card.appendChild(el("div", "hint", "One prompt. Download the artist photo, drop it in as the reference, then copy. Hook text goes on the thumbnail."));
+  card.appendChild(field("Thumbnail prompt", "lf_thumbnail_prompt", savedThumb || currentThumbPrompt(), { tag: "textarea", cls: "prompt" }));
+  card.appendChild(el("div", "hint", "Saved custom thumbnail prompts stay after reload. Rebuild from hook only when you want a fresh default. Download the artist photo, drop it in as the reference, then copy."));
   const thumbTa = card.querySelector("#lf_thumbnail_prompt");
-  const refreshThumb = () => { if (thumbTa) thumbTa.value = currentThumbPrompt(); };
-  ["lf_thumbnail_hook","lf_thumbnail_concept","lf_visual_identity_id"].forEach((fid) => {
-    const n = card.querySelector("#" + fid);
-    if (!n) return;
-    n.addEventListener("input", refreshThumb);
-    n.addEventListener("change", refreshThumb);
-  });
+  tcopy.onclick = async () => {
+    await copyPrompt((thumbTa && thumbTa.value.trim()) || currentThumbPrompt(), tcopy, "Copy thumbnail prompt");
+  };
+  rebuildThumb.onclick = () => {
+    if (thumbTa) thumbTa.value = currentThumbPrompt();
+  };
   card.appendChild(field("Playlist name", "lf_playlist_name", p.playlist_name));
   const grid = el("div", "form-grid");
   grid.appendChild(field("Planned publish (ISO)", "lf_planned_publish_at", p.planned_publish_at));
@@ -494,7 +494,6 @@ function renderLong(panel, songId, pkg, scenes) {
   row.appendChild(save);
   card.appendChild(row);
   panel.appendChild(card);
-  if (thumbTa) thumbTa.value = currentThumbPrompt();
 }
 
 function sceneCard(s) {
@@ -689,8 +688,12 @@ function shortCard(s) {
   card.appendChild(el("div", "hint", "Generate the still first (Copy image prompt). Copy video prompt is image-to-video and includes camera."));
   card.appendChild(field("Description", "", s.description, { tag: "textarea" }));
   card.lastChild.querySelector("textarea").className = "sh_desc";
+  card.appendChild(field("YouTube tags", "", s.youtube_tags, { tag: "textarea" }));
+  card.lastChild.querySelector("textarea").className = "sh_tags";
   card.appendChild(field("Hashtags", "", s.hashtags));
   card.lastChild.querySelector("input").className = "sh_hash";
+  card.appendChild(field("Pinned comment", "", s.pinned_comment, { tag: "textarea" }));
+  card.lastChild.querySelector("textarea").className = "sh_pinned";
   card.appendChild(visualIdentitySelect("sh_vi", s.visual_identity_id));
   card.appendChild(identityDownloadRow(identityById(s.visual_identity_id)));
   const shRow = el("div", "row");
@@ -767,12 +770,32 @@ function renderShorts(panel, songId, rows) {
   panel.appendChild(card);
 }
 
+async function writeShortRow(id, payload, priorVersion) {
+  const optionalCols = ["youtube_tags", "camera_direction"];
+  let body = Object.assign({}, payload);
+  for (let attempt = 0; attempt < 4; attempt++) {
+    let res;
+    if (id) {
+      res = await supabase.from("song_short_packages").update(body).eq("id", id).eq("version", priorVersion);
+    } else {
+      res = await supabase.from("song_short_packages").insert(body);
+    }
+    if (!res.error) return { ok: true, dropped: optionalCols.filter((c) => !(c in body)) };
+    const m = (res.error.message || "") + " " + (res.error.code || "") + " " + (res.error.details || "");
+    const drop = optionalCols.filter((c) => (c in body) && new RegExp(c, "i").test(m));
+    if (!drop.length) return { ok: false, error: res.error.message };
+    for (const c of drop) delete body[c];
+  }
+  return { ok: false, error: "Could not save short after stripping optional columns." };
+}
+
 async function saveShorts(songId) {
   const msg = $("msg");
   msg.className = "msg muted";
   msg.textContent = "Saving shorts\u2026";
   const cards = document.querySelectorAll("#sh_host .short-card");
   let n = 1;
+  let warnMissing = false;
   for (const card of cards) {
     const payload = {
       song_id: songId,
@@ -783,8 +806,11 @@ async function saveShorts(songId) {
       onscreen_text: card.querySelector(".sh_onscreen")?.value || null,
       image_prompt: card.querySelector(".sh_image")?.value || null,
       video_prompt: card.querySelector(".sh_video")?.value || null,
+      camera_direction: card.querySelector(".sh_camera")?.value || null,
       description: card.querySelector(".sh_desc")?.value || null,
+      youtube_tags: card.querySelector(".sh_tags")?.value || null,
       hashtags: card.querySelector(".sh_hash")?.value || null,
+      pinned_comment: card.querySelector(".sh_pinned")?.value || null,
       visual_identity_id: card.querySelector(".sh_vi")?.value || selectedVisualId("sh", resolvedIdentity && resolvedIdentity.id),
       updated_at: new Date().toISOString()
     };
@@ -792,15 +818,23 @@ async function saveShorts(songId) {
     if (id) {
       payload.version = (Number(card.dataset.version) || 1) + 1;
       await snapshot("song_short_packages", id, "package", payload, "before_save");
-      await supabase.from("song_short_packages").update(payload).eq("id", id).eq("version", Number(card.dataset.version) || 1);
+      const wr = await writeShortRow(id, payload, Number(card.dataset.version) || 1);
+      if (!wr.ok) { msg.textContent = "Save failed: " + wr.error; msg.className = "msg error"; return; }
+      if (wr.dropped && wr.dropped.length) warnMissing = true;
     } else {
-      const empty = !payload.title && !payload.lyric_range && !payload.onscreen_text && !payload.image_prompt && !payload.video_prompt;
-      if (!empty) await supabase.from("song_short_packages").insert(payload);
+      const empty = !payload.title && !payload.lyric_range && !payload.onscreen_text && !payload.image_prompt && !payload.video_prompt && !payload.youtube_tags && !payload.pinned_comment;
+      if (!empty) {
+        const wr = await writeShortRow(null, payload, 1);
+        if (!wr.ok) { msg.textContent = "Save failed: " + wr.error; msg.className = "msg error"; return; }
+        if (wr.dropped && wr.dropped.length) warnMissing = true;
+      }
     }
     n += 1;
   }
   await supabase.from("songs").update({ short_packaged: true }).eq("id", songId);
-  msg.textContent = "Shorts saved.";
+  msg.textContent = warnMissing
+    ? "Shorts saved. Tags/camera columns were missing on one write path; refresh and save again if tags did not stick."
+    : "Shorts saved.";
   msg.className = "msg success";
   await loadShorts(songId);
 }
