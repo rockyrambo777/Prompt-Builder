@@ -43,14 +43,14 @@
         <label class="field"><span>Creative direction</span><input id="humanDirection" placeholder="Optional extra direction for this package" /></label>
       </div>
       <label class="field" style="margin-top:12px;"><span>Manual audio note</span><textarea id="audioNote" placeholder="If your AI tool supports listening to audio, attach the final audio file manually."></textarea></label>
-      <h3 style="margin-top:18px;">Timing map (optional)</h3>
-      <div class="muted">Fill these if the AI cannot listen. Leave blank to let it use the song/audio.</div>
+      <h3 style="margin-top:18px;">Lyric / section notes (optional)</h3>
+      <div class="muted">Stills are lyric-driven (no clock timestamps). Optional section notes can help pace the lyric arc. Leave blank if lyrics alone are enough.</div>
       <div class="builder-grid" style="margin-top:12px;" id="timingGrid"></div>
     </div>
 
     <div class="card">
       <h2><span class="step">2</span>Master prompt</h2>
-      <div class="muted">One prompt for an image-only slideshow package: ~20 long stills + 5 Shorts with 3 stills each + Community + YouTube. No image-to-video.</div>
+      <div class="muted">Lyric-driven image-only slideshow: ~20 long stills paced across the lyrics + 5 Shorts × 3 stills each + Community + YouTube. No clock timestamps. No image-to-video.</div>
       <div class="row" style="margin-top:14px;">
         <button id="btnBuildPrompt" class="btn primary" type="button">BUILD MASTER PROMPT</button>
         <button id="btnCopyPrompt" class="btn secondary" type="button">COPY MASTER PROMPT</button>
@@ -81,7 +81,7 @@
     </div>
   </div>
 
-  <script type="module" src="svs-nav.js?v=20260906c"></script>
+  <script type="module" src="svs-nav.js?v=20260906d"></script>
   <script type="module">
     import { supabase, requireSessionOrRedirect } from "./app.js";
     const $ = (id) => document.getElementById(id);
@@ -234,11 +234,9 @@
     }
 
     function jsonShape(){
-      const scene = (n, start, end) => ({
+      const scene = (n) => ({
         scene_number: n,
         lyric_range: "",
-        timestamp_start: start,
-        timestamp_end: end,
         visual_concept: "",
         image_prompt: "",
         production_status: "todo"
@@ -268,7 +266,7 @@
         thumbnail_concept: "",
         thumbnail_prompt: "",
         playlist_name: "",
-        scenes: Array.from({ length: 20 }, (_, i) => scene(i + 1, "0:00", "0:12")),
+        scenes: Array.from({ length: 20 }, (_, i) => scene(i + 1)),
         shorts: Array.from({ length: 5 }, (_, i) => short(i + 1)),
         community_post: "",
         recommended_release_order: "",
@@ -287,9 +285,9 @@
       out.push("Return Long Video, 5 Shorts, a Community post, and YouTube packaging in a SINGLE JSON object.");
       out.push("One run only. Do not ask follow-up questions. Do not split the work.");
       out.push("");
-      out.push("AUDIO SOURCE:");
+      out.push("AUDIO SOURCE (optional context only — do NOT invent clock timestamps for stills):");
       if (sunoUrl) {
-        out.push("Final Suno share URL (open/listen if you can):");
+        out.push("Final Suno share URL (open/listen if you can for mood):");
         out.push(sunoUrl);
       } else {
         out.push("No Suno share URL is saved.");
@@ -298,11 +296,10 @@
         out.push(audioNote);
       }
       if (timing) {
-        out.push("Use this human timing map. Do not invent different section times:");
+        out.push("Optional human lyric/section notes (not clock times):");
         out.push(timing);
-      } else {
-        out.push("No timing map was provided. If you can listen to the song, use real timestamps. If you cannot listen and there is no timing map, say you cannot access the audio instead of guessing.");
       }
+      out.push("PRIMARY SOURCE OF TRUTH: the LYRICS block below. Pace stills by lyric flow, not by absolute seconds.");
       out.push("");
       out.push("ARTIST: " + safe(artist?.name));
       out.push("ALBUM: " + safe(album?.title));
@@ -333,13 +330,16 @@
       out.push("LYRICS:");
       out.push(safe(song?.lyrics) || "(none)");
       out.push("");
-      out.push("WHAT TO CREATE (IMAGE-ONLY SLIDESHOW — NO VIDEO GENERATION):");
-      out.push("- Long-form lyric video as a SLIDESHOW of still images that change through the song.");
-      out.push("- Exactly 20 long scenes/stills timed across the song (image_prompt required each; no video_prompt).");
-      out.push("- Exactly 5 Shorts. Each Short is 3 still images (image_prompt, image_prompt_2, image_prompt_3) — not one still + video.");
+      out.push("WHAT TO CREATE (LYRIC-DRIVEN IMAGE-ONLY SLIDESHOW — NO CLOCK TIMESTAMPS, NO VIDEO GENERATION):");
+      out.push("- Long-form lyric video as a SLIDESHOW of still images that follow the lyric arc.");
+      out.push("- Exactly 20 long scenes/stills paced across the LYRICS (not seconds). Each scene needs lyric_range + image_prompt.");
+      out.push("- Do NOT include timestamp_start or timestamp_end. Do NOT invent clock times.");
+      out.push("- Decide where each still belongs using lyric_range / lyric moment only (a line, couplet, or short section).");
+      out.push("- Build each image_prompt from that lyric moment so the still fits and showcases the song.");
+      out.push("- Exactly 5 Shorts. Each Short has a lyric_range window and 3 stills (image_prompt, image_prompt_2, image_prompt_3) tied to that Short's lyric window.");
       out.push("- One Community post.");
       out.push("- YouTube title, description, tags, hashtags, pinned comment, thumbnail hook/concept/prompt, playlist name.");
-      out.push("- Do NOT create image-to-video prompts. Do NOT include video_prompt or camera_direction fields.");
+      out.push("- Do NOT create image-to-video prompts. Do NOT include video_prompt, camera_direction, or timestamp fields.");
       out.push("");
       out.push("IMAGE PROMPT RULES (every long scene still and every Short still):");
       if (visual && identityHasImage) {
@@ -355,11 +355,11 @@
         out.push("- Do not include an artist image. Do not use USE IMAGE. Do not invent a branded face reference.");
         out.push("- Write cinematic concept stills for that part of the song only.");
       }
-      out.push("- Each image_prompt must describe THAT part of the song (lyric/moment), suitable as a slideshow still.");
+      out.push("- Each image_prompt must visually express THAT lyric moment (from lyric_range), suitable as a slideshow still that goes with the words.");
       out.push("- NO text baked into still images (not lyrics, not titles, not hooks on scene/Short stills).");
       out.push("- Thumbnail is the exception: thumbnail_prompt may include hook text ON the thumbnail.");
       out.push("");
-      out.push("SHORTS: vertical 9:16. Five items. Each needs title, lyric_range, onscreen_text, image_prompt, image_prompt_2, image_prompt_3, youtube_title, youtube_description, hashtags.");
+      out.push("SHORTS: vertical 9:16. Five items. Each needs title, lyric_range (the Short's lyric window), onscreen_text, image_prompt, image_prompt_2, image_prompt_3 (all three stills tied to that lyric window), youtube_title, youtube_description, hashtags.");
       out.push("COMMUNITY: one warm post that fits the song, artist, and scripture if present.");
       out.push("production_status for scenes and shorts must be \"todo\".");
       out.push("");
@@ -382,8 +382,8 @@
       if (!Array.isArray(scenes) || !scenes.length) throw new Error("JSON needs a non-empty scenes array.");
       scenes.forEach((s,i) => {
         if (!s || typeof s !== "object") throw new Error("Scene " + (i+1) + " is invalid.");
-        if (!s.timestamp_start || !s.timestamp_end) throw new Error("Scene " + (i+1) + " needs start and end timestamps.");
-        if (!s.image_prompt) throw new Error("Scene " + (i+1) + " needs image_prompt (image-only slideshow).");
+        if (!safe(s.lyric_range).trim()) throw new Error("Scene " + (i+1) + " needs lyric_range (lyric moment — no clock timestamps).");
+        if (!s.image_prompt) throw new Error("Scene " + (i+1) + " needs image_prompt (lyric-driven still).");
       });
     }
 
@@ -397,6 +397,7 @@
       if (!Array.isArray(p.scenes) || p.scenes.length < 15) throw new Error("JSON should have about 20 long scenes (got " + (p.scenes && p.scenes.length) + "). Prefer exactly 20.");
       p.shorts.forEach((s,i) => {
         if (!s || typeof s !== "object") throw new Error("Short " + (i+1) + " is invalid.");
+        if (!safe(s.lyric_range).trim()) throw new Error("Short " + (i+1) + " needs lyric_range (lyric window for its 3 stills).");
         if (!s.image_prompt || !s.image_prompt_2 || !s.image_prompt_3) throw new Error("Short " + (i+1) + " needs image_prompt, image_prompt_2, and image_prompt_3 (3 stills).");
       });
       return p;
@@ -418,7 +419,7 @@
       try {
         const p = parsePayload();
         $("preview").style.display = "block";
-        $("preview").textContent = "VALID JSON\n\nVideo: " + (p.youtube_title || p.video_concept || "(none)") + "\nScenes: " + p.scenes.length + " (" + p.scenes[0].timestamp_start + " → " + p.scenes[p.scenes.length-1].timestamp_end + ")\nShorts: " + p.shorts.length + "\nCommunity: " + (safe(p.community_post).slice(0,120) || "(none)");
+        $("preview").textContent = "VALID JSON\n\nVideo: " + (p.youtube_title || p.video_concept || "(none)") + "\nScenes: " + p.scenes.length + " lyric-driven stills\nFirst lyric: " + safe(p.scenes[0].lyric_range).slice(0,80) + "\nLast lyric: " + safe(p.scenes[p.scenes.length-1].lyric_range).slice(0,80) + "\nShorts: " + p.shorts.length + "\nCommunity: " + (safe(p.community_post).slice(0,120) || "(none)");
         $("msg").textContent = "JSON valid. Import Scenes Only, Import, or Replace when ready.";
         return p;
       } catch (e) {
@@ -426,7 +427,7 @@
         try {
           const s = parseScenesOnly();
           $("preview").style.display = "block";
-          $("preview").textContent = "VALID SCENES-ONLY JSON\n\nScenes: " + s.scenes.length + " (" + s.scenes[0].timestamp_start + " → " + s.scenes[s.scenes.length-1].timestamp_end + ")\nShorts: not required for IMPORT SCENES ONLY";
+          $("preview").textContent = "VALID SCENES-ONLY JSON\n\nScenes: " + s.scenes.length + " lyric-driven stills\nFirst: " + safe(s.scenes[0].lyric_range).slice(0,80) + "\nLast: " + safe(s.scenes[s.scenes.length-1].lyric_range).slice(0,80) + "\nShorts: not required for IMPORT SCENES ONLY";
           $("msg").textContent = "Scenes JSON valid. Use IMPORT SCENES ONLY (full Import/Replace still need 5 Shorts).";
           return null;
         } catch (e2) {
@@ -473,8 +474,8 @@
         long_package_id: pkg.id,
         scene_number: Number(s.scene_number || (i+1)),
         lyric_range: safe(s.lyric_range).trim() || null,
-        timestamp_start: safe(s.timestamp_start).trim() || null,
-        timestamp_end: safe(s.timestamp_end).trim() || null,
+        timestamp_start: null,
+        timestamp_end: null,
         visual_concept: safe(s.visual_concept).trim() || null,
         image_prompt: safe(s.image_prompt).trim() || null,
         video_prompt: null,
@@ -582,8 +583,8 @@
         long_package_id: pkg.id,
         scene_number: Number(s.scene_number || (i+1)),
         lyric_range: safe(s.lyric_range).trim() || null,
-        timestamp_start: safe(s.timestamp_start).trim() || null,
-        timestamp_end: safe(s.timestamp_end).trim() || null,
+        timestamp_start: null,
+        timestamp_end: null,
         visual_concept: safe(s.visual_concept).trim() || null,
         image_prompt: safe(s.image_prompt).trim() || null,
         video_prompt: null,
@@ -670,7 +671,7 @@
       try {
         const p = parseScenesOnly();
         $("preview").style.display = "block";
-        $("preview").textContent = "SCENES READY\n\nScenes: " + p.scenes.length + " (" + p.scenes[0].timestamp_start + " → " + p.scenes[p.scenes.length-1].timestamp_end + ")";
+        $("preview").textContent = "SCENES READY\n\nScenes: " + p.scenes.length + " lyric-driven stills";
         await writeScenesOnly(p);
       } catch (e) {
         $("preview").style.display = "block";
