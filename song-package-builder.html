@@ -67,19 +67,21 @@
       <label class="field" style="margin-top:12px;"><span>AI JSON response</span><textarea id="jsonIn" class="mono-big" placeholder='{"video_concept":"...","scenes":[...],"shorts":[...],"community_post":"..."}'></textarea></label>
       <div class="row" style="margin-top:12px;">
         <button id="btnValidate" class="btn secondary" type="button">VALIDATE JSON</button>
-        <button id="btnImport" class="btn primary" type="button">IMPORT MASTER PACKAGE</button>
+        <button id="btnImportScenes" class="btn primary" type="button">IMPORT SCENES ONLY</button>
+        <button id="btnImport" class="btn secondary" type="button">IMPORT MASTER PACKAGE</button>
         <button id="btnReplace" class="btn danger" type="button">REPLACE EXISTING PACKAGE</button>
       </div>
+      <div class="hint" style="margin-top:10px;">IMPORT SCENES ONLY replaces long-video scenes and leaves Shorts + existing Long Video YouTube/thumbnail metadata untouched. Full Import/Replace still rewrites Shorts.</div>
       <div id="existsNote" class="hint" style="display:none;margin-top:10px;"></div>
       <div id="preview" class="card summary" style="display:none;"></div>
     </div>
 
     <div class="card danger-note">
-      <strong>Safe import:</strong> this fills Long Video, scenes, 5 Shorts, Community, and YouTube packaging for this song. Existing Long Video / Shorts / Community data is copied into revision history first when that table exists. Song lyrics and Suno are not changed.
+      <strong>Safe import:</strong> full Import/Replace fills Long Video, scenes, 5 Shorts, Community, and YouTube packaging. Scenes-only keeps Shorts and existing Long Video metadata. Existing data is copied into revision history first when that table exists. Song lyrics and Suno are not changed.
     </div>
   </div>
 
-  <script type="module" src="svs-nav.js"></script>
+  <script type="module" src="svs-nav.js?v=20260906b"></script>
   <script type="module">
     import { supabase, requireSessionOrRedirect } from "./app.js";
     const $ = (id) => document.getElementById(id);
@@ -383,18 +385,22 @@
       if (openUrl) setTimeout(() => window.open(openUrl, "_blank", "noopener"), 250);
     }
 
+    function validateSceneList(scenes){
+      if (!Array.isArray(scenes) || !scenes.length) throw new Error("JSON needs a non-empty scenes array.");
+      scenes.forEach((s,i) => {
+        if (!s || typeof s !== "object") throw new Error("Scene " + (i+1) + " is invalid.");
+        if (!s.timestamp_start || !s.timestamp_end) throw new Error("Scene " + (i+1) + " needs start and end timestamps.");
+        if (!s.image_prompt || !s.video_prompt) throw new Error("Scene " + (i+1) + " needs image_prompt and video_prompt.");
+      });
+    }
+
     function parsePayload(){
       const raw = cleanJsonText($("jsonIn").value);
       if (!raw) throw new Error("Paste the AI JSON first.");
       const p = JSON.parse(raw);
       if (!p || typeof p !== "object") throw new Error("JSON root must be an object.");
-      if (!Array.isArray(p.scenes) || !p.scenes.length) throw new Error("JSON needs a non-empty scenes array.");
+      validateSceneList(p.scenes);
       if (!Array.isArray(p.shorts) || p.shorts.length !== 5) throw new Error("JSON needs exactly 5 Shorts.");
-      p.scenes.forEach((s,i) => {
-        if (!s || typeof s !== "object") throw new Error("Scene " + (i+1) + " is invalid.");
-        if (!s.timestamp_start || !s.timestamp_end) throw new Error("Scene " + (i+1) + " needs start and end timestamps.");
-        if (!s.image_prompt || !s.video_prompt) throw new Error("Scene " + (i+1) + " needs image_prompt and video_prompt.");
-      });
       p.shorts.forEach((s,i) => {
         if (!s || typeof s !== "object") throw new Error("Short " + (i+1) + " is invalid.");
         if (!s.image_prompt || !s.video_prompt) throw new Error("Short " + (i+1) + " needs image_prompt and video_prompt.");
@@ -402,19 +408,98 @@
       return p;
     }
 
+    function parseScenesOnly(){
+      const raw = cleanJsonText($("jsonIn").value);
+      if (!raw) throw new Error("Paste the AI JSON first.");
+      const p = JSON.parse(raw);
+      if (!p || typeof p !== "object") throw new Error("JSON root must be an object.");
+      // Accept full master JSON or a scenes-only object / bare scenes array wrapper
+      const scenes = Array.isArray(p.scenes) ? p.scenes : (Array.isArray(p) ? p : null);
+      if (!scenes) throw new Error("JSON needs a scenes array (full master package or { \"scenes\": [...] }).");
+      validateSceneList(scenes);
+      return { scenes };
+    }
+
     function validate(){
       try {
         const p = parsePayload();
         $("preview").style.display = "block";
-        $("preview").textContent = "VALID JSON\n\nVideo: " + (p.youtube_title || p.video_concept || "(none)") + "\nScenes: " + p.scenes.length + " (" + p.scenes[0].timestamp_start + " \u2192 " + p.scenes[p.scenes.length-1].timestamp_end + ")\nShorts: " + p.shorts.length + "\nCommunity: " + (safe(p.community_post).slice(0,120) || "(none)");
-        $("msg").textContent = "JSON valid. Import or Replace when ready.";
+        $("preview").textContent = "VALID JSON\n\nVideo: " + (p.youtube_title || p.video_concept || "(none)") + "\nScenes: " + p.scenes.length + " (" + p.scenes[0].timestamp_start + " → " + p.scenes[p.scenes.length-1].timestamp_end + ")\nShorts: " + p.shorts.length + "\nCommunity: " + (safe(p.community_post).slice(0,120) || "(none)");
+        $("msg").textContent = "JSON valid. Import Scenes Only, Import, or Replace when ready.";
         return p;
       } catch (e) {
-        $("preview").style.display = "block";
-        $("preview").textContent = "JSON ERROR\n" + e.message;
-        $("msg").textContent = "Fix the JSON before importing.";
-        return null;
+        // Fall back: still show scenes-only validity if that works
+        try {
+          const s = parseScenesOnly();
+          $("preview").style.display = "block";
+          $("preview").textContent = "VALID SCENES-ONLY JSON\n\nScenes: " + s.scenes.length + " (" + s.scenes[0].timestamp_start + " → " + s.scenes[s.scenes.length-1].timestamp_end + ")\nShorts: not required for IMPORT SCENES ONLY";
+          $("msg").textContent = "Scenes JSON valid. Use IMPORT SCENES ONLY (full Import/Replace still need 5 Shorts).";
+          return null;
+        } catch (e2) {
+          $("preview").style.display = "block";
+          $("preview").textContent = "JSON ERROR\n" + e.message;
+          $("msg").textContent = "Fix the JSON before importing.";
+          return null;
+        }
       }
+    }
+
+    async function writeScenesOnly(p){
+      if (!confirm("Import " + p.scenes.length + " scene(s) onto the Long Video for " + song.title + "?\n\nShorts and existing Long Video YouTube/thumbnail metadata will NOT be changed.")) return;
+      $("msg").textContent = "Saving backup, then importing scenes…";
+      await saveRevision();
+      const now = new Date().toISOString();
+      let pkg = existingPkg;
+      if (!pkg) {
+        const ir = await supabase.from("song_long_packages").insert({
+          song_id: songId,
+          publication_status: "draft",
+          visual_identity_id: visual?.id || null,
+          version: 1,
+          updated_at: now
+        }).select("*").single();
+        if (ir.error) { $("msg").textContent = "Could not create long package shell: " + ir.error.message; return; }
+        pkg = ir.data;
+        existingPkg = pkg;
+      } else {
+        // Touch version only — do not overwrite metadata
+        const ur = await supabase.from("song_long_packages").update({
+          version: (pkg.version || 0) + 1,
+          updated_at: now,
+          visual_identity_id: pkg.visual_identity_id || visual?.id || null
+        }).eq("id", pkg.id).select("*").single();
+        if (ur.error) { $("msg").textContent = "Long package update failed: " + ur.error.message; return; }
+        pkg = ur.data;
+        existingPkg = pkg;
+      }
+
+      const delScenes = await supabase.from("song_long_scenes").delete().eq("long_package_id", pkg.id);
+      if (delScenes.error) { $("msg").textContent = "Could not clear old scenes: " + delScenes.error.message; return; }
+      const sceneRows = p.scenes.map((s,i) => ({
+        long_package_id: pkg.id,
+        scene_number: Number(s.scene_number || (i+1)),
+        lyric_range: safe(s.lyric_range).trim() || null,
+        timestamp_start: safe(s.timestamp_start).trim() || null,
+        timestamp_end: safe(s.timestamp_end).trim() || null,
+        visual_concept: safe(s.visual_concept).trim() || null,
+        image_prompt: safe(s.image_prompt).trim() || null,
+        video_prompt: safe(s.video_prompt).trim() || null,
+        camera_direction: safe(s.camera_direction).trim() || null,
+        production_status: safe(s.production_status).trim() || "todo",
+        visual_identity_id: pkg.visual_identity_id || visual?.id || null,
+        version: 1,
+        updated_at: now
+      }));
+      const insScenes = await supabase.from("song_long_scenes").insert(sceneRows);
+      if (insScenes.error) { $("msg").textContent = "Scene import failed: " + insScenes.error.message; return; }
+
+      await supabase.from("songs").update({ long_packaged: true }).eq("id", songId);
+      existingScenes = sceneRows;
+      $("existsNote").style.display = "block";
+      $("existsNote").textContent = "Scenes imported only. Shorts and Long Video metadata were left alone.";
+      $("msg").textContent = "Imported " + sceneRows.length + " scenes (Shorts untouched).";
+      $("preview").style.display = "block";
+      $("preview").innerHTML = "Scenes imported.<br><br><a class='btn primary' href='./song.html?id=" + encodeURIComponent(songId) + "'>RETURN TO SONG → LONG VIDEO</a>";
     }
 
     async function saveRevision(){
@@ -582,6 +667,18 @@
     $("btnGrok").onclick = () => copyPrompt("https://grok.com/");
     $("btnChatGPT").onclick = () => copyPrompt("https://chatgpt.com/");
     $("btnValidate").onclick = validate;
+    $("btnImportScenes").onclick = async () => {
+      try {
+        const p = parseScenesOnly();
+        $("preview").style.display = "block";
+        $("preview").textContent = "SCENES READY\n\nScenes: " + p.scenes.length + " (" + p.scenes[0].timestamp_start + " → " + p.scenes[p.scenes.length-1].timestamp_end + ")";
+        await writeScenesOnly(p);
+      } catch (e) {
+        $("preview").style.display = "block";
+        $("preview").textContent = "SCENES JSON ERROR\n" + e.message;
+        $("msg").textContent = "Fix the scenes JSON before importing.";
+      }
+    };
     $("btnImport").onclick = importJson;
     $("btnReplace").onclick = replaceJson;
 
