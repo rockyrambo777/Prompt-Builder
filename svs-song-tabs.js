@@ -473,7 +473,7 @@ function renderLong(panel, songId, pkg, scenes) {
 
   const sceneHost = el("div", "");
   sceneHost.id = "lf_scenes";
-  card.appendChild(el("h3", "", "Scenes (one row each, for family collaboration)"));
+  card.appendChild(el("h3", "", "Scenes / stills (image-only slideshow — aim for ~20)"));
   if (!scenes.length) {
     sceneHost.appendChild(el("div", "muted", "No scenes yet. Add the first one."));
   }
@@ -518,14 +518,16 @@ function sceneCard(s) {
     : s.image_prompt;
   card.appendChild(field("Image prompt", "", sceneImageShown, { tag: "textarea" }));
   card.lastChild.querySelector("textarea").className = "sc_image";
-  const sceneVideoShown = (!s.video_prompt || looksLikeStillDump(s.video_prompt))
-    ? composeVideoPrompt({ kind: "long-video", camera: s.camera_direction, body: s.video_prompt })
-    : s.video_prompt;
-  card.appendChild(field("Video prompt", "", sceneVideoShown, { tag: "textarea" }));
-  card.lastChild.querySelector("textarea").className = "sc_video";
-  card.appendChild(field("Camera", "", s.camera_direction, { tag: "textarea" }));
-  card.lastChild.querySelector("textarea").className = "sc_camera";
-  card.appendChild(el("div", "hint", "Generate the still first (Copy image prompt). Copy video prompt is image-to-video and includes camera."));
+  card.appendChild(el("div", "hint", "Image-only slideshow: one still per scene. No image-to-video. No text baked into the still."));
+  // Keep legacy video/camera fields hidden for old rows but do not encourage I2V
+  const vidWrap = field("Video prompt (unused — image-only)", "", s.video_prompt || "", { tag: "textarea" });
+  vidWrap.style.display = "none";
+  vidWrap.querySelector("textarea").className = "sc_video";
+  card.appendChild(vidWrap);
+  const camWrap = field("Camera (unused)", "", s.camera_direction || "", { tag: "textarea" });
+  camWrap.style.display = "none";
+  camWrap.querySelector("textarea").className = "sc_camera";
+  card.appendChild(camWrap);
   card.appendChild(visualIdentitySelect("sc_vi", s.visual_identity_id));
   card.appendChild(identityDownloadRow(identityById(s.visual_identity_id)));
   const scRow = el("div", "row");
@@ -542,27 +544,7 @@ function sceneCard(s) {
     });
     await copyPrompt(block, scImgCopy, "Copy image prompt");
   };
-  const scVidCopy = el("button", "btn secondary", "Copy video prompt");
-  scVidCopy.type = "button";
-  scVidCopy.onclick = async () => {
-    const block = composeVideoPrompt({
-      kind: "long-video",
-      camera: card.querySelector(".sc_camera")?.value,
-      body: card.querySelector(".sc_video")?.value
-    });
-    await copyPrompt(block, scVidCopy, "Copy video prompt");
-  };
-  const camEl = card.querySelector(".sc_camera");
-  const vidEl = card.querySelector(".sc_video");
-  if (camEl && vidEl) {
-    camEl.addEventListener("input", () => {
-      if (!vidEl.value || looksLikeStillDump(vidEl.value) || vidEl.value.startsWith("IMAGE TO VIDEO")) {
-        vidEl.value = composeVideoPrompt({ kind: "long-video", camera: camEl.value, body: "" });
-      }
-    });
-  }
   scRow.appendChild(scImgCopy);
-  scRow.appendChild(scVidCopy);
   card.appendChild(scRow);
   card.appendChild(field("Status", "", s.production_status || "todo"));
   card.lastChild.querySelector("input").className = "sc_status";
@@ -677,15 +659,19 @@ function shortCard(s) {
     : s.image_prompt;
   card.appendChild(field("Image prompt", "", shortImageShown, { tag: "textarea" }));
   card.lastChild.querySelector("textarea").className = "sh_image";
-  const shortCam = s.camera_direction || "";
-  const shortVideoShown = (!s.video_prompt || looksLikeStillDump(s.video_prompt))
-    ? composeVideoPrompt({ kind: "shorts-video", camera: shortCam, hook: s.onscreen_text || s.title, body: s.video_prompt })
-    : s.video_prompt;
-  card.appendChild(field("Video prompt", "", shortVideoShown, { tag: "textarea" }));
-  card.lastChild.querySelector("textarea").className = "sh_video";
-  card.appendChild(field("Camera", "", shortCam, { tag: "textarea" }));
-  card.lastChild.querySelector("textarea").className = "sh_camera";
-  card.appendChild(el("div", "hint", "Generate the still first (Copy image prompt). Copy video prompt is image-to-video and includes camera."));
+  card.appendChild(field("Image prompt 2", "", s.image_prompt_2, { tag: "textarea" }));
+  card.lastChild.querySelector("textarea").className = "sh_image2";
+  card.appendChild(field("Image prompt 3", "", s.image_prompt_3, { tag: "textarea" }));
+  card.lastChild.querySelector("textarea").className = "sh_image3";
+  card.appendChild(el("div", "hint", "Image-only Short: 3 stills (9:16). No image-to-video. No text baked into the stills."));
+  const vidHidden = field("Video prompt (unused)", "", s.video_prompt || "", { tag: "textarea" });
+  vidHidden.style.display = "none";
+  vidHidden.querySelector("textarea").className = "sh_video";
+  card.appendChild(vidHidden);
+  const camHidden = field("Camera (unused)", "", s.camera_direction || "", { tag: "textarea" });
+  camHidden.style.display = "none";
+  camHidden.querySelector("textarea").className = "sh_camera";
+  card.appendChild(camHidden);
   card.appendChild(field("Description", "", s.description, { tag: "textarea" }));
   card.lastChild.querySelector("textarea").className = "sh_desc";
   card.appendChild(field("YouTube tags", "", s.youtube_tags, { tag: "textarea" }));
@@ -711,33 +697,35 @@ function shortCard(s) {
     });
     await copyPrompt(block, shImgCopy, "Copy image prompt");
   };
-  const shVidCopy = el("button", "btn secondary", "Copy video prompt");
-  shVidCopy.type = "button";
-  shVidCopy.onclick = async () => {
-    const block = composeVideoPrompt({
-      kind: "shorts-video",
-      camera: card.querySelector(".sh_camera")?.value,
+  const shImg2Copy = el("button", "btn secondary", "Copy image 2");
+  shImg2Copy.type = "button";
+  shImg2Copy.onclick = async () => {
+    const ident = identityById(card.querySelector(".sh_vi")?.value);
+    const block = composeGeneratorPrompt({
+      kind: "shorts",
+      identity: ident,
       hook: card.querySelector(".sh_onscreen")?.value || card.querySelector(".sh_title")?.value,
-      body: card.querySelector(".sh_video")?.value
+      concept: card.querySelector(".sh_lyric")?.value,
+      body: card.querySelector(".sh_image2")?.value
     });
-    await copyPrompt(block, shVidCopy, "Copy video prompt");
+    await copyPrompt(block, shImg2Copy, "Copy image 2");
   };
-  const shCam = card.querySelector(".sh_camera");
-  const shVid = card.querySelector(".sh_video");
-  if (shCam && shVid) {
-    shCam.addEventListener("input", () => {
-      if (!shVid.value || looksLikeStillDump(shVid.value) || shVid.value.startsWith("IMAGE TO VIDEO")) {
-        shVid.value = composeVideoPrompt({
-          kind: "shorts-video",
-          camera: shCam.value,
-          hook: card.querySelector(".sh_onscreen")?.value || card.querySelector(".sh_title")?.value,
-          body: ""
-        });
-      }
+  const shImg3Copy = el("button", "btn secondary", "Copy image 3");
+  shImg3Copy.type = "button";
+  shImg3Copy.onclick = async () => {
+    const ident = identityById(card.querySelector(".sh_vi")?.value);
+    const block = composeGeneratorPrompt({
+      kind: "shorts",
+      identity: ident,
+      hook: card.querySelector(".sh_onscreen")?.value || card.querySelector(".sh_title")?.value,
+      concept: card.querySelector(".sh_lyric")?.value,
+      body: card.querySelector(".sh_image3")?.value
     });
-  }
+    await copyPrompt(block, shImg3Copy, "Copy image 3");
+  };
   shRow.appendChild(shImgCopy);
-  shRow.appendChild(shVidCopy);
+  shRow.appendChild(shImg2Copy);
+  shRow.appendChild(shImg3Copy);
   card.appendChild(shRow);
   return card;
 }
@@ -746,7 +734,7 @@ function renderShorts(panel, songId, rows) {
   panel.innerHTML = "";
   const card = el("div", "card");
   card.appendChild(el("h2", "", "Shorts"));
-  card.appendChild(el("div", "muted", "Default is at least five. You can add more. Not capped at five."));
+  card.appendChild(el("div", "muted", "Default is five Shorts. Each Short uses 3 still images (slideshow). No image-to-video."));
   card.appendChild(visualIdentityBar("sh", resolvedIdentity && resolvedIdentity.id, "Shorts"));
   const host = el("div", "");
   host.id = "sh_host";
@@ -805,8 +793,10 @@ async function saveShorts(songId) {
       production_status: card.querySelector(".sh_status")?.value || "todo",
       onscreen_text: card.querySelector(".sh_onscreen")?.value || null,
       image_prompt: card.querySelector(".sh_image")?.value || null,
-      video_prompt: card.querySelector(".sh_video")?.value || null,
-      camera_direction: card.querySelector(".sh_camera")?.value || null,
+      image_prompt_2: card.querySelector(".sh_image2")?.value || null,
+      image_prompt_3: card.querySelector(".sh_image3")?.value || null,
+      video_prompt: null,
+      camera_direction: null,
       description: card.querySelector(".sh_desc")?.value || null,
       youtube_tags: card.querySelector(".sh_tags")?.value || null,
       hashtags: card.querySelector(".sh_hash")?.value || null,
@@ -822,7 +812,7 @@ async function saveShorts(songId) {
       if (!wr.ok) { msg.textContent = "Save failed: " + wr.error; msg.className = "msg error"; return; }
       if (wr.dropped && wr.dropped.length) warnMissing = true;
     } else {
-      const empty = !payload.title && !payload.lyric_range && !payload.onscreen_text && !payload.image_prompt && !payload.video_prompt && !payload.youtube_tags && !payload.pinned_comment;
+      const empty = !payload.title && !payload.lyric_range && !payload.onscreen_text && !payload.image_prompt && !payload.image_prompt_2 && !payload.image_prompt_3 && !payload.youtube_tags && !payload.pinned_comment;
       if (!empty) {
         const wr = await writeShortRow(null, payload, 1);
         if (!wr.ok) { msg.textContent = "Save failed: " + wr.error; msg.className = "msg error"; return; }

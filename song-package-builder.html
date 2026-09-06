@@ -50,7 +50,7 @@
 
     <div class="card">
       <h2><span class="step">2</span>Master prompt</h2>
-      <div class="muted">One prompt for Long Video, 5 Shorts, Community, and YouTube. Paste it into Grok or ChatGPT once.</div>
+      <div class="muted">One prompt for an image-only slideshow package: ~20 long stills + 5 Shorts with 3 stills each + Community + YouTube. No image-to-video.</div>
       <div class="row" style="margin-top:14px;">
         <button id="btnBuildPrompt" class="btn primary" type="button">BUILD MASTER PROMPT</button>
         <button id="btnCopyPrompt" class="btn secondary" type="button">COPY MASTER PROMPT</button>
@@ -64,7 +64,7 @@
     <div class="card">
       <h2><span class="step">3</span>Paste JSON and import</h2>
       <div class="muted">The AI must return JSON only. Validate before anything is written.</div>
-      <label class="field" style="margin-top:12px;"><span>AI JSON response</span><textarea id="jsonIn" class="mono-big" placeholder='{"video_concept":"...","scenes":[...],"shorts":[...],"community_post":"..."}'></textarea></label>
+      <label class="field" style="margin-top:12px;"><span>AI JSON response</span><textarea id="jsonIn" class="mono-big" placeholder='{"video_concept":"...","scenes":[/* 20 stills */],"shorts":[/* 5 x 3 images */],"community_post":"..."}'></textarea></label>
       <div class="row" style="margin-top:12px;">
         <button id="btnValidate" class="btn secondary" type="button">VALIDATE JSON</button>
         <button id="btnImportScenes" class="btn primary" type="button">IMPORT SCENES ONLY</button>
@@ -81,7 +81,7 @@
     </div>
   </div>
 
-  <script type="module" src="svs-nav.js?v=20260906b"></script>
+  <script type="module" src="svs-nav.js?v=20260906c"></script>
   <script type="module">
     import { supabase, requireSessionOrRedirect } from "./app.js";
     const $ = (id) => document.getElementById(id);
@@ -234,6 +234,28 @@
     }
 
     function jsonShape(){
+      const scene = (n, start, end) => ({
+        scene_number: n,
+        lyric_range: "",
+        timestamp_start: start,
+        timestamp_end: end,
+        visual_concept: "",
+        image_prompt: "",
+        production_status: "todo"
+      });
+      const short = (n) => ({
+        short_number: n,
+        title: "",
+        lyric_range: "",
+        onscreen_text: "",
+        image_prompt: "",
+        image_prompt_2: "",
+        image_prompt_3: "",
+        youtube_title: "",
+        youtube_description: "",
+        hashtags: "",
+        production_status: "todo"
+      });
       return {
         video_concept: "",
         artist_image_direction: "",
@@ -246,29 +268,8 @@
         thumbnail_concept: "",
         thumbnail_prompt: "",
         playlist_name: "",
-        scenes: [{
-          scene_number: 1,
-          lyric_range: "",
-          timestamp_start: "0:00",
-          timestamp_end: "0:12",
-          visual_concept: "",
-          image_prompt: "",
-          video_prompt: "",
-          camera_direction: "",
-          production_status: "todo"
-        }],
-        shorts: [{
-          short_number: 1,
-          title: "",
-          lyric_range: "",
-          onscreen_text: "",
-          image_prompt: "",
-          video_prompt: "",
-          youtube_title: "",
-          youtube_description: "",
-          hashtags: "",
-          production_status: "todo"
-        }],
+        scenes: Array.from({ length: 20 }, (_, i) => scene(i + 1, "0:00", "0:12")),
+        shorts: Array.from({ length: 5 }, (_, i) => short(i + 1)),
         community_post: "",
         recommended_release_order: "",
         recommended_publish_spacing: ""
@@ -332,41 +333,33 @@
       out.push("LYRICS:");
       out.push(safe(song?.lyrics) || "(none)");
       out.push("");
-      out.push("WHAT TO CREATE:");
-      out.push("- Complete long-form music video package timed to the song.");
-      out.push("- Exactly 5 Shorts.");
+      out.push("WHAT TO CREATE (IMAGE-ONLY SLIDESHOW — NO VIDEO GENERATION):");
+      out.push("- Long-form lyric video as a SLIDESHOW of still images that change through the song.");
+      out.push("- Exactly 20 long scenes/stills timed across the song (image_prompt required each; no video_prompt).");
+      out.push("- Exactly 5 Shorts. Each Short is 3 still images (image_prompt, image_prompt_2, image_prompt_3) — not one still + video.");
       out.push("- One Community post.");
       out.push("- YouTube title, description, tags, hashtags, pinned comment, thumbnail hook/concept/prompt, playlist name.");
-      out.push("- Keep the same artist visual identity throughout.");
+      out.push("- Do NOT create image-to-video prompts. Do NOT include video_prompt or camera_direction fields.");
       out.push("");
       out.push("IMAGE PROMPT RULES (every long scene still and every Short still):");
       if (visual && identityHasImage) {
-        out.push("- Still image first. The generator will use the artist reference photo.");
-        out.push("- Start from USE IMAGE: change the uploaded artist photo into this scene. Keep the same face, hair, and wardrobe. Do not replace the person.");
+        out.push("- The generator may use the artist reference photo when present.");
+        out.push("- Start from USE IMAGE when a reference photo exists: change the uploaded artist photo into this scene. Keep the same face, hair, and wardrobe.");
         out.push("- Do NOT paste a VISUAL ARTIST IDENTITY essay as the image prompt. The photo is the look.");
       } else if (visual) {
         out.push("- This artist has a visual identity but no reference photo in SVS.");
         out.push("- Do not use USE IMAGE and do not include an artist photo.");
         out.push("- Describe the still from the identity notes and the scene concept.");
       } else {
-        out.push("- This artist has no visual identity in SVS.");
+        out.push("- This artist has no visual identity in SVS (intentional for some artists).");
         out.push("- Do not include an artist image. Do not use USE IMAGE. Do not invent a branded face reference.");
-        out.push("- Write cinematic stills from the scene concept only.");
+        out.push("- Write cinematic concept stills for that part of the song only.");
       }
+      out.push("- Each image_prompt must describe THAT part of the song (lyric/moment), suitable as a slideshow still.");
       out.push("- NO text baked into still images (not lyrics, not titles, not hooks on scene/Short stills).");
       out.push("- Thumbnail is the exception: thumbnail_prompt may include hook text ON the thumbnail.");
       out.push("");
-      out.push("VIDEO PROMPT RULES:");
-      out.push("- IMAGE TO VIDEO. Start from the still just generated. Use that image as the first frame.");
-      out.push("- Put camera movement INSIDE video_prompt (and also in camera_direction).");
-      if (visual && identityHasImage) {
-        out.push("- Keep the exact artist. No warping, no new people.");
-      } else {
-        out.push("- Animate the still. No extra people unless the scene needs them.");
-      }
-      out.push("- Example camera: Slow wide push-in from landscape toward subject. Hold horizon low.");
-      out.push("");
-      out.push("SHORTS: vertical 9:16. Five items. Each needs title, lyric_range, onscreen_text, image_prompt, video_prompt, youtube_title, youtube_description, hashtags.");
+      out.push("SHORTS: vertical 9:16. Five items. Each needs title, lyric_range, onscreen_text, image_prompt, image_prompt_2, image_prompt_3, youtube_title, youtube_description, hashtags.");
       out.push("COMMUNITY: one warm post that fits the song, artist, and scripture if present.");
       out.push("production_status for scenes and shorts must be \"todo\".");
       out.push("");
@@ -390,7 +383,7 @@
       scenes.forEach((s,i) => {
         if (!s || typeof s !== "object") throw new Error("Scene " + (i+1) + " is invalid.");
         if (!s.timestamp_start || !s.timestamp_end) throw new Error("Scene " + (i+1) + " needs start and end timestamps.");
-        if (!s.image_prompt || !s.video_prompt) throw new Error("Scene " + (i+1) + " needs image_prompt and video_prompt.");
+        if (!s.image_prompt) throw new Error("Scene " + (i+1) + " needs image_prompt (image-only slideshow).");
       });
     }
 
@@ -401,9 +394,10 @@
       if (!p || typeof p !== "object") throw new Error("JSON root must be an object.");
       validateSceneList(p.scenes);
       if (!Array.isArray(p.shorts) || p.shorts.length !== 5) throw new Error("JSON needs exactly 5 Shorts.");
+      if (!Array.isArray(p.scenes) || p.scenes.length < 15) throw new Error("JSON should have about 20 long scenes (got " + (p.scenes && p.scenes.length) + "). Prefer exactly 20.");
       p.shorts.forEach((s,i) => {
         if (!s || typeof s !== "object") throw new Error("Short " + (i+1) + " is invalid.");
-        if (!s.image_prompt || !s.video_prompt) throw new Error("Short " + (i+1) + " needs image_prompt and video_prompt.");
+        if (!s.image_prompt || !s.image_prompt_2 || !s.image_prompt_3) throw new Error("Short " + (i+1) + " needs image_prompt, image_prompt_2, and image_prompt_3 (3 stills).");
       });
       return p;
     }
@@ -483,8 +477,8 @@
         timestamp_end: safe(s.timestamp_end).trim() || null,
         visual_concept: safe(s.visual_concept).trim() || null,
         image_prompt: safe(s.image_prompt).trim() || null,
-        video_prompt: safe(s.video_prompt).trim() || null,
-        camera_direction: safe(s.camera_direction).trim() || null,
+        video_prompt: null,
+        camera_direction: null,
         production_status: safe(s.production_status).trim() || "todo",
         visual_identity_id: pkg.visual_identity_id || visual?.id || null,
         version: 1,
@@ -592,8 +586,8 @@
         timestamp_end: safe(s.timestamp_end).trim() || null,
         visual_concept: safe(s.visual_concept).trim() || null,
         image_prompt: safe(s.image_prompt).trim() || null,
-        video_prompt: safe(s.video_prompt).trim() || null,
-        camera_direction: safe(s.camera_direction).trim() || null,
+        video_prompt: null,
+        camera_direction: null,
         production_status: safe(s.production_status).trim() || "todo",
         visual_identity_id: pkg.visual_identity_id || visual?.id || null,
         version: 1,
@@ -611,9 +605,14 @@
         lyric_range: safe(s.lyric_range).trim() || null,
         onscreen_text: safe(s.onscreen_text).trim() || null,
         image_prompt: safe(s.image_prompt).trim() || null,
-        video_prompt: safe(s.video_prompt).trim() || null,
+        image_prompt_2: safe(s.image_prompt_2).trim() || null,
+        image_prompt_3: safe(s.image_prompt_3).trim() || null,
+        video_prompt: null,
+        camera_direction: null,
         description: safe(s.youtube_description || s.description).trim() || null,
         hashtags: textList(s.hashtags).trim() || null,
+        youtube_tags: textList(s.youtube_tags).trim() || null,
+        pinned_comment: safe(s.pinned_comment).trim() || null,
         production_status: safe(s.production_status).trim() || "todo",
         visual_identity_id: visual?.id || null,
         version: 1,
