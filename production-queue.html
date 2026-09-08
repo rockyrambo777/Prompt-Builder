@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SVS – Production</title>
+  <link rel="stylesheet" href="svs.css" />
+</head>
+<body>
+  <div id="svs-nav"></div>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1>Production queue</h1>
+        <div class="muted">Songs missing lyrics and albums still in producing/approved. Open a song to use the Production workspace.</div>
+        <div id="who" class="muted"></div>
+      </div>
+      <div class="row">
+        <button id="btnRefresh" class="btn secondary">Refresh</button>
+      </div>
+    </div>
+    <div id="msg" class="msg muted"></div>
+
+    <div class="card">
+      <h2>Filters</h2>
+      <div class="row">
+        <label class="field" style="margin:0; min-width:200px;">
+          <span>Artist</span>
+          <select id="fArtist"><option value="">All artists</option></select>
+        </label>
+        <label class="field" style="margin:0; min-width:200px;">
+          <span>Album</span>
+          <select id="fAlbum"><option value="">All albums</option></select>
+        </label>
+        <label class="field" style="margin:0; min-width:180px;">
+          <span>Type</span>
+          <select id="fType"><option value="">All types</option></select>
+        </label>
+        <label class="field" style="margin:0; min-width:180px;">
+          <span>Status</span>
+          <select id="fStatus">
+            <option value="">All statuses</option>
+            <option value="draft">draft</option>
+            <option value="ideation">ideation</option>
+            <option value="approved">approved</option>
+            <option value="producing">producing</option>
+            <option value="released">released</option>
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Songs missing lyrics</h2>
+      <div id="songList" class="muted">Loading…</div>
+    </div>
+
+    <div class="card">
+      <h2>Albums in producing / approved</h2>
+      <div id="albumList" class="muted">Loading…</div>
+    </div>
+  </div>
+
+  <script type="module" src="svs-nav.js"></script>
+  <script type="module">
+    import { supabase, requireSessionOrRedirect } from "./app.js";
+    const $ = (id) => document.getElementById(id);
+
+    const session = await requireSessionOrRedirect();
+    $("who").textContent = "Signed in: " + session.user.email;
+
+    function safe(v) { return (v === null || v === undefined) ? "" : String(v); }
+    function lyricsMissing(s) {
+      const done = s.lyrics_done === true;
+      const text = safe(s.lyrics).trim();
+      return !done && text.length === 0;
+    }
+    function dittoIsLive(a) {
+      if (!a) return false;
+      const st = safe(a.ditto_status).toLowerCase();
+      if (a.ditto_distributed === true) return true;
+      return st.includes("released") || st.includes("live") || st === "published" || st === "released_live_on_stores";
+    }
+    function youtubeIsLive(a) {
+      if (!a) return false;
+      if (a.youtube_playlist_url) return true;
+      const st = safe(a.youtube_recon_status || a.youtube_status).toLowerCase();
+      return st === "matched" || st === "published" || st === "live";
+    }
+    function displayAlbumStatus(al) {
+      if (dittoIsLive(al) && youtubeIsLive(al)) return "released";
+      const albumSongs = songs.filter((s) => s.album_id === al.id);
+      if (albumSongs.length && albumSongs.every((s) => {
+        const st = safe(s.production_status).toLowerCase();
+        return st === "released" || st === "distributed";
+      })) return "released";
+      return safe(al.status).toLowerCase();
+    }
+    function displaySongStatus(s, al) {
+      const st = safe(s.production_status).toLowerCase();
+      if (st === "released" || st === "distributed") return st || "released";
+      if (al && displayAlbumStatus(al) === "released" && st && st !== "ideation" && st !== "draft") return "released";
+      return st || safe(al && al.status);
+    }
+
+    let artists = [];
+    let albums = [];
+    let songs = [];
+
+    function artistName(id) {
+      const a = artists.find((x) => x.id === id);
+      return a ? (a.name || "(unnamed)") : "";
+    }
+    function albumMeta(id) {
+      return albums.find((x) => x.id === id) || null;
+    }
+
+    function fillSelect(sel, items, getVal, getLabel, keep) {
+      const current = sel.value;
+      sel.innerHTML = "";
+      const all = document.createElement("option");
+      all.value = "";
+      all.textContent = keep;
+      sel.appendChild(all);
+      for (const it of items) {
+        const o = document.createElement("option");
+        o.value = getVal(it);
+        o.textContent = getLabel(it);
+        sel.appendChild(o);
+      }
+      if ([...sel.options].some((o) => o.value === current)) sel.value = current;
+    }
+
+    function render() {
+      const artistId = $("fArtist").value;
+      const albumId = $("fAlbum").value;
+      const type = $("fType").value;
+      const status = $("fStatus").value;
+
+      const visibleAlbums = albums.filter((al) => {
+        if (artistId && al.artist_id !== artistId) return false;
+        if (type && safe(al.album_type) !== type) return false;
+        if (status && displayAlbumStatus(al) !== status && safe(al.status) !== status) return false;
+        return true;
+      });
+      const visibleAlbumIds = new Set(visibleAlbums.map((a) => a.id));
+
+      fillSelect(
+        $("fAlbum"),
+        visibleAlbums,
+        (a) => a.id,
+        (a) => (safe(a.title) || "(untitled)") + " — " + artistName(a.artist_id),
+        "All albums"
+      );
+
+      const missing = songs.filter((s) => {
+        if (!lyricsMissing(s)) return false;
+        if (albumId && s.album_id !== albumId) return false;
+        if (!visibleAlbumIds.has(s.album_id)) return false;
+        return true;
+      });
+
+      const songHost = $("songList");
+      if (!missing.length) {
+        songHost.innerHTML = "<div class='muted'>No songs missing lyrics for these filters.</div>";
+      } else {
+        const table = document.createElement("table");
+        table.className = "data";
+        table.innerHTML = "<thead><tr><th>Artist</th><th>Album</th><th>#</th><th>Title</th><th>Status</th></tr></thead>";
+        const tb = document.createElement("tbody");
+        for (const s of missing) {
+          const al = albumMeta(s.album_id);
+          const tr = document.createElement("tr");
+          const title = safe(s.title) || "(untitled)";
+          tr.innerHTML =
+            "<td>" + artistName(al && al.artist_id) + "</td>" +
+            "<td>" + (al ? "<a class='link' href='./album-edit.html?id=" + encodeURIComponent(al.id) + "'>" + (safe(al.title) || "(untitled)") + "</a>" : "—") + "</td>" +
+            "<td>" + (s.track_number != null ? s.track_number : "—") + "</td>" +
+            "<td><a class='link' href='./production.html?album_id=" + encodeURIComponent(s.album_id) + "&song_id=" + encodeURIComponent(s.id) + "'>" + title + "</a></td>" +
+            "<td>" + displaySongStatus(s, al) + "</td>";
+          tb.appendChild(tr);
+        }
+        table.appendChild(tb);
+        songHost.innerHTML = "";
+        songHost.appendChild(table);
+      }
+
+      const queueAlbums = visibleAlbums.filter((al) => {
+        if (albumId && al.id !== albumId) return false;
+        const st = safe(al.status);
+        return st === "producing" || st === "approved";
+      });
+      const albumHost = $("albumList");
+      if (!queueAlbums.length) {
+        albumHost.innerHTML = "<div class='muted'>No producing/approved albums for these filters.</div>";
+      } else {
+        const table = document.createElement("table");
+        table.className = "data";
+        table.innerHTML = "<thead><tr><th>Artist</th><th>Album</th><th>Type</th><th>Status</th><th>Prod</th></tr></thead>";
+        const tb = document.createElement("tbody");
+        for (const al of queueAlbums) {
+          const tr = document.createElement("tr");
+          tr.innerHTML =
+            "<td>" + artistName(al.artist_id) + "</td>" +
+            "<td><a class='link' href='./album-edit.html?id=" + encodeURIComponent(al.id) + "'>" + (safe(al.title) || "(untitled)") + "</a></td>" +
+            "<td>" + safe(al.album_type) + "</td>" +
+            "<td>" + displayAlbumStatus(al) + "</td>" +
+            "<td>" + safe(al.production_status) + "</td>";
+          tb.appendChild(tr);
+        }
+        table.appendChild(tb);
+        albumHost.innerHTML = "";
+        albumHost.appendChild(table);
+      }
+
+      $("msg").textContent =
+        missing.length + " song(s) missing lyrics · " + queueAlbums.length + " album(s) in producing/approved.";
+    }
+
+    async function load() {
+      $("msg").textContent = "Loading work queue…";
+      const { data: ar, error: aErr } = await supabase
+        .from("artists")
+        .select("id,name,is_active")
+        .eq("is_active", true)
+        .order("name");
+      if (aErr) { $("msg").textContent = "Error: " + aErr.message; return; }
+      artists = ar || [];
+      const activeIds = new Set(artists.map((a) => a.id));
+
+      const { data: al, error: alErr } = await supabase
+        .from("albums")
+        .select("id,title,status,album_type,production_status,artist_id,created_at,ditto_status,ditto_distributed,youtube_playlist_url,youtube_recon_status")
+        .order("created_at", { ascending: false });
+      if (alErr) { $("msg").textContent = "Error: " + alErr.message; return; }
+      albums = (al || []).filter((x) => activeIds.has(x.artist_id));
+
+      const albumIds = albums.map((x) => x.id);
+      songs = [];
+      if (albumIds.length) {
+        const { data: sg, error: sErr } = await supabase
+          .from("songs")
+          .select("id,album_id,title,track_number,lyrics,lyrics_done,production_status")
+          .in("album_id", albumIds)
+          .order("track_number");
+        if (sErr) { $("msg").textContent = "Error: " + sErr.message; return; }
+        songs = sg || [];
+      }
+
+      fillSelect($("fArtist"), artists, (a) => a.id, (a) => a.name || "(unnamed)", "All artists");
+      const types = [...new Set(albums.map((a) => safe(a.album_type)).filter(Boolean))].sort();
+      fillSelect($("fType"), types.map((t) => ({ id: t, label: t })), (t) => t.id, (t) => t.label, "All types");
+      render();
+    }
+
+    $("fArtist").onchange = render;
+    $("fAlbum").onchange = render;
+    $("fType").onchange = render;
+    $("fStatus").onchange = render;
+    $("btnRefresh").onclick = load;
+
+    await load();
+  </script>
+</body>
+</html>

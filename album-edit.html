@@ -326,12 +326,12 @@ function safeText(v){ return (v === null || v === undefined) ? "" : String(v); }
         ytCb && (ytCb.onchange = () => updateFlag("youtube_published", ytCb.checked));
         dittoCb && (dittoCb.onchange = () => updateFlag("ditto_released", dittoCb.checked));
 tr.querySelector("[data-lyrics]").onclick = () => {
-          window.location.href = `./song.html?id=${encodeURIComponent(s.id)}`;
+          window.location.href = `./production.html?album_id=${encodeURIComponent(id)}&song_id=${encodeURIComponent(s.id)}`;
         };
 
         const openCell = tr.querySelector("[data-open-production]");
         openCell && (openCell.onclick = () => {
-          window.location.href = `./song.html?id=${encodeURIComponent(s.id)}`;
+          window.location.href = `./production.html?album_id=${encodeURIComponent(id)}&song_id=${encodeURIComponent(s.id)}`;
         });
 
         tr.querySelector("[data-suno-pack]").onclick = () => {
