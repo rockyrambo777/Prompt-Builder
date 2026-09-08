@@ -184,7 +184,12 @@
       $("statusLine").textContent = "Copied style + lyrics ✅";
     };
     $("btnProduction").onclick = () => {
-      window.location.href = "./song.html?id=" + encodeURIComponent(songId);
+      const albumId = song?.album_id || albumIdFromUrl || "";
+      if (albumId) {
+        window.location.href = "./production.html?album_id=" + encodeURIComponent(albumId) + "&song_id=" + encodeURIComponent(songId);
+      } else {
+        window.location.href = "./production.html?song_id=" + encodeURIComponent(songId);
+      }
     };
     $("btnVideo").onclick = () => {
       const albumId = song?.album_id || albumIdFromUrl || "";

@@ -3,7 +3,7 @@ import { supabase } from "./app.js";
 const LINKS = [
   { href: "home.html", label: "HOME" },
   { href: "artists.html", label: "ARTISTS" },
-  { href: "production.html", label: "PRODUCTION" },
+  { href: "production-queue.html", label: "PRODUCTION" },
   { href: "schedule.html", label: "SCHEDULE" },
   { href: "distribution.html", label: "DISTRIBUTION" },
   { href: "catalogue.html", label: "CATALOGUE" },
@@ -25,7 +25,8 @@ function pageMatches(href, page) {
   if (h === "home.html" && (page === "" || page === "index.html")) return false;
   if (h === "artists.html" && (page === "artist-view.html" || page === "artist_view_filtered.html" || page === "artist-edit.html" || page === "artist-new.html")) return true;
   if (h === "distribution.html" && (page === "youtube.html" || page === "distribution-ditto.html" || page === "distribution-bandcamp.html" || page === "catalogue.html")) return true;
-  if (h === "home.html" && page === "home.html") return true;
+  if (h === "production.html" && (page === "production.html" || page === "production-queue.html")) return true;
+  if (h === "production-queue.html" && (page === "production.html" || page === "production-queue.html")) return true;
   return false;
 }
 
